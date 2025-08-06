@@ -48,7 +48,6 @@ const Dashboard: React.FC = () => {
     },
     smooth: true,
     height: 300,
-    watermark: false,
   };
 
   const pieConfig = {
@@ -62,7 +61,6 @@ const Dashboard: React.FC = () => {
       content: (data: any) => `${data.type}: ${(data.percent * 100).toFixed(0)}%`,
     },
     height: 300,
-    watermark: false,
   };
 
   // Calendar data for stock estimation
