@@ -118,7 +118,18 @@ export default [
     path: '/monitoring',
     name: 'monitoring',
     icon: 'eye',
-    component: './monitoring',
+    routes: [
+      {
+        path: '/monitoring',
+        component: './monitoring',
+      },
+      {
+        path: '/monitoring/detail/:id',
+        name: 'monitoring-detail',
+        component: './monitoring/detail',
+        hideInMenu: true,
+      },
+    ],
   },
   {
     path: '/reports',

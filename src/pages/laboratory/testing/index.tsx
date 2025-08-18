@@ -1,451 +1,885 @@
-import { PageContainer, ProTable } from '@ant-design/pro-components';
-import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { 
-  Button, 
-  Tag, 
-  Space, 
-  Modal, 
-  Form, 
-  Input, 
-  InputNumber, 
-  Select, 
-  message,
-  Descriptions,
-  Card,
-  Steps,
-  Progress
-} from 'antd';
-import { 
-  ExperimentOutlined, 
-  EditOutlined, 
-  EyeOutlined,
-  PlayCircleOutlined,
+import {
+  AlertOutlined,
   CheckCircleOutlined,
-  SyncOutlined
+  ClockCircleOutlined,
+  EditOutlined,
+  ExperimentOutlined,
+  EyeOutlined,
+  PlusOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
-import { useRef, useState } from 'react';
+import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
+import {
+  Badge,
+  Button,
+  Card,
+  Col,
+  Descriptions,
+  Drawer,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  message,
+  Progress,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Steps,
+  Tag,
+  Timeline,
+} from 'antd';
+import dayjs from 'dayjs';
+import React, { useRef, useState } from 'react';
 
-interface TestSample {
+interface TestingRecord {
   id: string;
-  sampleCode: string;
-  productType: string;
-  shipName: string;
-  laboratory: string;
-  receivedDate: string;
-  testStatus: 'received' | 'testing' | 'completed' | 'failed';
-  testProgress: number;
-  testResults?: {
-    density?: number;
-    viscosity?: number;
-    waterContent?: number;
-    flashPoint?: number;
-  };
-  currentEquipment?: string;
-  estimatedCompletion?: string;
+  sample_id: string;
+  order_number: string;
+  sample_type: string;
+  vessel_name: string;
+  tank_number: string;
+  received_date: string;
+  testing_status:
+    | 'received'
+    | 'registered'
+    | 'testing'
+    | 'waiting_equipment'
+    | 'completed'
+    | 'failed';
+  lab_technician: string;
+  equipment_used?: string;
+  test_parameters: string[];
+  test_results: { [key: string]: any };
+  progress_percentage: number;
+  priority: 'normal' | 'urgent' | 'critical';
+  estimated_completion: string;
+  actual_completion?: string;
+  quality_notes?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 const LaboratoryTesting: React.FC = () => {
-  const actionRef = useRef<ActionType>(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [viewingRecord, setViewingRecord] = useState<
+    TestingRecord | undefined
+  >();
+  const [editingRecord, setEditingRecord] = useState<
+    TestingRecord | undefined
+  >();
+  const actionRef = useRef<ActionType>();
   const [form] = Form.useForm();
-  const [modalVisible, setModalVisible] = useState(false);
-  const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [selectedSample, setSelectedSample] = useState<TestSample | null>(null);
 
-  const columns: ProColumns<TestSample>[] = [
+  const testingStatusOptions = [
+    { label: 'Received', value: 'received' },
+    { label: 'Registered', value: 'registered' },
+    { label: 'Testing', value: 'testing' },
+    { label: 'Waiting Equipment', value: 'waiting_equipment' },
+    { label: 'Completed', value: 'completed' },
+    { label: 'Failed', value: 'failed' },
+  ];
+
+  const labTechnicianOptions = [
+    { label: 'Dr. Ahmad Laboratorium', value: 'ahmad-lab' },
+    { label: 'Ir. Budi Santoso', value: 'budi-santoso' },
+    { label: 'Drs. Cahaya Wijaya', value: 'cahaya-wijaya' },
+    { label: 'Dr. Siti Rahayu', value: 'siti-rahayu' },
+  ];
+
+  const equipmentOptions = [
+    { label: 'Viscometer Alat A', value: 'viscometer-a' },
+    { label: 'Viscometer Alat B', value: 'viscometer-b' },
+    { label: 'Flash Point Tester', value: 'flash-point' },
+    { label: 'Karl Fischer Titrator', value: 'karl-fischer' },
+    { label: 'Density Meter', value: 'density-meter' },
+    { label: 'Freeze Point Tester', value: 'freeze-point' },
+    { label: 'GC-MS System', value: 'gc-ms' },
+  ];
+
+  const testParameterOptions = [
     {
-      title: 'Kode Sampel',
-      dataIndex: 'sampleCode',
-      key: 'sampleCode',
-      copyable: true,
+      label: 'Kadar Air',
+      value: 'water_content',
+      unit: 'ppm',
+      standard: '< 30',
     },
     {
-      title: 'Jenis Produk',
-      dataIndex: 'productType',
-      key: 'productType',
-      valueEnum: {
-        'JET A-1': { text: 'JET A-1', status: 'Processing' },
-        'Avgas': { text: 'Avgas', status: 'Success' },
-        'Diesel': { text: 'Diesel', status: 'Warning' },
+      label: 'Viskositas',
+      value: 'viscosity',
+      unit: 'cSt',
+      standard: '1.0-3.0',
+    },
+    { label: 'Densitas', value: 'density', unit: 'kg/m³', standard: '775-840' },
+    {
+      label: 'Flash Point',
+      value: 'flash_point',
+      unit: '°C',
+      standard: '> 38',
+    },
+    {
+      label: 'Freeze Point',
+      value: 'freeze_point',
+      unit: '°C',
+      standard: '< -47',
+    },
+    {
+      label: 'Sulfur Content',
+      value: 'sulfur_content',
+      unit: 'mg/kg',
+      standard: '< 3000',
+    },
+    { label: 'Aromatics', value: 'aromatics', unit: '%v/v', standard: '< 25' },
+  ];
+
+  const handleView = (record: TestingRecord) => {
+    setViewingRecord(record);
+    setEditingRecord(undefined);
+    setDrawerVisible(true);
+  };
+
+  const handleEdit = (record: TestingRecord) => {
+    setEditingRecord(record);
+    setViewingRecord(undefined);
+    form.setFieldsValue(record);
+    setDrawerVisible(true);
+  };
+
+  const handleSubmit = async (values: any) => {
+    try {
+      if (editingRecord) {
+        message.success('Data pengujian berhasil diperbarui');
+      } else {
+        message.success('Data pengujian berhasil ditambahkan');
+      }
+      setDrawerVisible(false);
+      form.resetFields();
+      actionRef.current?.reload();
+    } catch (error) {
+      message.error('Gagal menyimpan data pengujian');
+    }
+  };
+
+  const handleStatusUpdate = (record: TestingRecord, newStatus: string) => {
+    Modal.confirm({
+      title: 'Update Status',
+      content: `Apakah Anda yakin ingin mengubah status menjadi "${newStatus}"?`,
+      onOk() {
+        message.success(`Status berhasil diubah menjadi ${newStatus}`);
+        actionRef.current?.reload();
       },
-    },
+    });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'received':
+        return 'default';
+      case 'registered':
+        return 'processing';
+      case 'testing':
+        return 'warning';
+      case 'waiting_equipment':
+        return 'error';
+      case 'completed':
+        return 'success';
+      case 'failed':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'received':
+        return 'Diterima';
+      case 'registered':
+        return 'Terdaftar';
+      case 'testing':
+        return 'Sedang Diuji';
+      case 'waiting_equipment':
+        return 'Menunggu Alat';
+      case 'completed':
+        return 'Selesai';
+      case 'failed':
+        return 'Gagal';
+      default:
+        return status;
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'normal':
+        return 'default';
+      case 'urgent':
+        return 'warning';
+      case 'critical':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  const getProgressColor = (percentage: number) => {
+    if (percentage >= 90) return '#9fe400';
+    if (percentage >= 70) return '#faad14';
+    if (percentage >= 50) return '#1890ff';
+    return '#fd0017';
+  };
+
+  const columns: ProColumns<TestingRecord>[] = [
     {
-      title: 'Kapal',
-      dataIndex: 'shipName',
-      key: 'shipName',
-    },
-    {
-      title: 'Laboratorium',
-      dataIndex: 'laboratory',
-      key: 'laboratory',
-    },
-    {
-      title: 'Tanggal Diterima',
-      dataIndex: 'receivedDate',
-      key: 'receivedDate',
-      valueType: 'date',
-    },
-    {
-      title: 'Status Pengujian',
-      dataIndex: 'testStatus',
-      key: 'testStatus',
-      render: (_, record) => {
-        const statusConfig = {
-          received: { color: 'blue', text: 'Diterima', icon: <SyncOutlined /> },
-          testing: { color: 'orange', text: 'Sedang Diuji', icon: <ExperimentOutlined /> },
-          completed: { color: 'green', text: 'Selesai', icon: <CheckCircleOutlined /> },
-          failed: { color: 'red', text: 'Gagal', icon: <ExperimentOutlined /> },
-        };
-        const config = statusConfig[record.testStatus];
-        return (
-          <Tag color={config.color} icon={config.icon}>
-            {config.text}
-          </Tag>
-        );
-      },
-    },
-    {
-      title: 'Progress',
-      dataIndex: 'testProgress',
-      key: 'testProgress',
+      title: 'Sample ID',
+      dataIndex: 'sample_id',
+      key: 'sample_id',
       render: (_, record) => (
-        <Progress 
-          percent={record.testProgress} 
-          size="small" 
-          strokeColor="#9fe400"
-          style={{ width: 100 }}
-        />
+        <Space direction="vertical" size={0}>
+          <span style={{ fontWeight: 500 }}>{record.sample_id}</span>
+          <span style={{ fontSize: '12px', color: '#666' }}>
+            {record.order_number}
+          </span>
+          <Tag color={getPriorityColor(record.priority)} size="small">
+            {record.priority.toUpperCase()}
+          </Tag>
+        </Space>
       ),
     },
     {
-      title: 'Alat Saat Ini',
-      dataIndex: 'currentEquipment',
-      key: 'currentEquipment',
-      render: (_, record) => record.currentEquipment || '-',
+      title: 'Detail Sampel',
+      dataIndex: 'sample_type',
+      key: 'sample_type',
+      render: (_, record) => (
+        <div>
+          <div style={{ fontWeight: 500 }}>{record.sample_type}</div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            {record.vessel_name} • {record.tank_number}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Tanggal Diterima',
+      dataIndex: 'received_date',
+      key: 'received_date',
+      valueType: 'date',
+      sorter: true,
+    },
+    {
+      title: 'Lab Technician',
+      dataIndex: 'lab_technician',
+      key: 'lab_technician',
+    },
+    {
+      title: 'Progress',
+      dataIndex: 'progress_percentage',
+      key: 'progress_percentage',
+      render: (_, record) => (
+        <div>
+          <Progress
+            percent={record.progress_percentage}
+            size="small"
+            strokeColor={getProgressColor(record.progress_percentage)}
+            showInfo={false}
+          />
+          <div style={{ fontSize: '12px', color: '#666', marginTop: 2 }}>
+            {record.progress_percentage}% selesai
+          </div>
+        </div>
+      ),
+      sorter: true,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'testing_status',
+      key: 'testing_status',
+      render: (_, record) => (
+        <Tag color={getStatusColor(record.testing_status)}>
+          {getStatusLabel(record.testing_status)}
+        </Tag>
+      ),
+      filters: testingStatusOptions.map((item) => ({
+        text: item.label,
+        value: item.value,
+      })),
+    },
+    {
+      title: 'Estimasi Selesai',
+      dataIndex: 'estimated_completion',
+      key: 'estimated_completion',
+      valueType: 'dateTime',
+      render: (_, record) => (
+        <div>
+          <div>
+            {dayjs(record.estimated_completion).format('DD/MM/YYYY HH:mm')}
+          </div>
+          {record.actual_completion && (
+            <div style={{ fontSize: '12px', color: '#9fe400' }}>
+              Selesai:{' '}
+              {dayjs(record.actual_completion).format('DD/MM/YYYY HH:mm')}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: 'Parameter',
+      dataIndex: 'test_parameters',
+      key: 'test_parameters',
+      render: (_, record) => (
+        <div>
+          {record.test_parameters.slice(0, 2).map((param) => (
+            <Tag key={param} size="small" style={{ marginBottom: 2 }}>
+              {testParameterOptions.find((opt) => opt.value === param)?.label ||
+                param}
+            </Tag>
+          ))}
+          {record.test_parameters.length > 2 && (
+            <Tag size="small" color="default">
+              +{record.test_parameters.length - 2}
+            </Tag>
+          )}
+        </div>
+      ),
     },
     {
       title: 'Aksi',
-      key: 'action',
+      key: 'actions',
       width: 150,
       render: (_, record) => (
         <Space>
           <Button
-            type="text"
+            type="link"
+            size="small"
             icon={<EyeOutlined />}
-            onClick={() => handleViewDetail(record)}
-          />
-          {record.testStatus !== 'completed' && (
-            <Button
-              type="text"
-              icon={record.testStatus === 'received' ? <PlayCircleOutlined /> : <EditOutlined />}
-              onClick={() => handleStartTest(record)}
-            />
-          )}
+            onClick={() => handleView(record)}
+          >
+            Detail
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+          >
+            Edit
+          </Button>
         </Space>
       ),
     },
   ];
 
-  const handleViewDetail = (sample: TestSample) => {
-    setSelectedSample(sample);
-    setDetailModalVisible(true);
-  };
-
-  const handleStartTest = (sample: TestSample) => {
-    setSelectedSample(sample);
-    if (sample.testStatus === 'received') {
-      form.setFieldsValue({
-        sampleCode: sample.sampleCode,
-        currentEquipment: '',
-        testStatus: 'testing',
-      });
-    } else {
-      form.setFieldsValue({
-        sampleCode: sample.sampleCode,
-        currentEquipment: sample.currentEquipment,
-        testStatus: sample.testStatus,
-        ...sample.testResults,
-      });
-    }
-    setModalVisible(true);
-  };
-
-  const handleModalOk = async () => {
-    try {
-      await form.validateFields();
-      message.success('Status pengujian berhasil diperbarui');
-      setModalVisible(false);
-      form.resetFields();
-      actionRef.current?.reload();
-    } catch (error) {
-      console.error('Validation failed:', error);
-    }
-  };
-
-  const handleModalCancel = () => {
-    setModalVisible(false);
-    setSelectedSample(null);
-    form.resetFields();
-  };
-
-  const handleDetailModalCancel = () => {
-    setDetailModalVisible(false);
-    setSelectedSample(null);
-  };
-
-  // Mock data request
-  const fetchSamples = async () => {
-    const mockSamples: TestSample[] = [
-      {
-        id: '1',
-        sampleCode: 'LPUJ-20250806-001',
-        productType: 'JET A-1',
-        shipName: 'MT. Commodore One',
-        laboratory: 'LPUJ',
-        receivedDate: '2025-08-06',
-        testStatus: 'testing',
-        testProgress: 65,
-        currentEquipment: 'Density Meter DMM-5000',
-        estimatedCompletion: '2025-08-06 16:00',
-        testResults: {
-          density: 0.795,
-          waterContent: 0.003,
-        },
+  const mockData: TestingRecord[] = [
+    {
+      id: '1',
+      sample_id: 'SMPL-20250806-001',
+      order_number: 'SO-20250806-001',
+      sample_type: 'JET A-1',
+      vessel_name: 'MT. Commodore One',
+      tank_number: 'T.107',
+      received_date: '2025-08-06',
+      testing_status: 'testing',
+      lab_technician: 'Dr. Ahmad Laboratorium',
+      equipment_used: 'Viscometer Alat A',
+      test_parameters: ['water_content', 'viscosity', 'density', 'flash_point'],
+      test_results: {
+        water_content: { value: 25, unit: 'ppm', status: 'pass' },
+        viscosity: { value: 1.5, unit: 'cSt', status: 'pass' },
+        density: { value: 800, unit: 'kg/m³', status: 'pass' },
       },
-      {
-        id: '2',
-        sampleCode: 'LMG-20250805-002',
-        productType: 'Avgas',
-        shipName: 'MT. Pioneer',
-        laboratory: 'Lemigas',
-        receivedDate: '2025-08-05',
-        testStatus: 'completed',
-        testProgress: 100,
-        testResults: {
-          density: 0.720,
-          viscosity: 1.2,
-          waterContent: 0.002,
-          flashPoint: 38,
-        },
+      progress_percentage: 75,
+      priority: 'urgent',
+      estimated_completion: '2025-08-06 18:00',
+      created_at: '2025-08-06 10:00:00',
+      updated_at: '2025-08-06 14:30:00',
+    },
+    {
+      id: '2',
+      sample_id: 'SMPL-20250806-002',
+      order_number: 'RQ-20250806-002',
+      sample_type: 'Avgas',
+      vessel_name: 'MT. Pioneer',
+      tank_number: 'T.203',
+      received_date: '2025-08-06',
+      testing_status: 'waiting_equipment',
+      lab_technician: 'Ir. Budi Santoso',
+      test_parameters: ['water_content', 'density', 'aromatics'],
+      test_results: {},
+      progress_percentage: 25,
+      priority: 'normal',
+      estimated_completion: '2025-08-07 12:00',
+      quality_notes: 'Menunggu ketersediaan alat GC-MS',
+      created_at: '2025-08-06 11:00:00',
+      updated_at: '2025-08-06 15:00:00',
+    },
+    {
+      id: '3',
+      sample_id: 'SMPL-20250805-001',
+      order_number: 'SO-20250805-001',
+      sample_type: 'Diesel',
+      vessel_name: 'MT. Explorer',
+      tank_number: 'T.301',
+      received_date: '2025-08-05',
+      testing_status: 'completed',
+      lab_technician: 'Drs. Cahaya Wijaya',
+      equipment_used: 'Flash Point Tester',
+      test_parameters: ['sulfur_content', 'flash_point', 'density'],
+      test_results: {
+        sulfur_content: { value: 2800, unit: 'mg/kg', status: 'pass' },
+        flash_point: { value: 42, unit: '°C', status: 'pass' },
+        density: { value: 820, unit: 'kg/m³', status: 'pass' },
       },
-      {
-        id: '3',
-        sampleCode: 'LPUJ-20250806-003',
-        productType: 'JET A-1',
-        shipName: 'MT. Explorer',
-        laboratory: 'LPUJ',
-        receivedDate: '2025-08-06',
-        testStatus: 'received',
-        testProgress: 0,
-      },
-    ];
+      progress_percentage: 100,
+      priority: 'normal',
+      estimated_completion: '2025-08-05 16:00',
+      actual_completion: '2025-08-05 15:30',
+      created_at: '2025-08-05 09:00:00',
+      updated_at: '2025-08-05 15:30:00',
+    },
+  ];
 
-    return {
-      data: mockSamples,
-      success: true,
-      total: mockSamples.length,
-    };
-  };
-
-  const getTestSteps = (status: string, progress: number) => {
-    const steps = [
-      { title: 'Diterima', description: 'Sampel diterima lab' },
-      { title: 'Persiapan', description: 'Persiapan alat dan material' },
-      { title: 'Pengujian', description: 'Proses pengujian berlangsung' },
-      { title: 'Analisis', description: 'Analisis hasil pengujian' },
-      { title: 'Selesai', description: 'Pengujian selesai' },
-    ];
-
-    let current = 0;
-    if (status === 'testing') {
-      current = Math.floor((progress / 100) * (steps.length - 1)) + 1;
-    } else if (status === 'completed') {
-      current = steps.length - 1;
-    }
-
-    return { steps, current };
+  const testingSummary = {
+    total: mockData.length,
+    received: mockData.filter((item) => item.testing_status === 'received')
+      .length,
+    testing: mockData.filter((item) =>
+      ['registered', 'testing'].includes(item.testing_status),
+    ).length,
+    waiting: mockData.filter(
+      (item) => item.testing_status === 'waiting_equipment',
+    ).length,
+    completed: mockData.filter((item) => item.testing_status === 'completed')
+      .length,
   };
 
   return (
     <PageContainer
       title="Pengujian Laboratorium"
-      content="Kelola proses pengujian sampel di laboratorium"
+      content="Kelola proses pengujian sampel dengan tracking real-time dan hasil analisis"
     >
-      <ProTable<TestSample>
-        columns={columns}
+      {/* Summary Cards */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Total Sampel"
+              value={testingSummary.total}
+              prefix={<ExperimentOutlined style={{ color: '#0073fe' }} />}
+              valueStyle={{ color: '#0073fe' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Sedang Diuji"
+              value={testingSummary.testing}
+              prefix={<SyncOutlined spin style={{ color: '#9fe400' }} />}
+              valueStyle={{ color: '#9fe400' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Menunggu Alat"
+              value={testingSummary.waiting}
+              prefix={<ClockCircleOutlined style={{ color: '#faad14' }} />}
+              valueStyle={{ color: '#faad14' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Selesai"
+              value={testingSummary.completed}
+              prefix={<CheckCircleOutlined style={{ color: '#fd0017' }} />}
+              valueStyle={{ color: '#fd0017' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <ProTable<TestingRecord>
         actionRef={actionRef}
-        cardBordered
-        request={fetchSamples}
         rowKey="id"
         search={{
           labelWidth: 'auto',
         }}
+        columns={columns}
+        dataSource={mockData}
         pagination={{
           pageSize: 10,
+          showSizeChanger: true,
           showQuickJumper: true,
         }}
         dateFormatter="string"
-        headerTitle="Daftar Sampel dalam Pengujian"
-      />
-
-      {/* Testing Modal */}
-      <Modal
-        title={`${selectedSample?.testStatus === 'received' ? 'Mulai' : 'Update'} Pengujian - ${selectedSample?.sampleCode}`}
-        open={modalVisible}
-        onOk={handleModalOk}
-        onCancel={handleModalCancel}
-        width={600}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-        >
-          <Form.Item
-            name="sampleCode"
-            label="Kode Sampel"
-          >
-            <Input disabled />
-          </Form.Item>
-
-          <Form.Item
-            name="testStatus"
-            label="Status Pengujian"
-            rules={[{ required: true, message: 'Status wajib dipilih' }]}
-          >
-            <Select placeholder="Pilih status">
-              <Select.Option value="testing">Sedang Diuji</Select.Option>
-              <Select.Option value="completed">Selesai</Select.Option>
-              <Select.Option value="failed">Gagal</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="currentEquipment"
-            label="Alat yang Digunakan"
-          >
-            <Select placeholder="Pilih alat pengujian">
-              <Select.Option value="Density Meter DMM-5000">Density Meter DMM-5000</Select.Option>
-              <Select.Option value="Viscometer VIS-300">Viscometer VIS-300</Select.Option>
-              <Select.Option value="Karl Fischer KF-200">Karl Fischer KF-200</Select.Option>
-              <Select.Option value="Flash Point Tester FPT-100">Flash Point Tester FPT-100</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item label="Hasil Pengujian">
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Form.Item
-                name="density"
-                label="Density (g/cm³)"
-                style={{ marginBottom: 8 }}
-              >
-                <InputNumber 
-                  style={{ width: '100%' }}
-                  step={0.001}
-                  precision={3}
-                  placeholder="0.000"
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="viscosity"
-                label="Kinematic Viscosity (mm²/s)"
-                style={{ marginBottom: 8 }}
-              >
-                <InputNumber 
-                  style={{ width: '100%' }}
-                  step={0.1}
-                  precision={1}
-                  placeholder="0.0"
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="waterContent"
-                label="Water Content (%)"
-                style={{ marginBottom: 8 }}
-              >
-                <InputNumber 
-                  style={{ width: '100%' }}
-                  step={0.001}
-                  precision={3}
-                  placeholder="0.000"
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="flashPoint"
-                label="Flash Point (°C)"
-                style={{ marginBottom: 0 }}
-              >
-                <InputNumber 
-                  style={{ width: '100%' }}
-                  placeholder="0"
-                />
-              </Form.Item>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Detail Modal */}
-      <Modal
-        title={`Detail Pengujian - ${selectedSample?.sampleCode}`}
-        open={detailModalVisible}
-        onCancel={handleDetailModalCancel}
-        footer={[
-          <Button key="close" onClick={handleDetailModalCancel}>
-            Tutup
+        headerTitle="Daftar Pengujian"
+        toolBarRender={() => [
+          <Button key="equipment" type="default">
+            Status Alat
+          </Button>,
+          <Button key="report" type="default">
+            Laporan Harian
+          </Button>,
+          <Button key="export" type="default">
+            Export Excel
           </Button>,
         ]}
+      />
+
+      <Drawer
+        title={viewingRecord ? 'Detail Pengujian' : 'Update Pengujian'}
         width={800}
+        open={drawerVisible}
+        onClose={() => {
+          setDrawerVisible(false);
+          form.resetFields();
+          setViewingRecord(undefined);
+          setEditingRecord(undefined);
+        }}
+        extra={
+          viewingRecord ? null : (
+            <Space>
+              <Button onClick={() => setDrawerVisible(false)}>Batal</Button>
+              <Button
+                type="primary"
+                onClick={() => form.submit()}
+                style={{ backgroundColor: '#fd0017', borderColor: '#fd0017' }}
+              >
+                Simpan
+              </Button>
+            </Space>
+          )
+        }
       >
-        {selectedSample && (
+        {viewingRecord ? (
+          /* View Mode */
           <div>
-            <Card title="Informasi Sampel" style={{ marginBottom: 16 }}>
-              <Descriptions column={2}>
-                <Descriptions.Item label="Kode Sampel">{selectedSample.sampleCode}</Descriptions.Item>
-                <Descriptions.Item label="Jenis Produk">{selectedSample.productType}</Descriptions.Item>
-                <Descriptions.Item label="Kapal">{selectedSample.shipName}</Descriptions.Item>
-                <Descriptions.Item label="Laboratorium">{selectedSample.laboratory}</Descriptions.Item>
-                <Descriptions.Item label="Tanggal Diterima">{selectedSample.receivedDate}</Descriptions.Item>
-                <Descriptions.Item label="Estimasi Selesai">{selectedSample.estimatedCompletion || '-'}</Descriptions.Item>
+            <Card
+              title="Informasi Sampel"
+              size="small"
+              style={{ marginBottom: 16 }}
+            >
+              <Descriptions column={2} size="small">
+                <Descriptions.Item label="Sample ID">
+                  {viewingRecord.sample_id}
+                </Descriptions.Item>
+                <Descriptions.Item label="Order Number">
+                  {viewingRecord.order_number}
+                </Descriptions.Item>
+                <Descriptions.Item label="Jenis Sampel">
+                  {viewingRecord.sample_type}
+                </Descriptions.Item>
+                <Descriptions.Item label="Kapal/Tangki">
+                  {viewingRecord.vessel_name} • {viewingRecord.tank_number}
+                </Descriptions.Item>
+                <Descriptions.Item label="Diterima">
+                  {dayjs(viewingRecord.received_date).format('DD/MM/YYYY')}
+                </Descriptions.Item>
+                <Descriptions.Item label="Prioritas">
+                  <Tag color={getPriorityColor(viewingRecord.priority)}>
+                    {viewingRecord.priority.toUpperCase()}
+                  </Tag>
+                </Descriptions.Item>
               </Descriptions>
             </Card>
 
-            <Card title="Progress Pengujian" style={{ marginBottom: 16 }}>
-              {(() => {
-                const { steps, current } = getTestSteps(selectedSample.testStatus, selectedSample.testProgress);
-                return (
-                  <Steps
-                    current={current}
-                    items={steps}
-                    direction="vertical"
-                    size="small"
-                  />
-                );
-              })()}
+            <Card
+              title="Status Pengujian"
+              size="small"
+              style={{ marginBottom: 16 }}
+            >
+              <div style={{ marginBottom: 16 }}>
+                <Progress
+                  percent={viewingRecord.progress_percentage}
+                  strokeColor={getProgressColor(
+                    viewingRecord.progress_percentage,
+                  )}
+                  status={
+                    viewingRecord.testing_status === 'completed'
+                      ? 'success'
+                      : 'active'
+                  }
+                />
+              </div>
+
+              <Steps
+                size="small"
+                current={
+                  viewingRecord.testing_status === 'received'
+                    ? 0
+                    : viewingRecord.testing_status === 'registered'
+                      ? 1
+                      : viewingRecord.testing_status === 'testing'
+                        ? 2
+                        : viewingRecord.testing_status === 'completed'
+                          ? 3
+                          : 1
+                }
+                status={
+                  viewingRecord.testing_status === 'waiting_equipment'
+                    ? 'error'
+                    : 'process'
+                }
+                items={[
+                  {
+                    title: 'Diterima',
+                    description: 'Sampel diterima lab',
+                  },
+                  {
+                    title: 'Registrasi',
+                    description: 'Sampel didaftarkan',
+                  },
+                  {
+                    title: 'Pengujian',
+                    description: 'Proses pengujian',
+                  },
+                  {
+                    title: 'Selesai',
+                    description: 'Pengujian selesai',
+                  },
+                ]}
+              />
             </Card>
 
-            {selectedSample.testResults && (
-              <Card title="Hasil Pengujian">
-                <Descriptions column={2}>
-                  <Descriptions.Item label="Density">
-                    {selectedSample.testResults.density ? `${selectedSample.testResults.density} g/cm³` : '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Kinematic Viscosity">
-                    {selectedSample.testResults.viscosity ? `${selectedSample.testResults.viscosity} mm²/s` : '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Water Content">
-                    {selectedSample.testResults.waterContent ? `${selectedSample.testResults.waterContent}%` : '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Flash Point">
-                    {selectedSample.testResults.flashPoint ? `${selectedSample.testResults.flashPoint}°C` : '-'}
-                  </Descriptions.Item>
-                </Descriptions>
-              </Card>
-            )}
+            <Card
+              title="Parameter & Hasil Pengujian"
+              size="small"
+              style={{ marginBottom: 16 }}
+            >
+              <div style={{ marginBottom: 16 }}>
+                <strong>Parameter yang Diuji:</strong>
+                <div style={{ marginTop: 8 }}>
+                  {viewingRecord.test_parameters.map((param) => {
+                    const paramInfo = testParameterOptions.find(
+                      (opt) => opt.value === param,
+                    );
+                    const result = viewingRecord.test_results[param];
+                    return (
+                      <div
+                        key={param}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          padding: '8px 12px',
+                          backgroundColor: result ? '#f6ffed' : '#fff2e8',
+                          marginBottom: 4,
+                          borderRadius: 4,
+                          border: `1px solid ${result ? '#d9f7be' : '#ffd591'}`,
+                        }}
+                      >
+                        <span style={{ fontWeight: 500 }}>
+                          {paramInfo?.label}
+                        </span>
+                        <div>
+                          {result ? (
+                            <span style={{ color: '#9fe400' }}>
+                              {result.value} {result.unit} •{' '}
+                              {result.status === 'pass' ? 'PASS' : 'FAIL'}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#faad14' }}>
+                              Belum diuji
+                            </span>
+                          )}
+                          <div
+                            style={{
+                              fontSize: '10px',
+                              color: '#666',
+                              textAlign: 'right',
+                            }}
+                          >
+                            Standard: {paramInfo?.standard}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </Card>
+
+            <Card title="Informasi Lab" size="small">
+              <Descriptions column={2} size="small">
+                <Descriptions.Item label="Lab Technician">
+                  {viewingRecord.lab_technician}
+                </Descriptions.Item>
+                <Descriptions.Item label="Equipment">
+                  {viewingRecord.equipment_used || '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Estimasi Selesai">
+                  {dayjs(viewingRecord.estimated_completion).format(
+                    'DD/MM/YYYY HH:mm',
+                  )}
+                </Descriptions.Item>
+                <Descriptions.Item label="Actual Selesai">
+                  {viewingRecord.actual_completion
+                    ? dayjs(viewingRecord.actual_completion).format(
+                        'DD/MM/YYYY HH:mm',
+                      )
+                    : '-'}
+                </Descriptions.Item>
+              </Descriptions>
+              {viewingRecord.quality_notes && (
+                <div style={{ marginTop: 12 }}>
+                  <strong>Catatan:</strong>
+                  <div
+                    style={{
+                      padding: 8,
+                      backgroundColor: '#f0f0f0',
+                      borderRadius: 4,
+                      marginTop: 4,
+                    }}
+                  >
+                    {viewingRecord.quality_notes}
+                  </div>
+                </div>
+              )}
+            </Card>
           </div>
+        ) : (
+          /* Edit Mode */
+          <Form form={form} layout="vertical" onFinish={handleSubmit}>
+            <Card
+              title="Update Status & Progress"
+              size="small"
+              style={{ marginBottom: 16 }}
+            >
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="testing_status"
+                    label="Status Pengujian"
+                    rules={[
+                      { required: true, message: 'Status wajib dipilih' },
+                    ]}
+                  >
+                    <Select
+                      placeholder="Pilih status"
+                      options={testingStatusOptions}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name="progress_percentage"
+                    label="Progress (%)"
+                    rules={[
+                      { required: true, message: 'Progress wajib diisi' },
+                    ]}
+                  >
+                    <InputNumber min={0} max={100} style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="lab_technician"
+                    label="Lab Technician"
+                    rules={[
+                      {
+                        required: true,
+                        message: 'Lab technician wajib dipilih',
+                      },
+                    ]}
+                  >
+                    <Select
+                      placeholder="Pilih technician"
+                      options={labTechnicianOptions}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name="equipment_used"
+                    label="Equipment yang Digunakan"
+                  >
+                    <Select
+                      placeholder="Pilih equipment"
+                      options={equipmentOptions}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </Card>
+
+            <Card
+              title="Parameter Pengujian"
+              size="small"
+              style={{ marginBottom: 16 }}
+            >
+              <Form.Item
+                name="test_parameters"
+                label="Parameter yang Diuji"
+                rules={[{ required: true, message: 'Parameter wajib dipilih' }]}
+              >
+                <Select
+                  mode="multiple"
+                  placeholder="Pilih parameter pengujian"
+                  options={testParameterOptions}
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.label ?? '')
+                      .toLowerCase()
+                      .includes(input.toLowerCase())
+                  }
+                />
+              </Form.Item>
+            </Card>
+
+            <Form.Item name="quality_notes" label="Catatan Kualitas">
+              <Input.TextArea
+                rows={4}
+                placeholder="Catatan mengenai kondisi sampel, alat yang digunakan, atau hasil pengujian..."
+              />
+            </Form.Item>
+
+            {/* Quick Status Update Buttons */}
+            <Card title="Quick Actions" size="small">
+              <Space wrap>
+                <Button
+                  type="default"
+                  onClick={() =>
+                    handleStatusUpdate(editingRecord!, 'registered')
+                  }
+                >
+                  Mark as Registered
+                </Button>
+                <Button
+                  type="default"
+                  onClick={() => handleStatusUpdate(editingRecord!, 'testing')}
+                >
+                  Start Testing
+                </Button>
+                <Button
+                  type="default"
+                  onClick={() =>
+                    handleStatusUpdate(editingRecord!, 'waiting_equipment')
+                  }
+                >
+                  Equipment Wait
+                </Button>
+                <Button
+                  type="primary"
+                  style={{ backgroundColor: '#9fe400', borderColor: '#9fe400' }}
+                  onClick={() =>
+                    handleStatusUpdate(editingRecord!, 'completed')
+                  }
+                >
+                  Mark Complete
+                </Button>
+              </Space>
+            </Card>
+          </Form>
         )}
-      </Modal>
+      </Drawer>
     </PageContainer>
   );
 };

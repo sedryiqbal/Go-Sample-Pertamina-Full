@@ -1,66 +1,226 @@
+import {
+  CalendarOutlined,
+  DatabaseOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
+import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { Button, Tag, Space, Modal, Form, Input, InputNumber, Select, DatePicker, message } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CalendarOutlined } from '@ant-design/icons';
-import { useRef, useState } from 'react';
+import {
+  Badge,
+  Button,
+  Calendar,
+  Card,
+  Col,
+  DatePicker,
+  Drawer,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  message,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Tag,
+} from 'antd';
+import type { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
+import React, { useRef, useState } from 'react';
 
-interface StockItem {
+interface StockRecord {
   id: string;
-  productType: string;
+  sample_type: string;
   category: string;
-  shipName: string;
-  compartment: string;
+  vessel_name: string;
+  tank_number: string;
   quantity: number;
   unit: string;
-  estimatedDate: string;
-  status: 'available' | 'limited' | 'empty';
-  createdAt: string;
+  received_date: string;
+  expiry_date: string;
+  status: 'available' | 'low' | 'critical' | 'expired' | 'used';
+  location: string;
+  lab_location: string;
+  estimated_time?: string;
+  notes?: string;
 }
 
-const StockManagement: React.FC = () => {
-  const actionRef = useRef<ActionType>(null);
+const Stock: React.FC = () => {
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<StockRecord | undefined>();
+  const [calendarView, setCalendarView] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
+  const actionRef = useRef<ActionType>();
   const [form] = Form.useForm();
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingStock, setEditingStock] = useState<StockItem | null>(null);
 
-  const columns: ProColumns<StockItem>[] = [
-    {
-      title: 'Jenis Produk',
-      dataIndex: 'productType',
-      key: 'productType',
-      valueEnum: {
-        'jet-a1': { text: 'JET A-1', status: 'Processing' },
-        'avgas': { text: 'Avgas', status: 'Success' },
-        'diesel': { text: 'Diesel', status: 'Warning' },
+  const sampleTypeOptions = [
+    { label: 'JET A-1', value: 'jet-a1' },
+    { label: 'Avgas', value: 'avgas' },
+    { label: 'Diesel', value: 'diesel' },
+    { label: 'Gasoline', value: 'gasoline' },
+  ];
+
+  const categoryOptions = [
+    { label: 'Import Sample', value: 'import' },
+    { label: 'Local Sample', value: 'local' },
+    { label: 'Reference Sample', value: 'reference' },
+  ];
+
+  const labLocationOptions = [
+    { label: 'LPUJ - Priok (1 jam)', value: 'lpuj-priok' },
+    { label: 'Lemigas - Jakarta (1 jam)', value: 'lemigas-jakarta' },
+    { label: 'Balongan - Balongan (6 jam)', value: 'balongan' },
+  ];
+
+  const handleAdd = () => {
+    setEditingRecord(undefined);
+    form.resetFields();
+    setDrawerVisible(true);
+  };
+
+  const handleEdit = (record: StockRecord) => {
+    setEditingRecord(record);
+    form.setFieldsValue({
+      ...record,
+      received_date: record.received_date ? dayjs(record.received_date) : null,
+      expiry_date: record.expiry_date ? dayjs(record.expiry_date) : null,
+    });
+    setDrawerVisible(true);
+  };
+
+  const handleDelete = (record: StockRecord) => {
+    Modal.confirm({
+      title: 'Konfirmasi Hapus',
+      content: `Apakah Anda yakin ingin menghapus stock ${record.sample_type} dari ${record.vessel_name}?`,
+      okText: 'Hapus',
+      okType: 'danger',
+      cancelText: 'Batal',
+      onOk() {
+        message.success(`Stock ${record.sample_type} berhasil dihapus`);
+        actionRef.current?.reload();
       },
+    });
+  };
+
+  const handleSubmit = async (values: any) => {
+    try {
+      const _formattedValues = {
+        ...values,
+        received_date: values.received_date?.format('YYYY-MM-DD'),
+        expiry_date: values.expiry_date?.format('YYYY-MM-DD'),
+      };
+
+      if (editingRecord) {
+        message.success('Stock berhasil diperbarui');
+      } else {
+        message.success('Stock berhasil ditambahkan');
+      }
+      setDrawerVisible(false);
+      form.resetFields();
+      actionRef.current?.reload();
+    } catch (_error) {
+      message.error('Gagal menyimpan data stock');
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'available':
+        return 'success';
+      case 'low':
+        return 'warning';
+      case 'critical':
+        return 'error';
+      case 'expired':
+        return 'default';
+      case 'used':
+        return 'processing';
+      default:
+        return 'default';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'available':
+        return 'Tersedia';
+      case 'low':
+        return 'Terbatas';
+      case 'critical':
+        return 'Kritis';
+      case 'expired':
+        return 'Kedaluwarsa';
+      case 'used':
+        return 'Terpakai';
+      default:
+        return status;
+    }
+  };
+
+  const columns: ProColumns<StockRecord>[] = [
+    {
+      title: 'Jenis Sampel',
+      dataIndex: 'sample_type',
+      key: 'sample_type',
+      render: (_, record) => (
+        <Space>
+          <DatabaseOutlined style={{ color: '#fd0017' }} />
+          <span style={{ fontWeight: 500 }}>{record.sample_type}</span>
+        </Space>
+      ),
+      filters: sampleTypeOptions.map((item) => ({
+        text: item.label,
+        value: item.value,
+      })),
     },
     {
       title: 'Kategori',
       dataIndex: 'category',
       key: 'category',
+      render: (_, record) => <Tag color="blue">{record.category}</Tag>,
+      filters: categoryOptions.map((item) => ({
+        text: item.label,
+        value: item.value,
+      })),
     },
     {
-      title: 'Nama Kapal',
-      dataIndex: 'shipName',
-      key: 'shipName',
-      sorter: true,
+      title: 'Kapal/Tangki',
+      dataIndex: 'vessel_name',
+      key: 'vessel_name',
+      render: (_, record) => (
+        <div>
+          <div style={{ fontWeight: 500 }}>{record.vessel_name}</div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            {record.tank_number}
+          </div>
+        </div>
+      ),
     },
     {
-      title: 'Kompartemen',
-      dataIndex: 'compartment',
-      key: 'compartment',
-    },
-    {
-      title: 'Jumlah',
+      title: 'Kuantitas',
       dataIndex: 'quantity',
       key: 'quantity',
-      render: (_, record) => `${record.quantity} ${record.unit}`,
+      render: (_, record) => (
+        <span>
+          {record.quantity} {record.unit}
+        </span>
+      ),
       sorter: true,
     },
     {
-      title: 'Estimasi Tanggal',
-      dataIndex: 'estimatedDate',
-      key: 'estimatedDate',
+      title: 'Tanggal Diterima',
+      dataIndex: 'received_date',
+      key: 'received_date',
+      valueType: 'date',
+      sorter: true,
+    },
+    {
+      title: 'Tanggal Kedaluwarsa',
+      dataIndex: 'expiry_date',
+      key: 'expiry_date',
       valueType: 'date',
       sorter: true,
     },
@@ -68,253 +228,412 @@ const StockManagement: React.FC = () => {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (_, record) => {
-        const statusConfig = {
-          available: { color: 'green', text: 'Tersedia' },
-          limited: { color: 'orange', text: 'Terbatas' },
-          empty: { color: 'red', text: 'Kosong' },
-        };
-        const config = statusConfig[record.status];
-        return <Tag color={config.color}>{config.text}</Tag>;
-      },
+      render: (_, record) => (
+        <Tag color={getStatusColor(record.status)}>
+          {getStatusLabel(record.status)}
+        </Tag>
+      ),
+      filters: [
+        { text: 'Tersedia', value: 'available' },
+        { text: 'Terbatas', value: 'low' },
+        { text: 'Kritis', value: 'critical' },
+        { text: 'Kedaluwarsa', value: 'expired' },
+        { text: 'Terpakai', value: 'used' },
+      ],
     },
     {
-      title: 'Tanggal Dibuat',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      valueType: 'date',
-      sorter: true,
+      title: 'Lokasi Lab',
+      dataIndex: 'lab_location',
+      key: 'lab_location',
     },
     {
       title: 'Aksi',
-      key: 'action',
+      key: 'actions',
       width: 120,
       render: (_, record) => (
         <Space>
           <Button
-            type="text"
+            type="link"
+            size="small"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
-          />
+          >
+            Edit
+          </Button>
           <Button
-            type="text"
+            type="link"
+            size="small"
             danger
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
-          />
+          >
+            Hapus
+          </Button>
         </Space>
       ),
     },
   ];
 
-  const handleEdit = (stock: StockItem) => {
-    setEditingStock(stock);
-    form.setFieldsValue({
-      ...stock,
-      estimatedDate: stock.estimatedDate,
-    });
-    setModalVisible(true);
-  };
-
-  const handleDelete = (stock: StockItem) => {
-    Modal.confirm({
-      title: 'Hapus Stock',
-      content: `Apakah Anda yakin ingin menghapus stock ${stock.productType} dari ${stock.shipName}?`,
-      onOk: async () => {
-        message.success('Stock berhasil dihapus');
-        actionRef.current?.reload();
-      },
-    });
-  };
-
-  const handleModalOk = async () => {
-    try {
-      await form.validateFields();
-      if (editingStock) {
-        message.success('Stock berhasil diperbarui');
-      } else {
-        message.success('Stock berhasil ditambahkan');
-      }
-      setModalVisible(false);
-      setEditingStock(null);
-      form.resetFields();
-      actionRef.current?.reload();
-    } catch (error) {
-      console.error('Validation failed:', error);
-    }
-  };
-
-  const handleModalCancel = () => {
-    setModalVisible(false);
-    setEditingStock(null);
-    form.resetFields();
-  };
-
-  // Mock data request
-  const fetchStocks = async () => {
-    const mockStocks: StockItem[] = [
-      {
-        id: '1',
-        productType: 'jet-a1',
-        category: 'Aviation Fuel',
-        shipName: 'MT. Commodore One',
-        compartment: 'T.107',
-        quantity: 5000,
-        unit: 'Liter',
-        estimatedDate: '2025-08-08',
-        status: 'available',
-        createdAt: '2025-08-06',
-      },
-      {
-        id: '2',
-        productType: 'avgas',
-        category: 'Aviation Gasoline',
-        shipName: 'MT. Pioneer',
-        compartment: 'T.205',
-        quantity: 1500,
-        unit: 'Liter',
-        estimatedDate: '2025-08-07',
-        status: 'limited',
-        createdAt: '2025-08-05',
-      },
-      {
-        id: '3',
-        productType: 'jet-a1',
-        category: 'Aviation Fuel',
-        shipName: 'MT. Explorer',
-        compartment: 'T.301',
-        quantity: 0,
-        unit: 'Liter',
-        estimatedDate: '2025-08-09',
-        status: 'empty',
-        createdAt: '2025-08-04',
-      },
-    ];
-
-    return {
-      data: mockStocks,
-      success: true,
-      total: mockStocks.length,
+  // Calendar data for stock estimation
+  const getStockData = (value: Dayjs) => {
+    const stockByDate: {
+      [key: string]: Array<{
+        type: 'success' | 'warning' | 'error';
+        content: string;
+      }>;
+    } = {
+      '2025-08-06': [
+        { type: 'success', content: 'Stock Tersedia - JET A-1 (25 botol)' },
+        { type: 'warning', content: 'Stock Terbatas - Avgas (5 botol)' },
+      ],
+      '2025-08-07': [
+        { type: 'error', content: 'Stock Kosong - JET A-1' },
+        { type: 'success', content: 'Stock Tersedia - Diesel (15 botol)' },
+      ],
+      '2025-08-08': [
+        { type: 'success', content: 'Stock Tersedia - JET A-1 (30 botol)' },
+        { type: 'success', content: 'Stock Tersedia - Avgas (12 botol)' },
+      ],
+      '2025-08-09': [
+        { type: 'warning', content: 'Stock Terbatas - JET A-1 (8 botol)' },
+        { type: 'error', content: 'Kedaluwarsa - Gasoline' },
+      ],
+      '2025-08-10': [
+        { type: 'success', content: 'Stock Tersedia - JET A-1 (20 botol)' },
+      ],
     };
+
+    return stockByDate[value.format('YYYY-MM-DD')] || [];
+  };
+
+  const dateCellRender = (value: Dayjs) => {
+    const listData = getStockData(value);
+    return (
+      <div
+        style={{
+          fontSize: '10px',
+          lineHeight: '12px',
+          overflow: 'hidden',
+          height: '100%',
+          padding: '2px',
+        }}
+      >
+        {listData.map((item, index) => (
+          <Badge
+            key={`${item.type}-${item.content}-${index}`}
+            status={item.type}
+            text={item.content.split(' - ')[0]}
+            style={{
+              fontSize: '9px',
+              display: 'block',
+              marginBottom: '1px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const mockData: StockRecord[] = [
+    {
+      id: '1',
+      sample_type: 'JET A-1',
+      category: 'Import Sample',
+      vessel_name: 'MT. Commodore One',
+      tank_number: 'T.107',
+      quantity: 25,
+      unit: 'botol',
+      received_date: '2025-08-05',
+      expiry_date: '2025-09-05',
+      status: 'available',
+      location: 'SHAFTI',
+      lab_location: 'LPUJ - Priok (1 jam)',
+      notes: 'Sample dari kapal import untuk pengujian kualitas',
+    },
+    {
+      id: '2',
+      sample_type: 'Avgas',
+      category: 'Local Sample',
+      vessel_name: 'MT. Pioneer',
+      tank_number: 'T.203',
+      quantity: 5,
+      unit: 'botol',
+      received_date: '2025-08-04',
+      expiry_date: '2025-09-04',
+      status: 'low',
+      location: 'SHAFTI',
+      lab_location: 'Lemigas - Jakarta (1 jam)',
+      notes: 'Stock menipis, perlu replenishment',
+    },
+    {
+      id: '3',
+      sample_type: 'Diesel',
+      category: 'Import Sample',
+      vessel_name: 'MT. Explorer',
+      tank_number: 'T.301',
+      quantity: 0,
+      unit: 'botol',
+      received_date: '2025-08-01',
+      expiry_date: '2025-09-01',
+      status: 'critical',
+      location: 'SHAFTI',
+      lab_location: 'Balongan - Balongan (6 jam)',
+      notes: 'Stock habis, perlu pengisian ulang segera',
+    },
+  ];
+
+  const stockSummary = {
+    total: mockData.length,
+    available: mockData.filter((item) => item.status === 'available').length,
+    low: mockData.filter((item) => item.status === 'low').length,
+    critical: mockData.filter((item) => item.status === 'critical').length,
   };
 
   return (
     <PageContainer
       title="Manajemen Stock"
-      content="Kelola inventaris dan estimasi ketersediaan stock sampel"
-    >
-      <ProTable<StockItem>
-        columns={columns}
-        actionRef={actionRef}
-        cardBordered
-        request={fetchStocks}
-        rowKey="id"
-        search={{
-          labelWidth: 'auto',
-        }}
-        pagination={{
-          pageSize: 10,
-          showQuickJumper: true,
-        }}
-        dateFormatter="string"
-        headerTitle="Daftar Stock"
-        toolBarRender={() => [
-          <Button
-            key="button"
-            icon={<PlusOutlined />}
-            onClick={() => setModalVisible(true)}
-            type="primary"
-          >
-            Tambah Stock
-          </Button>,
-        ]}
-      />
-
-      <Modal
-        title={editingStock ? 'Edit Stock' : 'Tambah Stock'}
-        open={modalVisible}
-        onOk={handleModalOk}
-        onCancel={handleModalCancel}
-        width={700}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{
-            status: 'available',
-            unit: 'Liter',
-            productType: 'jet-a1',
-          }}
+      content="Kelola stok sampel dengan kalender estimasi ketersediaan dan tracking real-time"
+      extra={[
+        <Button
+          key="calendar"
+          icon={<CalendarOutlined />}
+          onClick={() => setCalendarView(!calendarView)}
         >
+          {calendarView ? 'View Tabel' : 'View Kalender'}
+        </Button>,
+        <Button
+          key="add"
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleAdd}
+          style={{ backgroundColor: '#fd0017', borderColor: '#fd0017' }}
+        >
+          Tambah Stock
+        </Button>,
+      ]}
+    >
+      {/* Summary Cards */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Total Stock"
+              value={stockSummary.total}
+              prefix={<DatabaseOutlined style={{ color: '#0073fe' }} />}
+              valueStyle={{ color: '#0073fe' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Tersedia"
+              value={stockSummary.available}
+              prefix={<DatabaseOutlined style={{ color: '#9fe400' }} />}
+              valueStyle={{ color: '#9fe400' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Terbatas"
+              value={stockSummary.low}
+              prefix={<WarningOutlined style={{ color: '#faad14' }} />}
+              valueStyle={{ color: '#faad14' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Kritis"
+              value={stockSummary.critical}
+              prefix={<WarningOutlined style={{ color: '#fd0017' }} />}
+              valueStyle={{ color: '#fd0017' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {calendarView ? (
+        /* Calendar View */
+        <Card
+          title={
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <CalendarOutlined style={{ marginRight: 8, color: '#fd0017' }} />
+              Kalender Estimasi Ketersediaan Stock
+            </div>
+          }
+        >
+          <Calendar
+            mode="month"
+            cellRender={dateCellRender}
+            value={selectedDate}
+            onChange={setSelectedDate}
+            style={{ height: 600 }}
+          />
+        </Card>
+      ) : (
+        /* Table View */
+        <ProTable<StockRecord>
+          actionRef={actionRef}
+          rowKey="id"
+          search={{
+            labelWidth: 'auto',
+          }}
+          columns={columns}
+          dataSource={mockData}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showQuickJumper: true,
+          }}
+          dateFormatter="string"
+          headerTitle="Daftar Stock"
+          toolBarRender={() => [
+            <Button key="export" type="default">
+              Export Excel
+            </Button>,
+            <Button key="import" type="default">
+              Import Excel
+            </Button>,
+          ]}
+        />
+      )}
+
+      <Drawer
+        title={editingRecord ? 'Edit Stock' : 'Tambah Stock Baru'}
+        width={600}
+        open={drawerVisible}
+        onClose={() => {
+          setDrawerVisible(false);
+          form.resetFields();
+        }}
+        extra={
+          <Space>
+            <Button onClick={() => setDrawerVisible(false)}>Batal</Button>
+            <Button
+              type="primary"
+              onClick={() => form.submit()}
+              style={{ backgroundColor: '#fd0017', borderColor: '#fd0017' }}
+            >
+              Simpan
+            </Button>
+          </Space>
+        }
+      >
+        <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item
-            name="productType"
-            label="Jenis Produk"
-            rules={[{ required: true, message: 'Jenis produk wajib dipilih' }]}
+            name="sample_type"
+            label="Jenis Sampel"
+            rules={[{ required: true, message: 'Jenis sampel wajib dipilih' }]}
           >
-            <Select placeholder="Pilih jenis produk">
-              <Select.Option value="jet-a1">JET A-1</Select.Option>
-              <Select.Option value="avgas">Avgas</Select.Option>
-              <Select.Option value="diesel">Diesel</Select.Option>
-            </Select>
+            <Select
+              placeholder="Pilih jenis sampel"
+              options={sampleTypeOptions}
+            />
           </Form.Item>
 
           <Form.Item
             name="category"
             label="Kategori"
-            rules={[{ required: true, message: 'Kategori wajib diisi' }]}
+            rules={[{ required: true, message: 'Kategori wajib dipilih' }]}
           >
-            <Input placeholder="Masukkan kategori produk" />
+            <Select placeholder="Pilih kategori" options={categoryOptions} />
           </Form.Item>
 
-          <Form.Item
-            name="shipName"
-            label="Nama Kapal"
-            rules={[{ required: true, message: 'Nama kapal wajib diisi' }]}
-          >
-            <Input placeholder="Masukkan nama kapal" />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="vessel_name"
+                label="Nama Kapal"
+                rules={[{ required: true, message: 'Nama kapal wajib diisi' }]}
+              >
+                <Input placeholder="MT. Commodore One" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="tank_number"
+                label="Nomor Tangki"
+                rules={[
+                  { required: true, message: 'Nomor tangki wajib diisi' },
+                ]}
+              >
+                <Input placeholder="T.107" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="quantity"
+                label="Kuantitas"
+                rules={[{ required: true, message: 'Kuantitas wajib diisi' }]}
+              >
+                <InputNumber
+                  min={0}
+                  placeholder="25"
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="unit"
+                label="Satuan"
+                rules={[{ required: true, message: 'Satuan wajib diisi' }]}
+              >
+                <Select placeholder="Pilih satuan">
+                  <Select.Option value="botol">Botol</Select.Option>
+                  <Select.Option value="liter">Liter</Select.Option>
+                  <Select.Option value="ml">ml</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="received_date"
+                label="Tanggal Diterima"
+                rules={[
+                  { required: true, message: 'Tanggal diterima wajib diisi' },
+                ]}
+              >
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="expiry_date"
+                label="Tanggal Kedaluwarsa"
+                rules={[
+                  {
+                    required: true,
+                    message: 'Tanggal kedaluwarsa wajib diisi',
+                  },
+                ]}
+              >
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
 
           <Form.Item
-            name="compartment"
-            label="Kompartemen"
-            rules={[{ required: true, message: 'Kompartemen wajib diisi' }]}
+            name="lab_location"
+            label="Lokasi Lab & Estimasi Waktu"
+            rules={[{ required: true, message: 'Lokasi lab wajib dipilih' }]}
           >
-            <Input placeholder="Masukkan nomor kompartemen" />
-          </Form.Item>
-
-          <Form.Item
-            name="quantity"
-            label="Jumlah"
-            rules={[{ required: true, message: 'Jumlah wajib diisi' }]}
-          >
-            <InputNumber 
-              style={{ width: '100%' }}
-              placeholder="Masukkan jumlah"
-              min={0}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="unit"
-            label="Satuan"
-            rules={[{ required: true, message: 'Satuan wajib dipilih' }]}
-          >
-            <Select placeholder="Pilih satuan">
-              <Select.Option value="Liter">Liter</Select.Option>
-              <Select.Option value="Gallon">Gallon</Select.Option>
-              <Select.Option value="Barrel">Barrel</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="estimatedDate"
-            label="Estimasi Tanggal"
-            rules={[{ required: true, message: 'Estimasi tanggal wajib diisi' }]}
-          >
-            <DatePicker 
-              style={{ width: '100%' }}
-              placeholder="Pilih estimasi tanggal"
-              suffixIcon={<CalendarOutlined style={{ color: '#fd0017' }} />}
+            <Select
+              placeholder="Pilih lokasi lab"
+              options={labLocationOptions}
             />
           </Form.Item>
 
@@ -325,14 +644,23 @@ const StockManagement: React.FC = () => {
           >
             <Select placeholder="Pilih status">
               <Select.Option value="available">Tersedia</Select.Option>
-              <Select.Option value="limited">Terbatas</Select.Option>
-              <Select.Option value="empty">Kosong</Select.Option>
+              <Select.Option value="low">Terbatas</Select.Option>
+              <Select.Option value="critical">Kritis</Select.Option>
+              <Select.Option value="expired">Kedaluwarsa</Select.Option>
+              <Select.Option value="used">Terpakai</Select.Option>
             </Select>
           </Form.Item>
+
+          <Form.Item name="notes" label="Catatan">
+            <Input.TextArea
+              rows={3}
+              placeholder="Catatan tambahan mengenai stock..."
+            />
+          </Form.Item>
         </Form>
-      </Modal>
+      </Drawer>
     </PageContainer>
   );
 };
 
-export default StockManagement;
+export default Stock;

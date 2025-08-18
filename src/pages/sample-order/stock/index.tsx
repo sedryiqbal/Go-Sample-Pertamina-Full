@@ -1,479 +1,821 @@
-import { PageContainer, ProTable } from '@ant-design/pro-components';
-import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { 
-  Button, 
-  Tag, 
-  Space, 
-  Modal, 
-  Form, 
-  Select, 
-  DatePicker, 
-  InputNumber, 
-  message,
-  Card,
-  Row,
-  Col,
-  Calendar,
-  Badge,
-  Typography
-} from 'antd';
-import { 
-  PlusOutlined, 
-  ShoppingCartOutlined, 
+import {
   CalendarOutlined,
-  ClockCircleOutlined
+  CarOutlined,
+  ClockCircleOutlined,
+  EnvironmentOutlined,
+  PlusOutlined,
+  ShoppingOutlined,
 } from '@ant-design/icons';
-import { useRef, useState } from 'react';
+import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
+import {
+  Badge,
+  Button,
+  Calendar,
+  Card,
+  Col,
+  DatePicker,
+  Drawer,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  message,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Steps,
+  Tag,
+} from 'antd';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
+import React, { useRef, useState } from 'react';
 
-const { Option } = Select;
-const { Text } = Typography;
-
-interface StockOrderItem {
+interface StockOrderRecord {
   id: string;
-  orderNumber: string;
-  productType: string;
-  shipName: string;
+  order_number: string;
+  sample_date: string;
+  sample_type: string;
+  vessel_name: string;
+  tank_number: string;
   quantity: number;
   unit: string;
-  laboratory: string;
-  estimatedTime: string;
-  scheduledDate: string;
+  lab_location: string;
+  estimated_delivery_time: number;
   priority: 'normal' | 'urgent' | 'critical';
-  status: 'scheduled' | 'confirmed' | 'picked-up' | 'delivered';
-  createdAt: string;
+  status:
+    | 'pending'
+    | 'confirmed'
+    | 'picked_up'
+    | 'in_transit'
+    | 'delivered'
+    | 'cancelled';
+  sample_officer: string;
+  notes?: string;
+  created_at: string;
+  pickup_time?: string;
+  delivery_time?: string;
+  current_location?: string;
 }
 
-const SampleOrderStock: React.FC = () => {
-  const actionRef = useRef<ActionType>(null);
-  const [form] = Form.useForm();
-  const [modalVisible, setModalVisible] = useState(false);
+const StockOrder: React.FC = () => {
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [calendarView, setCalendarView] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
+  const [selectedStock, setSelectedStock] = useState<any>(null);
+  const [editingRecord, setEditingRecord] = useState<
+    StockOrderRecord | undefined
+  >();
+  const actionRef = useRef<ActionType>();
+  const [form] = Form.useForm();
 
-  const columns: ProColumns<StockOrderItem>[] = [
-    {
-      title: 'Nomor Order',
-      dataIndex: 'orderNumber',
-      key: 'orderNumber',
-      copyable: true,
-    },
-    {
-      title: 'Jenis Produk',
-      dataIndex: 'productType',
-      key: 'productType',
-      valueEnum: {
-        'JET A-1': { text: 'JET A-1', status: 'Processing' },
-        'Avgas': { text: 'Avgas', status: 'Success' },
-        'Diesel': { text: 'Diesel', status: 'Warning' },
-      },
-    },
-    {
-      title: 'Kapal',
-      dataIndex: 'shipName',
-      key: 'shipName',
-    },
-    {
-      title: 'Jumlah',
-      dataIndex: 'quantity',
-      key: 'quantity',
-      render: (_, record) => `${record.quantity} ${record.unit}`,
-    },
-    {
-      title: 'Laboratorium',
-      dataIndex: 'laboratory',
-      key: 'laboratory',
-    },
-    {
-      title: 'Estimasi Waktu',
-      dataIndex: 'estimatedTime',
-      key: 'estimatedTime',
-      render: (_, record) => (
-        <Tag icon={<ClockCircleOutlined />} color="blue">
-          {record.estimatedTime}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Tanggal Terjadwal',
-      dataIndex: 'scheduledDate',
-      key: 'scheduledDate',
-      valueType: 'date',
-    },
-    {
-      title: 'Prioritas',
-      dataIndex: 'priority',
-      key: 'priority',
-      render: (_, record) => {
-        const priorityConfig = {
-          normal: { color: 'default', text: 'Normal' },
-          urgent: { color: 'orange', text: 'Urgent' },
-          critical: { color: 'red', text: 'Critical' },
-        };
-        const config = priorityConfig[record.priority];
-        return <Tag color={config.color}>{config.text}</Tag>;
-      },
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (_, record) => {
-        const statusConfig = {
-          scheduled: { color: 'blue', text: 'Terjadwal' },
-          confirmed: { color: 'orange', text: 'Dikonfirmasi' },
-          'picked-up': { color: 'purple', text: 'Diambil' },
-          delivered: { color: 'green', text: 'Dikirim' },
-        };
-        const config = statusConfig[record.status];
-        return <Tag color={config.color}>{config.text}</Tag>;
-      },
-    },
-    {
-      title: 'Aksi',
-      key: 'action',
-      width: 120,
-      render: (_, record) => (
-        <Space>
-          <Button
-            type="text"
-            onClick={() => handleConfirmOrder(record)}
-            disabled={record.status !== 'scheduled'}
-          >
-            Konfirmasi
-          </Button>
-        </Space>
-      ),
-    },
+  const priorityOptions = [
+    { label: 'Normal', value: 'normal' },
+    { label: 'Urgent', value: 'urgent' },
+    { label: 'Critical', value: 'critical' },
   ];
 
-  const handleConfirmOrder = (order: StockOrderItem) => {
-    Modal.confirm({
-      title: 'Konfirmasi Pemesanan',
-      content: `Apakah Anda yakin ingin mengkonfirmasi pemesanan ${order.orderNumber}?`,
-      onOk: async () => {
-        message.success('Pemesanan berhasil dikonfirmasi');
-        actionRef.current?.reload();
-      },
-    });
-  };
+  const labLocationOptions = [
+    { label: 'LPUJ - Priok (1 jam)', value: 'lpuj-priok', time: 1 },
+    { label: 'Lemigas - Jakarta (1 jam)', value: 'lemigas-jakarta', time: 1 },
+    { label: 'Balongan - Balongan (6 jam)', value: 'balongan', time: 6 },
+  ];
 
-  const handleModalOk = async () => {
-    try {
-      await form.validateFields();
-      message.success('Pemesanan stock berhasil dibuat');
-      setModalVisible(false);
-      form.resetFields();
-      actionRef.current?.reload();
-    } catch (error) {
-      console.error('Validation failed:', error);
-    }
-  };
+  const sampleOfficerOptions = [
+    { label: 'Moch. Aby Gazal', value: 'aby-gazal' },
+    { label: 'Sedry Muhammad Iqbal', value: 'sedry-iqbal' },
+    { label: 'Ahmad Santoso', value: 'ahmad-santoso' },
+  ];
 
-  const handleModalCancel = () => {
-    setModalVisible(false);
-    form.resetFields();
-  };
-
-  const handleLabChange = (value: string) => {
-    const laboratoryEstimation = {
-      'lpuj': '1 jam',
-      'lemigas': '1 jam',
-      'balongan': '6 jam',
-    };
-    form.setFieldsValue({ 
-      estimatedTime: laboratoryEstimation[value as keyof typeof laboratoryEstimation] 
-    });
-  };
-
-  // Mock data request
-  const fetchStockOrders = async () => {
-    const mockOrders: StockOrderItem[] = [
-      {
-        id: '1',
-        orderNumber: 'STK-20250806-001',
-        productType: 'JET A-1',
-        shipName: 'MT. Commodore One',
-        quantity: 4,
-        unit: 'Botol',
-        laboratory: 'LPUJ',
-        estimatedTime: '1 jam',
-        scheduledDate: '2025-08-08',
-        priority: 'normal',
-        status: 'scheduled',
-        createdAt: '2025-08-06',
-      },
-      {
-        id: '2',
-        orderNumber: 'STK-20250805-002',
-        productType: 'Avgas',
-        shipName: 'MT. Pioneer',
-        quantity: 2,
-        unit: 'Botol',
-        laboratory: 'Lemigas',
-        estimatedTime: '1 jam',
-        scheduledDate: '2025-08-07',
-        priority: 'urgent',
-        status: 'confirmed',
-        createdAt: '2025-08-05',
-      },
-      {
-        id: '3',
-        orderNumber: 'STK-20250804-003',
-        productType: 'JET A-1',
-        shipName: 'MT. Explorer',
-        quantity: 3,
-        unit: 'Botol',
-        laboratory: 'LPUJ',
-        estimatedTime: '1 jam',
-        scheduledDate: '2025-08-09',
-        priority: 'normal',
-        status: 'delivered',
-        createdAt: '2025-08-04',
-      },
-    ];
-
-    return {
-      data: mockOrders,
-      success: true,
-      total: mockOrders.length,
-    };
-  };
-
-  // Calendar data for stock estimation
-  const getCalendarData = (value: Dayjs) => {
-    const stockData: { [key: string]: Array<{ type: 'success' | 'warning' | 'error'; content: string }> } = {
+  // Calendar data for available stock
+  const getAvailableStock = (value: Dayjs) => {
+    const stockByDate: {
+      [key: string]: Array<{
+        type: 'success' | 'warning' | 'error';
+        content: string;
+        details: any;
+      }>;
+    } = {
+      '2025-08-06': [
+        {
+          type: 'success',
+          content: 'JET A-1 - MT. Commodore One',
+          details: {
+            vessel_name: 'MT. Commodore One',
+            tank_number: 'T.107',
+            sample_type: 'JET A-1',
+            available_quantity: 25,
+            unit: 'botol',
+            expiry_date: '2025-09-05',
+          },
+        },
+        {
+          type: 'warning',
+          content: 'Avgas - MT. Pioneer',
+          details: {
+            vessel_name: 'MT. Pioneer',
+            tank_number: 'T.203',
+            sample_type: 'Avgas',
+            available_quantity: 5,
+            unit: 'botol',
+            expiry_date: '2025-09-04',
+          },
+        },
+      ],
       '2025-08-07': [
-        { type: 'warning', content: 'STK-20250805-002 - Avgas (Urgent)' },
+        {
+          type: 'success',
+          content: 'Diesel - MT. Explorer',
+          details: {
+            vessel_name: 'MT. Explorer',
+            tank_number: 'T.301',
+            sample_type: 'Diesel',
+            available_quantity: 15,
+            unit: 'botol',
+            expiry_date: '2025-09-07',
+          },
+        },
       ],
       '2025-08-08': [
-        { type: 'success', content: 'STK-20250806-001 - JET A-1' },
-      ],
-      '2025-08-09': [
-        { type: 'success', content: 'STK-20250804-003 - JET A-1' },
-      ],
-      '2025-08-10': [
-        { type: 'success', content: 'Stock Tersedia - JET A-1' },
-        { type: 'warning', content: 'Stock Terbatas - Avgas' },
+        {
+          type: 'success',
+          content: 'JET A-1 - MT. Commodore Two',
+          details: {
+            vessel_name: 'MT. Commodore Two',
+            tank_number: 'T.108',
+            sample_type: 'JET A-1',
+            available_quantity: 30,
+            unit: 'botol',
+            expiry_date: '2025-09-08',
+          },
+        },
+        {
+          type: 'success',
+          content: 'Avgas - MT. Phoenix',
+          details: {
+            vessel_name: 'MT. Phoenix',
+            tank_number: 'T.205',
+            sample_type: 'Avgas',
+            available_quantity: 12,
+            unit: 'botol',
+            expiry_date: '2025-09-08',
+          },
+        },
       ],
     };
-    
-    return stockData[value.format('YYYY-MM-DD')] || [];
+
+    return stockByDate[value.format('YYYY-MM-DD')] || [];
   };
 
   const dateCellRender = (value: Dayjs) => {
-    const listData = getCalendarData(value);
+    const stockData = getAvailableStock(value);
     return (
-      <div>
-        {listData.map((item) => (
+      <div
+        style={{
+          fontSize: '10px',
+          lineHeight: '12px',
+          overflow: 'hidden',
+          height: '100%',
+          padding: '2px',
+        }}
+      >
+        {stockData.map((item, index) => (
           <Badge
-            key={`${item.type}-${item.content}`}
+            key={`${item.type}-${index}`}
             status={item.type}
-            text={item.content.length > 20 ? `${item.content.substring(0, 20)}...` : item.content}
-            style={{ 
-              fontSize: '10px', 
-              display: 'block', 
-              marginBottom: '2px',
+            text={item.content}
+            style={{
+              fontSize: '9px',
+              display: 'block',
+              marginBottom: '1px',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
-              textOverflow: 'ellipsis'
+              textOverflow: 'ellipsis',
+              cursor: 'pointer',
             }}
+            onClick={() => handleStockSelect(item)}
           />
         ))}
       </div>
     );
   };
 
+  const handleStockSelect = (stockItem: any) => {
+    setSelectedStock(stockItem);
+    setSelectedDate(selectedDate);
+    setEditingRecord(undefined);
+    form.setFieldsValue({
+      sample_date: selectedDate,
+      sample_type: stockItem.details.sample_type,
+      vessel_name: stockItem.details.vessel_name,
+      tank_number: stockItem.details.tank_number,
+      available_quantity: stockItem.details.available_quantity,
+      unit: stockItem.details.unit,
+      quantity: 1,
+      priority: 'normal',
+    });
+    setDrawerVisible(true);
+  };
+
+  const handleCreateOrder = () => {
+    if (!selectedDate) {
+      message.warning('Pilih tanggal terlebih dahulu');
+      return;
+    }
+
+    const stockData = getAvailableStock(selectedDate);
+    if (stockData.length === 0) {
+      message.warning('Tidak ada stock tersedia pada tanggal yang dipilih');
+      return;
+    }
+
+    // Show modal to select stock
+    Modal.info({
+      title: `Stock Tersedia - ${selectedDate.format('DD/MM/YYYY')}`,
+      width: 600,
+      content: (
+        <div style={{ marginTop: 16 }}>
+          {stockData.map((item) => (
+            <Card
+              key={
+                item.details.vessel_name +
+                item.details.tank_number +
+                item.details.sample_type
+              }
+              size="small"
+              style={{ marginBottom: 8, cursor: 'pointer' }}
+              onClick={() => {
+                Modal.destroyAll();
+                handleStockSelect(item);
+              }}
+              hoverable
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 500 }}>
+                    {item.details.sample_type} - {item.details.vessel_name}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    {item.details.tank_number} •{' '}
+                    {item.details.available_quantity} {item.details.unit}
+                  </div>
+                </div>
+                <Badge status={item.type} />
+              </div>
+            </Card>
+          ))}
+        </div>
+      ),
+      okText: 'Tutup',
+    });
+  };
+
+  const handleSubmit = async (values: any) => {
+    try {
+      const orderNumber = `SO-${dayjs().format('YYYYMMDD')}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
+      const labLocation = labLocationOptions.find(
+        (lab) => lab.value === values.lab_location,
+      );
+
+      const _orderData = {
+        ...values,
+        order_number: orderNumber,
+        sample_date: values.sample_date?.format('YYYY-MM-DD'),
+        estimated_delivery_time: labLocation?.time || 1,
+        status: 'pending',
+        created_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+      };
+
+      if (editingRecord) {
+        message.success('Pesanan stock berhasil diperbarui');
+      } else {
+        message.success(
+          `Pesanan stock berhasil dibuat dengan nomor: ${orderNumber}`,
+        );
+      }
+
+      setDrawerVisible(false);
+      form.resetFields();
+      setSelectedStock(null);
+      actionRef.current?.reload();
+    } catch (_error) {
+      message.error('Gagal menyimpan pesanan stock');
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'normal':
+        return 'default';
+      case 'urgent':
+        return 'warning';
+      case 'critical':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'default';
+      case 'confirmed':
+        return 'processing';
+      case 'picked_up':
+        return 'warning';
+      case 'in_transit':
+        return 'warning';
+      case 'delivered':
+        return 'success';
+      case 'cancelled':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'Pending';
+      case 'confirmed':
+        return 'Dikonfirmasi';
+      case 'picked_up':
+        return 'Diambil';
+      case 'in_transit':
+        return 'Dalam Perjalanan';
+      case 'delivered':
+        return 'Terkirim';
+      case 'cancelled':
+        return 'Dibatalkan';
+      default:
+        return status;
+    }
+  };
+
+  const columns: ProColumns<StockOrderRecord>[] = [
+    {
+      title: 'No. Pesanan',
+      dataIndex: 'order_number',
+      key: 'order_number',
+      render: (_, record) => (
+        <Space direction="vertical" size={0}>
+          <span style={{ fontWeight: 500 }}>{record.order_number}</span>
+          <Tag color={getPriorityColor(record.priority)} size="small">
+            {record.priority.toUpperCase()}
+          </Tag>
+        </Space>
+      ),
+    },
+    {
+      title: 'Tanggal Sampel',
+      dataIndex: 'sample_date',
+      key: 'sample_date',
+      valueType: 'date',
+      sorter: true,
+    },
+    {
+      title: 'Detail Sampel',
+      dataIndex: 'sample_type',
+      key: 'sample_type',
+      render: (_, record) => (
+        <div>
+          <div style={{ fontWeight: 500 }}>{record.sample_type}</div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            {record.vessel_name} • {record.tank_number}
+          </div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            {record.quantity} {record.unit}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Lab Tujuan',
+      dataIndex: 'lab_location',
+      key: 'lab_location',
+      render: (_, record) => (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <EnvironmentOutlined style={{ color: '#fd0017', marginRight: 4 }} />
+            <span>{record.lab_location}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: 2 }}>
+            <ClockCircleOutlined
+              style={{ color: '#9fe400', marginRight: 4, fontSize: '12px' }}
+            />
+            <span style={{ fontSize: '12px', color: '#666' }}>
+              {record.estimated_delivery_time} jam
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Sample Officer',
+      dataIndex: 'sample_officer',
+      key: 'sample_officer',
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (_, record) => (
+        <Tag color={getStatusColor(record.status)}>
+          {getStatusLabel(record.status)}
+        </Tag>
+      ),
+      filters: [
+        { text: 'Pending', value: 'pending' },
+        { text: 'Dikonfirmasi', value: 'confirmed' },
+        { text: 'Diambil', value: 'picked_up' },
+        { text: 'Dalam Perjalanan', value: 'in_transit' },
+        { text: 'Terkirim', value: 'delivered' },
+        { text: 'Dibatalkan', value: 'cancelled' },
+      ],
+    },
+    {
+      title: 'Dibuat',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      valueType: 'dateTime',
+      sorter: true,
+    },
+  ];
+
+  const mockData: StockOrderRecord[] = [
+    {
+      id: '1',
+      order_number: 'SO-20250806-001',
+      sample_date: '2025-08-06',
+      sample_type: 'JET A-1',
+      vessel_name: 'MT. Commodore One',
+      tank_number: 'T.107',
+      quantity: 4,
+      unit: 'botol',
+      lab_location: 'LPUJ - Priok',
+      estimated_delivery_time: 1,
+      priority: 'urgent',
+      status: 'in_transit',
+      sample_officer: 'Moch. Aby Gazal',
+      created_at: '2025-08-06 08:30:00',
+      pickup_time: '2025-08-06 09:00:00',
+      current_location: 'Jalan Tol Cikampek KM 15',
+    },
+    {
+      id: '2',
+      order_number: 'SO-20250806-002',
+      sample_date: '2025-08-06',
+      sample_type: 'Avgas',
+      vessel_name: 'MT. Pioneer',
+      tank_number: 'T.203',
+      quantity: 3,
+      unit: 'botol',
+      lab_location: 'Lemigas - Jakarta',
+      estimated_delivery_time: 1,
+      priority: 'normal',
+      status: 'confirmed',
+      sample_officer: 'Ahmad Santoso',
+      created_at: '2025-08-06 10:15:00',
+    },
+  ];
+
+  const orderSummary = {
+    total: mockData.length,
+    pending: mockData.filter((item) => item.status === 'pending').length,
+    in_progress: mockData.filter((item) =>
+      ['confirmed', 'picked_up', 'in_transit'].includes(item.status),
+    ).length,
+    delivered: mockData.filter((item) => item.status === 'delivered').length,
+  };
+
   return (
     <PageContainer
-      title="Pemesanan Stock Sample"
-      content="Kelola pemesanan sampel dari stock kalender yang tersedia"
+      title="Pemesanan Stock"
+      content="Pesan sampel dari stock kalender yang tersedia dengan estimasi waktu pengiriman"
+      extra={[
+        <Button
+          key="view"
+          icon={<CalendarOutlined />}
+          onClick={() => setCalendarView(!calendarView)}
+        >
+          {calendarView ? 'View Tabel' : 'View Kalender'}
+        </Button>,
+        <Button
+          key="add"
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleCreateOrder}
+          style={{ backgroundColor: '#fd0017', borderColor: '#fd0017' }}
+        >
+          Buat Pesanan Stock
+        </Button>,
+      ]}
     >
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={14}>
-          <ProTable<StockOrderItem>
-            columns={columns}
-            actionRef={actionRef}
-            cardBordered
-            request={fetchStockOrders}
-            rowKey="id"
-            search={{
-              labelWidth: 'auto',
-            }}
-            pagination={{
-              pageSize: 10,
-              showQuickJumper: true,
-            }}
-            dateFormatter="string"
-            headerTitle="Daftar Pemesanan Stock"
-            toolBarRender={() => [
-              <Button
-                key="button"
-                icon={<PlusOutlined />}
-                onClick={() => setModalVisible(true)}
-                type="primary"
-              >
-                Buat Pemesanan Stock
-              </Button>,
-            ]}
-          />
-        </Col>
-
-        <Col xs={24} lg={10}>
-          <Card 
-            title={
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <CalendarOutlined style={{ marginRight: 8, color: '#fd0017' }} />
-                Kalender Stock & Pemesanan
-              </div>
-            }
-          >
-            <Calendar
-              mode="month"
-              dateCellRender={dateCellRender}
-              value={selectedDate}
-              onChange={setSelectedDate}
-              style={{ height: 400 }}
+      {/* Summary Cards */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Total Pesanan"
+              value={orderSummary.total}
+              prefix={<ShoppingOutlined style={{ color: '#0073fe' }} />}
+              valueStyle={{ color: '#0073fe' }}
             />
-            <div style={{ marginTop: 16, fontSize: '12px', color: '#666' }}>
-              <div style={{ marginBottom: 4 }}>
-                <Badge status="success" text="Stock Tersedia / Pemesanan Normal" />
-              </div>
-              <div style={{ marginBottom: 4 }}>
-                <Badge status="warning" text="Stock Terbatas / Pemesanan Urgent" />
-              </div>
-              <div>
-                <Badge status="error" text="Stock Kosong / Pemesanan Critical" />
-              </div>
-            </div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Pending"
+              value={orderSummary.pending}
+              prefix={<ClockCircleOutlined style={{ color: '#faad14' }} />}
+              valueStyle={{ color: '#faad14' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Dalam Proses"
+              value={orderSummary.in_progress}
+              prefix={<CarOutlined style={{ color: '#9fe400' }} />}
+              valueStyle={{ color: '#9fe400' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Terkirim"
+              value={orderSummary.delivered}
+              prefix={<ShoppingOutlined style={{ color: '#fd0017' }} />}
+              valueStyle={{ color: '#fd0017' }}
+            />
           </Card>
         </Col>
       </Row>
 
-      <Modal
-        title="Buat Pemesanan Stock"
-        open={modalVisible}
-        onOk={handleModalOk}
-        onCancel={handleModalCancel}
-        width={600}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{
-            quantity: 2,
-            unit: 'Botol',
-            priority: 'normal',
-          }}
+      {calendarView ? (
+        /* Calendar View */
+        <Card
+          title={
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <CalendarOutlined style={{ marginRight: 8, color: '#fd0017' }} />
+              Kalender Stock Tersedia - Klik untuk Pesan
+            </div>
+          }
         >
-          <Form.Item
-            name="productType"
-            label="Jenis Produk"
-            rules={[{ required: true, message: 'Jenis produk wajib dipilih' }]}
-          >
-            <Select placeholder="Pilih jenis produk">
-              <Option value="JET A-1">JET A-1</Option>
-              <Option value="Avgas">Avgas</Option>
-              <Option value="Diesel">Diesel</Option>
-            </Select>
-          </Form.Item>
+          <Calendar
+            mode="month"
+            cellRender={dateCellRender}
+            value={selectedDate}
+            onChange={setSelectedDate}
+            style={{ height: 600 }}
+          />
+        </Card>
+      ) : (
+        /* Table View */
+        <ProTable<StockOrderRecord>
+          actionRef={actionRef}
+          rowKey="id"
+          search={{
+            labelWidth: 'auto',
+          }}
+          columns={columns}
+          dataSource={mockData}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showQuickJumper: true,
+          }}
+          dateFormatter="string"
+          headerTitle="Daftar Pesanan Stock"
+          toolBarRender={() => [
+            <Button key="track" type="default">
+              Tracking Status
+            </Button>,
+            <Button key="export" type="default">
+              Export Excel
+            </Button>,
+          ]}
+        />
+      )}
+
+      <Drawer
+        title={editingRecord ? 'Edit Pesanan Stock' : 'Buat Pesanan Stock Baru'}
+        width={600}
+        open={drawerVisible}
+        onClose={() => {
+          setDrawerVisible(false);
+          form.resetFields();
+          setSelectedStock(null);
+        }}
+        extra={
+          <Space>
+            <Button onClick={() => setDrawerVisible(false)}>Batal</Button>
+            <Button
+              type="primary"
+              onClick={() => form.submit()}
+              style={{ backgroundColor: '#fd0017', borderColor: '#fd0017' }}
+            >
+              Buat Pesanan
+            </Button>
+          </Space>
+        }
+      >
+        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+          {selectedStock && (
+            <Card
+              title="Stock Terpilih"
+              size="small"
+              style={{ marginBottom: 16, backgroundColor: '#f6ffed' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontWeight: 500 }}>
+                    {selectedStock.details.sample_type}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    {selectedStock.details.vessel_name} •{' '}
+                    {selectedStock.details.tank_number}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ color: '#9fe400', fontWeight: 500 }}>
+                    {selectedStock.details.available_quantity}{' '}
+                    {selectedStock.details.unit}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    Tersedia
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
 
           <Form.Item
-            name="shipName"
-            label="Nama Kapal"
-            rules={[{ required: true, message: 'Nama kapal wajib dipilih' }]}
+            name="sample_date"
+            label="Tanggal Sampel"
+            rules={[{ required: true, message: 'Tanggal sampel wajib diisi' }]}
           >
-            <Select placeholder="Pilih kapal dari stock">
-              <Option value="MT. Commodore One">MT. Commodore One</Option>
-              <Option value="MT. Pioneer">MT. Pioneer</Option>
-              <Option value="MT. Explorer">MT. Explorer</Option>
+            <DatePicker style={{ width: '100%' }} disabled={!!selectedStock} />
+          </Form.Item>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="sample_type"
+                label="Jenis Sampel"
+                rules={[
+                  { required: true, message: 'Jenis sampel wajib diisi' },
+                ]}
+              >
+                <Input disabled={!!selectedStock} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="vessel_name"
+                label="Nama Kapal"
+                rules={[{ required: true, message: 'Nama kapal wajib diisi' }]}
+              >
+                <Input disabled={!!selectedStock} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                name="tank_number"
+                label="Nomor Tangki"
+                rules={[
+                  { required: true, message: 'Nomor tangki wajib diisi' },
+                ]}
+              >
+                <Input disabled={!!selectedStock} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="quantity"
+                label="Jumlah Dibutuhkan"
+                rules={[{ required: true, message: 'Jumlah wajib diisi' }]}
+              >
+                <InputNumber min={1} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="unit"
+                label="Satuan"
+                rules={[{ required: true, message: 'Satuan wajib diisi' }]}
+              >
+                <Input disabled={!!selectedStock} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item
+            name="lab_location"
+            label="Laboratorium Tujuan"
+            rules={[
+              { required: true, message: 'Laboratorium tujuan wajib dipilih' },
+            ]}
+          >
+            <Select
+              placeholder="Pilih laboratorium tujuan"
+              onChange={(value) => {
+                const lab = labLocationOptions.find(
+                  (lab) => lab.value === value,
+                );
+                if (lab) {
+                  form.setFieldsValue({ estimated_delivery_time: lab.time });
+                }
+              }}
+            >
+              {labLocationOptions.map((lab) => (
+                <Select.Option key={lab.value} value={lab.value}>
+                  {lab.label}
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
 
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
-                name="quantity"
-                label="Jumlah Sample"
-                rules={[{ required: true, message: 'Jumlah sample wajib diisi' }]}
+                name="sample_officer"
+                label="Sample Officer"
+                rules={[
+                  { required: true, message: 'Sample officer wajib dipilih' },
+                ]}
               >
-                <InputNumber min={1} style={{ width: '100%' }} />
+                <Select
+                  placeholder="Pilih sample officer"
+                  options={sampleOfficerOptions}
+                />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                name="unit"
-                label="Satuan"
-                rules={[{ required: true, message: 'Satuan wajib dipilih' }]}
+                name="priority"
+                label="Prioritas"
+                rules={[{ required: true, message: 'Prioritas wajib dipilih' }]}
               >
-                <Select>
-                  <Option value="Botol">Botol</Option>
-                  <Option value="Liter">Liter</Option>
-                </Select>
+                <Select
+                  placeholder="Pilih prioritas"
+                  options={priorityOptions}
+                />
               </Form.Item>
             </Col>
           </Row>
 
-          <Form.Item
-            name="laboratory"
-            label="Laboratorium Tujuan"
-            rules={[{ required: true, message: 'Laboratorium wajib dipilih' }]}
-          >
-            <Select placeholder="Pilih laboratorium" onChange={handleLabChange}>
-              <Option value="lpuj">LPUJ - Priok</Option>
-              <Option value="lemigas">Lemigas - Jakarta</Option>
-              <Option value="balongan">Balongan - Balongan</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="estimatedTime"
-            label="Estimasi Waktu Pengantaran"
-          >
-            <Select disabled>
-              <Option value="1 jam">1 jam</Option>
-              <Option value="6 jam">6 jam</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="scheduledDate"
-            label="Tanggal Terjadwal"
-            rules={[{ required: true, message: 'Tanggal terjadwal wajib diisi' }]}
-          >
-            <DatePicker 
-              style={{ width: '100%' }} 
-              placeholder="Pilih tanggal berdasarkan kalender stock"
+          <Form.Item name="notes" label="Catatan">
+            <Input.TextArea
+              rows={3}
+              placeholder="Catatan khusus untuk pesanan ini..."
             />
           </Form.Item>
 
-          <Form.Item
-            name="priority"
-            label="Prioritas"
-            rules={[{ required: true, message: 'Prioritas wajib dipilih' }]}
-          >
-            <Select placeholder="Pilih prioritas">
-              <Option value="normal">Normal</Option>
-              <Option value="urgent">Urgent</Option>
-              <Option value="critical">Critical</Option>
-            </Select>
-          </Form.Item>
+          {/* Process Steps */}
+          <Card title="Tahapan Proses" size="small">
+            <Steps
+              size="small"
+              current={0}
+              items={[
+                {
+                  title: 'Konfirmasi',
+                  description: 'Pesanan dikonfirmasi',
+                },
+                {
+                  title: 'Pengambilan',
+                  description: 'Sampel diambil',
+                },
+                {
+                  title: 'Pengiriman',
+                  description: 'Dalam perjalanan ke lab',
+                },
+                {
+                  title: 'Selesai',
+                  description: 'Sampel sampai di lab',
+                },
+              ]}
+            />
+          </Card>
         </Form>
-
-        <div style={{ 
-          background: '#f6f6f6', 
-          padding: '12px', 
-          borderRadius: '6px',
-          marginTop: '16px'
-        }}>
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            <ShoppingCartOutlined style={{ marginRight: 4 }} />
-            Pemesanan stock akan mengambil sampel dari inventory yang sudah tersedia berdasarkan kalender stock.
-          </Text>
-        </div>
-      </Modal>
+      </Drawer>
     </PageContainer>
   );
 };
 
-export default SampleOrderStock;
+export default StockOrder;

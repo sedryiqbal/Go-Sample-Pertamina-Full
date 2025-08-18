@@ -1,321 +1,526 @@
-import { PageContainer } from '@ant-design/pro-components';
-import { 
-  Card, 
-  Row, 
-  Col, 
-  Timeline, 
-  Tag, 
-  Badge, 
-  Progress, 
-  Statistic, 
-  Alert,
-  Typography,
-  Space,
-  Button,
-  Table
-} from 'antd';
-import { 
-  EyeOutlined,
+import {
+  AlertOutlined,
   CarOutlined,
-  ExperimentOutlined,
+  CheckCircleOutlined,
   ClockCircleOutlined,
   EnvironmentOutlined,
-  WarningOutlined,
-  CheckCircleOutlined,
-  SyncOutlined
+  ExperimentOutlined,
+  EyeOutlined,
+  ReloadOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
-import { useState, useEffect } from 'react';
-import type { ColumnsType } from 'antd/es/table';
+import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
+import { history } from '@umijs/max';
+import {
+  Badge,
+  Button,
+  Card,
+  Col,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Tag,
+  Timeline,
+} from 'antd';
+import dayjs from 'dayjs';
+import React, { useRef, useState } from 'react';
 
-const { Title, Text } = Typography;
-
-interface SampleStatus {
+interface MonitoringRecord {
   id: string;
-  code: string;
-  productType: string;
-  shipName: string;
-  currentStatus: string;
-  location: string;
-  estimatedArrival?: string;
-  progress: number;
-  issues: string[];
-  lastUpdate: string;
-}
-
-interface ActivityLog {
-  id: string;
-  sampleCode: string;
-  activity: string;
-  status: 'success' | 'warning' | 'error' | 'processing';
-  timestamp: string;
-  location?: string;
-  details?: string;
+  tracking_number: string;
+  sample_type: string;
+  vessel_name: string;
+  order_type: 'stock' | 'request';
+  current_status:
+    | 'pending'
+    | 'picked_up'
+    | 'in_transit'
+    | 'lab_received'
+    | 'testing'
+    | 'completed'
+    | 'cancelled';
+  current_location: string;
+  lab_destination: string;
+  sample_officer: string;
+  priority: 'normal' | 'urgent' | 'critical';
+  estimated_arrival: string;
+  actual_arrival?: string;
+  progress_percentage: number;
+  last_update: string;
+  timeline_events: Array<{
+    timestamp: string;
+    status: string;
+    location: string;
+    description: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+  }>;
 }
 
 const Monitoring: React.FC = () => {
-  const [realTimeData, setRealTimeData] = useState<SampleStatus[]>([]);
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedDate, setSelectedDate] = useState<string>('today');
+  const [refreshing, setRefreshing] = useState(false);
+  const actionRef = useRef<ActionType>();
 
-  // Mock real-time data
-  useEffect(() => {
-    const fetchRealTimeData = () => {
-      const mockData: SampleStatus[] = [
-        {
-          id: '1',
-          code: 'TRANS-20250806-001',
-          productType: 'JET A-1',
-          shipName: 'MT. Commodore One',
-          currentStatus: 'in-transit',
-          location: 'Tol Jakarta-Cikampek KM 15',
-          estimatedArrival: '16:30',
-          progress: 45,
-          issues: ['Kemacetan lalu lintas'],
-          lastUpdate: '14:30',
-        },
-        {
-          id: '2',
-          code: 'LPUJ-20250806-002',
-          productType: 'JET A-1',
-          shipName: 'MT. Commodore One',
-          currentStatus: 'testing',
-          location: 'Lab LPUJ - Density Testing',
-          progress: 65,
-          issues: [],
-          lastUpdate: '14:25',
-        },
-        {
-          id: '3',
-          code: 'LMG-20250805-003',
-          productType: 'Avgas',
-          shipName: 'MT. Pioneer',
-          currentStatus: 'completed',
-          location: 'Lab Lemigas - Storage',
-          progress: 100,
-          issues: [],
-          lastUpdate: '12:15',
-        },
-        {
-          id: '4',
-          code: 'REQ-20250806-004',
-          productType: 'JET A-1',
-          shipName: 'MT. Explorer',
-          currentStatus: 'pending-pickup',
-          location: 'Pertamina Aviation Soekarno-Hatta',
-          estimatedArrival: '18:00',
-          progress: 10,
-          issues: ['Menunggu konfirmasi Sample Officer'],
-          lastUpdate: '13:45',
-        },
-      ];
+  const statusOptions = [
+    { label: 'Semua Status', value: 'all' },
+    { label: 'Pending', value: 'pending' },
+    { label: 'Diambil', value: 'picked_up' },
+    { label: 'Dalam Perjalanan', value: 'in_transit' },
+    { label: 'Lab Terima', value: 'lab_received' },
+    { label: 'Pengujian', value: 'testing' },
+    { label: 'Selesai', value: 'completed' },
+  ];
 
-      const mockLogs: ActivityLog[] = [
-        {
-          id: '1',
-          sampleCode: 'LPUJ-20250806-002',
-          activity: 'Pengujian density selesai',
-          status: 'success',
-          timestamp: '14:25',
-          location: 'Lab LPUJ',
-          details: 'Hasil: 0.795 g/cm³',
-        },
-        {
-          id: '2',
-          sampleCode: 'TRANS-20250806-001',
-          activity: 'Update lokasi: Terkena kemacetan',
-          status: 'warning',
-          timestamp: '14:20',
-          location: 'Tol Jakarta-Cikampek KM 15',
-          details: 'Estimasi keterlambatan 30 menit',
-        },
-        {
-          id: '3',
-          sampleCode: 'REQ-20250806-004',
-          activity: 'Pemesanan baru dibuat',
-          status: 'processing',
-          timestamp: '13:45',
-          location: 'SHAFTHI Office',
-        },
-        {
-          id: '4',
-          sampleCode: 'LPUJ-20250806-002',
-          activity: 'Mulai pengujian viscosity',
-          status: 'processing',
-          timestamp: '13:30',
-          location: 'Lab LPUJ',
-        },
-        {
-          id: '5',
-          sampleCode: 'LMG-20250805-003',
-          activity: 'Komparasi selesai - OnSpec',
-          status: 'success',
-          timestamp: '12:15',
-          location: 'Lab Lemigas',
-          details: 'Status: Release untuk pembongkaran',
-        },
-      ];
+  const dateFilterOptions = [
+    { label: 'Hari Ini', value: 'today' },
+    { label: '3 Hari Terakhir', value: '3days' },
+    { label: '1 Minggu Terakhir', value: '1week' },
+    { label: '1 Bulan Terakhir', value: '1month' },
+  ];
 
-      setRealTimeData(mockData);
-      setActivityLogs(mockLogs);
-    };
+  const handleViewDetail = (record: MonitoringRecord) => {
+    history.push(`/monitoring/detail/${record.id}`);
+  };
 
-    fetchRealTimeData();
-    
-    // Update every 30 seconds
-    const interval = setInterval(fetchRealTimeData, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const refreshData = () => {
-    setLoading(true);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // Simulate API call
     setTimeout(() => {
-      setLoading(false);
-      // In real app, this would fetch fresh data
+      setRefreshing(false);
+      actionRef.current?.reload();
     }, 1000);
   };
 
   const getStatusColor = (status: string) => {
-    const statusColors = {
-      'pending-pickup': 'blue',
-      'in-transit': 'orange',
-      'testing': 'purple',
-      'completed': 'green',
-      'failed': 'red',
-    };
-    return statusColors[status as keyof typeof statusColors] || 'default';
+    switch (status) {
+      case 'pending':
+        return 'default';
+      case 'picked_up':
+        return 'processing';
+      case 'in_transit':
+        return 'warning';
+      case 'lab_received':
+        return 'processing';
+      case 'testing':
+        return 'warning';
+      case 'completed':
+        return 'success';
+      case 'cancelled':
+        return 'error';
+      default:
+        return 'default';
+    }
   };
 
-  const getStatusIcon = (status: string) => {
-    const statusIcons = {
-      'pending-pickup': <ClockCircleOutlined />,
-      'in-transit': <CarOutlined />,
-      'testing': <ExperimentOutlined />,
-      'completed': <CheckCircleOutlined />,
-      'failed': <WarningOutlined />,
-    };
-    return statusIcons[status as keyof typeof statusIcons] || <SyncOutlined />;
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'Pending';
+      case 'picked_up':
+        return 'Diambil';
+      case 'in_transit':
+        return 'Dalam Perjalanan';
+      case 'lab_received':
+        return 'Lab Terima';
+      case 'testing':
+        return 'Pengujian';
+      case 'completed':
+        return 'Selesai';
+      case 'cancelled':
+        return 'Dibatalkan';
+      default:
+        return status;
+    }
   };
 
-  const columns: ColumnsType<SampleStatus> = [
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'normal':
+        return 'default';
+      case 'urgent':
+        return 'warning';
+      case 'critical':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  const getProgressColor = (percentage: number, status: string) => {
+    if (status === 'completed') return '#9fe400';
+    if (status === 'cancelled') return '#fd0017';
+    if (percentage >= 80) return '#9fe400';
+    if (percentage >= 60) return '#faad14';
+    if (percentage >= 40) return '#1890ff';
+    return '#fd0017';
+  };
+
+  const columns: ProColumns<MonitoringRecord>[] = [
     {
-      title: 'Kode Sampel',
-      dataIndex: 'code',
-      key: 'code',
-      width: 150,
-    },
-    {
-      title: 'Produk',
-      dataIndex: 'productType',
-      key: 'productType',
-      width: 100,
-    },
-    {
-      title: 'Status',
-      dataIndex: 'currentStatus',
-      key: 'currentStatus',
-      width: 150,
-      render: (status: string) => (
-        <Tag icon={getStatusIcon(status)} color={getStatusColor(status)}>
-          {status.replace('-', ' ').toUpperCase()}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Lokasi',
-      dataIndex: 'location',
-      key: 'location',
-      render: (location: string) => (
-        <Space>
-          <EnvironmentOutlined style={{ color: '#fd0017' }} />
-          <Text>{location}</Text>
+      title: 'Tracking Number',
+      dataIndex: 'tracking_number',
+      key: 'tracking_number',
+      render: (_, record) => (
+        <Space direction="vertical" size={0}>
+          <span style={{ fontWeight: 500 }}>{record.tracking_number}</span>
+          <Tag
+            color={record.order_type === 'stock' ? 'blue' : 'green'}
+            size="small"
+          >
+            {record.order_type === 'stock' ? 'STOCK' : 'REQUEST'}
+          </Tag>
+          <Tag color={getPriorityColor(record.priority)} size="small">
+            {record.priority.toUpperCase()}
+          </Tag>
         </Space>
       ),
     },
     {
-      title: 'Progress',
-      dataIndex: 'progress',
-      key: 'progress',
-      width: 120,
-      render: (progress: number) => (
-        <Progress 
-          percent={progress} 
-          size="small" 
-          strokeColor="#9fe400"
-        />
+      title: 'Detail Sampel',
+      dataIndex: 'sample_type',
+      key: 'sample_type',
+      render: (_, record) => (
+        <div>
+          <div style={{ fontWeight: 500 }}>{record.sample_type}</div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            {record.vessel_name}
+          </div>
+        </div>
       ),
     },
     {
-      title: 'ETA',
-      dataIndex: 'estimatedArrival',
-      key: 'estimatedArrival',
-      width: 80,
-      render: (eta: string) => eta || '-',
+      title: 'Lokasi Saat Ini',
+      dataIndex: 'current_location',
+      key: 'current_location',
+      render: (_, record) => (
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <EnvironmentOutlined style={{ color: '#fd0017', marginRight: 4 }} />
+          <span>{record.current_location}</span>
+        </div>
+      ),
     },
     {
-      title: 'Issues',
-      dataIndex: 'issues',
-      key: 'issues',
-      render: (issues: string[]) => (
-        issues.length > 0 ? (
-          <Badge count={issues.length} showZero={false}>
-            <WarningOutlined style={{ color: '#faad14' }} />
-          </Badge>
-        ) : (
-          <CheckCircleOutlined style={{ color: '#52c41a' }} />
-        )
+      title: 'Tujuan Lab',
+      dataIndex: 'lab_destination',
+      key: 'lab_destination',
+      render: (_, record) => (
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <ExperimentOutlined style={{ color: '#9fe400', marginRight: 4 }} />
+          <span>{record.lab_destination}</span>
+        </div>
+      ),
+    },
+    {
+      title: 'Progress',
+      dataIndex: 'progress_percentage',
+      key: 'progress_percentage',
+      render: (_, record) => (
+        <div>
+          <Progress
+            percent={record.progress_percentage}
+            size="small"
+            strokeColor={getProgressColor(
+              record.progress_percentage,
+              record.current_status,
+            )}
+            showInfo={false}
+          />
+          <div style={{ fontSize: '12px', color: '#666', marginTop: 2 }}>
+            {record.progress_percentage}%
+          </div>
+        </div>
+      ),
+      sorter: true,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'current_status',
+      key: 'current_status',
+      render: (_, record) => (
+        <Badge
+          status={getStatusColor(record.current_status)}
+          text={getStatusLabel(record.current_status)}
+        />
+      ),
+      filters: statusOptions
+        .slice(1)
+        .map((item) => ({ text: item.label, value: item.value })),
+    },
+    {
+      title: 'Sample Officer',
+      dataIndex: 'sample_officer',
+      key: 'sample_officer',
+    },
+    {
+      title: 'Estimasi Tiba',
+      dataIndex: 'estimated_arrival',
+      key: 'estimated_arrival',
+      render: (_, record) => (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <ClockCircleOutlined style={{ color: '#9fe400', marginRight: 4 }} />
+            <span>{dayjs(record.estimated_arrival).format('DD/MM HH:mm')}</span>
+          </div>
+          {record.actual_arrival && (
+            <div style={{ fontSize: '12px', color: '#666' }}>
+              Aktual: {dayjs(record.actual_arrival).format('DD/MM HH:mm')}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: 'Last Update',
+      dataIndex: 'last_update',
+      key: 'last_update',
+      render: (_, record) => (
+        <span style={{ fontSize: '12px', color: '#666' }}>
+          {dayjs(record.last_update).fromNow()}
+        </span>
+      ),
+      sorter: true,
+    },
+    {
+      title: 'Aksi',
+      key: 'actions',
+      width: 100,
+      render: (_, record) => (
+        <Button
+          type="link"
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={() => handleViewDetail(record)}
+        >
+          Detail
+        </Button>
       ),
     },
   ];
 
-  const expandedRowRender = (record: SampleStatus) => (
-    <div style={{ padding: '16px 24px', background: '#fafafa' }}>
-      <Row gutter={16}>
-        <Col span={12}>
-          <Title level={5}>Detail Sampel</Title>
-          <p><strong>Kapal:</strong> {record.shipName}</p>
-          <p><strong>Last Update:</strong> {record.lastUpdate}</p>
-        </Col>
-        <Col span={12}>
-          <Title level={5}>Issues</Title>
-          {record.issues.length > 0 ? (
-            record.issues.map((issue) => (
-              <Alert
-                key={issue}
-                message={issue}
-                type="warning"
-                style={{ marginBottom: 8 }}
-              />
-            ))
-          ) : (
-            <Text type="secondary">Tidak ada masalah</Text>
-          )}
-        </Col>
-      </Row>
-    </div>
-  );
+  const mockData: MonitoringRecord[] = [
+    {
+      id: '1',
+      tracking_number: 'TRK-20250806-001',
+      sample_type: 'JET A-1',
+      vessel_name: 'MT. Commodore One',
+      order_type: 'stock',
+      current_status: 'in_transit',
+      current_location: 'Jalan Tol Cikampek KM 15',
+      lab_destination: 'LPUJ - Priok',
+      sample_officer: 'Moch. Aby Gazal',
+      priority: 'urgent',
+      estimated_arrival: '2025-08-06 11:30',
+      progress_percentage: 65,
+      last_update: '2025-08-06 10:45:00',
+      timeline_events: [
+        {
+          timestamp: '2025-08-06 08:30:00',
+          status: 'pending',
+          location: 'SHAFTI',
+          description: 'Pesanan dibuat',
+          type: 'info',
+        },
+        {
+          timestamp: '2025-08-06 09:00:00',
+          status: 'picked_up',
+          location: 'SHAFTI',
+          description: 'Sampel diambil oleh Sample Officer',
+          type: 'success',
+        },
+        {
+          timestamp: '2025-08-06 09:30:00',
+          status: 'in_transit',
+          location: 'Jalan Raya Jakarta-Cikampek',
+          description: 'Perjalanan menuju lab dimulai',
+          type: 'info',
+        },
+        {
+          timestamp: '2025-08-06 10:45:00',
+          status: 'in_transit',
+          location: 'Jalan Tol Cikampek KM 15',
+          description: 'Update lokasi - dalam perjalanan normal',
+          type: 'info',
+        },
+      ],
+    },
+    {
+      id: '2',
+      tracking_number: 'TRK-20250806-002',
+      sample_type: 'Avgas',
+      vessel_name: 'MT. Pioneer',
+      order_type: 'request',
+      current_status: 'testing',
+      current_location: 'Lemigas - Jakarta',
+      lab_destination: 'Lemigas - Jakarta',
+      sample_officer: 'Ahmad Santoso',
+      priority: 'normal',
+      estimated_arrival: '2025-08-06 16:00',
+      actual_arrival: '2025-08-06 13:30',
+      progress_percentage: 85,
+      last_update: '2025-08-06 14:30:00',
+      timeline_events: [
+        {
+          timestamp: '2025-08-06 10:15:00',
+          status: 'pending',
+          location: 'SHAFTI',
+          description: 'Request dibuat',
+          type: 'info',
+        },
+        {
+          timestamp: '2025-08-06 11:00:00',
+          status: 'picked_up',
+          location: 'SHAFTI',
+          description: 'Sampel diambil',
+          type: 'success',
+        },
+        {
+          timestamp: '2025-08-06 13:30:00',
+          status: 'lab_received',
+          location: 'Lemigas - Jakarta',
+          description: 'Sampel diterima lab, lebih cepat dari estimasi',
+          type: 'success',
+        },
+        {
+          timestamp: '2025-08-06 14:00:00',
+          status: 'testing',
+          location: 'Lemigas - Jakarta',
+          description: 'Pengujian dimulai',
+          type: 'info',
+        },
+      ],
+    },
+    {
+      id: '3',
+      tracking_number: 'TRK-20250805-001',
+      sample_type: 'Diesel',
+      vessel_name: 'MT. Explorer',
+      order_type: 'stock',
+      current_status: 'completed',
+      current_location: 'Balongan Testing Center',
+      lab_destination: 'Balongan Testing Center',
+      sample_officer: 'Sedry Muhammad Iqbal',
+      priority: 'normal',
+      estimated_arrival: '2025-08-05 16:00',
+      actual_arrival: '2025-08-05 15:30',
+      progress_percentage: 100,
+      last_update: '2025-08-05 17:00:00',
+      timeline_events: [
+        {
+          timestamp: '2025-08-05 09:00:00',
+          status: 'pending',
+          location: 'SHAFTI',
+          description: 'Pesanan stock dibuat',
+          type: 'info',
+        },
+        {
+          timestamp: '2025-08-05 09:30:00',
+          status: 'picked_up',
+          location: 'SHAFTI',
+          description: 'Sampel diambil',
+          type: 'success',
+        },
+        {
+          timestamp: '2025-08-05 15:30:00',
+          status: 'lab_received',
+          location: 'Balongan Testing Center',
+          description: 'Sampel sampai di lab Balongan',
+          type: 'success',
+        },
+        {
+          timestamp: '2025-08-05 16:00:00',
+          status: 'testing',
+          location: 'Balongan Testing Center',
+          description: 'Pengujian dimulai',
+          type: 'info',
+        },
+        {
+          timestamp: '2025-08-05 17:00:00',
+          status: 'completed',
+          location: 'Balongan Testing Center',
+          description: 'Pengujian selesai - hasil OnSpec',
+          type: 'success',
+        },
+      ],
+    },
+  ];
+
+  // Calculate summary data
+  const summary = {
+    total: mockData.length,
+    in_transit: mockData.filter((item) =>
+      ['picked_up', 'in_transit'].includes(item.current_status),
+    ).length,
+    at_lab: mockData.filter((item) =>
+      ['lab_received', 'testing'].includes(item.current_status),
+    ).length,
+    completed: mockData.filter((item) => item.current_status === 'completed')
+      .length,
+    delayed: mockData.filter((item) => {
+      if (!item.actual_arrival) return false;
+      return dayjs(item.actual_arrival).isAfter(dayjs(item.estimated_arrival));
+    }).length,
+  };
+
+  const alertData = [
+    {
+      type: 'warning' as const,
+      message: 'TRK-20250806-003 - Terlambat 30 menit dari estimasi',
+      time: '5 menit yang lalu',
+      timestamp: '2025-08-06 10:40:00',
+    },
+    {
+      type: 'error' as const,
+      message: 'TRK-20250806-004 - Macet total di Jalan Tol Japek KM 20',
+      time: '10 menit yang lalu',
+      timestamp: '2025-08-06 10:35:00',
+    },
+    {
+      type: 'success' as const,
+      message: 'TRK-20250806-002 - Sampel sampai di lab lebih awal',
+      time: '15 menit yang lalu',
+      timestamp: '2025-08-06 10:20:00',
+    },
+  ];
 
   return (
     <PageContainer
       title="Monitoring Real-Time"
-      content="Pantau status dan lokasi sampel secara real-time"
+      content="Pantau status dan lokasi sampel secara real-time dari pengambilan hingga selesai pengujian"
       extra={[
+        <Select
+          key="status"
+          value={selectedStatus}
+          onChange={setSelectedStatus}
+          options={statusOptions}
+          style={{ width: 150 }}
+        />,
+        <Select
+          key="date"
+          value={selectedDate}
+          onChange={setSelectedDate}
+          options={dateFilterOptions}
+          style={{ width: 150 }}
+        />,
         <Button
           key="refresh"
-          icon={<SyncOutlined />}
-          onClick={refreshData}
-          loading={loading}
+          icon={<ReloadOutlined spin={refreshing} />}
+          onClick={handleRefresh}
+          loading={refreshing}
         >
           Refresh
         </Button>,
       ]}
     >
-      <Row gutter={[16, 16]}>
-        {/* Statistics Cards */}
+      {/* Summary Cards */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="Total Sampel Aktif"
-              value={realTimeData.length}
+              title="Total Tracking"
+              value={summary.total}
               prefix={<EyeOutlined style={{ color: '#0073fe' }} />}
               valueStyle={{ color: '#0073fe' }}
             />
@@ -325,7 +530,7 @@ const Monitoring: React.FC = () => {
           <Card>
             <Statistic
               title="Dalam Perjalanan"
-              value={realTimeData.filter(item => item.currentStatus === 'in-transit').length}
+              value={summary.in_transit}
               prefix={<CarOutlined style={{ color: '#faad14' }} />}
               valueStyle={{ color: '#faad14' }}
             />
@@ -334,10 +539,10 @@ const Monitoring: React.FC = () => {
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="Sedang Diuji"
-              value={realTimeData.filter(item => item.currentStatus === 'testing').length}
-              prefix={<ExperimentOutlined style={{ color: '#722ed1' }} />}
-              valueStyle={{ color: '#722ed1' }}
+              title="Di Lab"
+              value={summary.at_lab}
+              prefix={<ExperimentOutlined style={{ color: '#9fe400' }} />}
+              valueStyle={{ color: '#9fe400' }}
             />
           </Card>
         </Col>
@@ -345,138 +550,137 @@ const Monitoring: React.FC = () => {
           <Card>
             <Statistic
               title="Selesai"
-              value={realTimeData.filter(item => item.currentStatus === 'completed').length}
-              prefix={<CheckCircleOutlined style={{ color: '#9fe400' }} />}
-              valueStyle={{ color: '#9fe400' }}
+              value={summary.completed}
+              prefix={<CheckCircleOutlined style={{ color: '#fd0017' }} />}
+              valueStyle={{ color: '#fd0017' }}
             />
-          </Card>
-        </Col>
-
-        {/* Real-time Status Table */}
-        <Col xs={24} lg={16}>
-          <Card 
-            title={
-              <Space>
-                <EyeOutlined style={{ color: '#fd0017' }} />
-                Status Sampel Real-Time
-              </Space>
-            }
-          >
-            <Table
-              columns={columns}
-              dataSource={realTimeData}
-              rowKey="id"
-              expandable={{
-                expandedRowRender,
-                rowExpandable: (record) => record.issues.length > 0 || true,
-              }}
-              pagination={false}
-              size="small"
-            />
-          </Card>
-        </Col>
-
-        {/* Activity Timeline */}
-        <Col xs={24} lg={8}>
-          <Card 
-            title={
-              <Space>
-                <ClockCircleOutlined style={{ color: '#9fe400' }} />
-                Activity Log
-              </Space>
-            }
-          >
-            <Timeline
-              mode="left"
-              items={activityLogs.map(log => ({
-                color: log.status === 'success' ? 'green' : 
-                       log.status === 'warning' ? 'orange' : 
-                       log.status === 'error' ? 'red' : 'blue',
-                children: (
-                  <div>
-                    <div style={{ marginBottom: 4 }}>
-                      <Text strong>{log.sampleCode}</Text>
-                      <Tag 
-                        style={{ marginLeft: 8 }}
-                        color={log.status === 'success' ? 'green' : 
-                               log.status === 'warning' ? 'orange' : 
-                               log.status === 'error' ? 'red' : 'blue'}
-                      >
-                        {log.timestamp}
-                      </Tag>
-                    </div>
-                    <div style={{ marginBottom: 4 }}>
-                      <Text>{log.activity}</Text>
-                    </div>
-                    {log.location && (
-                      <div style={{ marginBottom: 4 }}>
-                        <EnvironmentOutlined style={{ marginRight: 4, color: '#666' }} />
-                        <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {log.location}
-                        </Text>
-                      </div>
-                    )}
-                    {log.details && (
-                      <div>
-                        <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {log.details}
-                        </Text>
-                      </div>
-                    )}
-                  </div>
-                ),
-              }))}
-            />
-          </Card>
-        </Col>
-
-        {/* Issues Alert */}
-        <Col xs={24}>
-          <Card title="Alert & Issues">
-            {realTimeData
-              .filter(item => item.issues.length > 0)
-              .map(item => (
-                <Alert
-                  key={item.id}
-                  message={`${item.code} - ${item.currentStatus.toUpperCase()}`}
-                  description={
-                    <div>
-                      <div><strong>Lokasi:</strong> {item.location}</div>
-                      <div><strong>Issues:</strong></div>
-                      <ul>
-                        {item.issues.map((issue) => (
-                          <li key={issue}>{issue}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  }
-                  type="warning"
-                  showIcon
-                  style={{ marginBottom: 16 }}
-                  action={
-                    <Space direction="vertical">
-                      <Button size="small" type="dashed">
-                        Update Status
-                      </Button>
-                      <Button size="small" type="dashed">
-                        Contact Driver
-                      </Button>
-                    </Space>
-                  }
-                />
-              ))}
-            
-            {realTimeData.filter(item => item.issues.length > 0).length === 0 && (
-              <Alert
-                message="Semua Sampel Berjalan Normal"
-                description="Tidak ada issues atau masalah yang terdeteksi pada saat ini."
-                type="success"
-                showIcon
-              />
-            )}
           </Card>
         </Col>
       </Row>
+
+      {/* Real-time Alerts */}
+      <Card
+        title={
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <AlertOutlined style={{ marginRight: 8, color: '#fd0017' }} />
+            Alert Real-Time
+          </div>
+        }
+        size="small"
+        style={{ marginBottom: 24 }}
+      >
+        <Timeline size="small">
+          {alertData.map((alert) => (
+            <Timeline.Item
+              key={alert.timestamp}
+              color={
+                alert.type === 'success'
+                  ? 'green'
+                  : alert.type === 'warning'
+                    ? 'orange'
+                    : 'red'
+              }
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <span>{alert.message}</span>
+                <span style={{ fontSize: '12px', color: '#666' }}>
+                  {alert.time}
+                </span>
+              </div>
+            </Timeline.Item>
+          ))}
+        </Timeline>
+      </Card>
+
+      {/* Main Monitoring Table */}
+      <ProTable<MonitoringRecord>
+        actionRef={actionRef}
+        rowKey="id"
+        search={{
+          labelWidth: 'auto',
+        }}
+        columns={columns}
+        dataSource={mockData.filter(
+          (item) =>
+            selectedStatus === 'all' || item.current_status === selectedStatus,
+        )}
+        pagination={{
+          pageSize: 10,
+          showSizeChanger: true,
+          showQuickJumper: true,
+        }}
+        dateFormatter="string"
+        headerTitle="Status Tracking Sampel"
+        toolBarRender={() => [
+          <Button key="map" type="default">
+            View Map
+          </Button>,
+          <Button key="export" type="default">
+            Export Report
+          </Button>,
+        ]}
+        options={{
+          reload: true,
+          density: true,
+          fullScreen: true,
+        }}
+      />
+
+      {/* Real-time Status Updates */}
+      <Card
+        title="Live Status Updates"
+        size="small"
+        extra={
+          <Tag color="success">
+            <SyncOutlined spin /> Live
+          </Tag>
+        }
+      >
+        <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+          {mockData
+            .sort(
+              (a, b) =>
+                dayjs(b.last_update).unix() - dayjs(a.last_update).unix(),
+            )
+            .slice(0, 5)
+            .map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  padding: '8px 0',
+                  borderBottom: '1px solid #f0f0f0',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <div>
+                  <span style={{ fontWeight: 500 }}>
+                    {item.tracking_number}
+                  </span>
+                  <span style={{ margin: '0 8px', color: '#666' }}>•</span>
+                  <Badge
+                    status={getStatusColor(item.current_status)}
+                    text={getStatusLabel(item.current_status)}
+                  />
+                  <span style={{ margin: '0 8px', color: '#666' }}>•</span>
+                  <span style={{ fontSize: '12px', color: '#666' }}>
+                    {item.current_location}
+                  </span>
+                </div>
+                <span style={{ fontSize: '12px', color: '#666' }}>
+                  {dayjs(item.last_update).format('HH:mm')}
+                </span>
+              </div>
+            ))}
+        </div>
+      </Card>
     </PageContainer>
   );
 };

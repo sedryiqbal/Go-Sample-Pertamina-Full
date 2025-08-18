@@ -1,4 +1,4 @@
-# PRD (Product Requirement Document)
+# Product Requirement Document (PRD)
 
 Date: July 29, 2025 → August 16, 2025
 Assign: Sedry iqbal
@@ -229,3 +229,9 @@ Foto : Lampirkan/upload file
 Submit
 
 Kurang Lebih seperti ini
+
+Meeting 17 Agustus 2025
+- detail total siring 
+- destilian dropdown web baru 
+- method dropdown  (penambahan method) pilihan 
+- unit  (penambahan unit) pilihan bisa berubah

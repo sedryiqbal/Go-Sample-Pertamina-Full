@@ -19,7 +19,7 @@ export default {
   'pages.login.captcha.required': 'Kode verifikasi diperlukan!',
   'pages.login.phoneLogin.getVerificationCode': 'Dapatkan kode',
   'pages.getCaptchaSecondText': 'detik tersisa',
-  'pages.login.rememberMe': 'Ingat saya',
+  'pages.login.rememberMe': 'ingat saya',
   'pages.login.forgotPassword': 'Lupa Kata Sandi?',
   'pages.login.submit': 'Masuk',
   'pages.login.loginWith': 'Masuk dengan :',
@@ -72,4 +72,25 @@ export default {
   'pages.searchTable.tenThousand': '0000',
   'pages.searchTable.batchDeletion': 'Penghapusan batch',
   'pages.searchTable.batchApproval': 'Persetujuan batch',
+
+  // Monitoring pages
+  'pages.monitoring.title': 'Monitoring Real-Time',
+  'pages.monitoring.description':
+    'Pantau status dan lokasi sampel secara real-time',
+  'pages.monitoring.detail.title': 'Detail Monitoring Sample',
+  'pages.monitoring.detail.description':
+    'Detail lengkap monitoring sample dari pemesanan hingga release',
+  'pages.monitoring.detail.backButton': 'Kembali',
+  'pages.monitoring.detail.refreshButton': 'Refresh',
+  'pages.monitoring.detail.sampleInfo': 'Informasi Sample',
+  'pages.monitoring.detail.sampleFlow': 'Alur Proses Sample',
+  'pages.monitoring.detail.labResults': 'Hasil Pengujian Lab',
+  'pages.monitoring.detail.quickActions': 'Aksi Cepat',
+  'pages.monitoring.detail.viewCertificate': 'Lihat Sertifikat',
+  'pages.monitoring.detail.trackLocation': 'Lacak Lokasi Real-time',
+  'pages.monitoring.detail.updateStatus': 'Update Status Manual',
+  'pages.monitoring.detail.reportIssue': 'Laporkan Issue',
+  'pages.monitoring.detail.notFound': 'Sample tidak ditemukan',
+  'pages.monitoring.detail.notFoundDescription':
+    'Sample dengan ID tersebut tidak ditemukan dalam sistem.',
 };

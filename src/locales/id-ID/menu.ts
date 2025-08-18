@@ -50,7 +50,7 @@ export default {
   'menu.editor.flow': 'Penyusun Alur',
   'menu.editor.mind': 'Penyusun Mind',
   'menu.editor.koni': 'Penyusun Koni',
-  
+
   // Go Sample specific menus
   'menu.management': 'Manajemen',
   'menu.management.users': 'Manajemen User',
@@ -58,22 +58,23 @@ export default {
   'menu.management.categories': 'Manajemen Kategori',
   'menu.management.ships': 'Manajemen Kapal',
   'menu.management.laboratories': 'Manajemen Laboratorium',
-  
+
   'menu.sample-order': 'Pemesanan Sampel',
   'menu.sample-order.stock-order': 'Pemesanan Stock',
   'menu.sample-order.request-order': 'Pemesanan Request',
   'menu.sample-order.delivery': 'Pengantaran',
-  
+
   'menu.laboratory': 'Laboratorium',
   'menu.laboratory.testing': 'Pengujian',
   'menu.laboratory.analysis': 'Analisa Hasil',
   'menu.laboratory.verification': 'Verifikasi',
-  
+
   'menu.comparison': 'Komparasi',
   'menu.comparison.quality-check': 'Product Quality Check',
   'menu.comparison.document': 'Komparasi Dokumen',
-  
+
   'menu.stock-opname': 'Stock Opname Sample',
   'menu.monitoring': 'Monitoring',
+  'menu.monitoring-detail': 'Detail Monitoring',
   'menu.reports': 'Laporan',
 };
