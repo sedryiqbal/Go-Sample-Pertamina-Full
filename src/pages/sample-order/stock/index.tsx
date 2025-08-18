@@ -5,6 +5,7 @@ import {
   EnvironmentOutlined,
   PlusOutlined,
   ShoppingOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
@@ -27,7 +28,10 @@ import {
   Statistic,
   Steps,
   Tag,
+  Upload,
 } from 'antd';
+import type { UploadProps } from 'antd/es/upload';
+import type { UploadFile } from 'antd/es/upload/interface';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
@@ -43,6 +47,10 @@ interface StockOrderRecord {
   unit: string;
   lab_location: string;
   estimated_delivery_time: number;
+  category_test: string;
+  estimated_arrival_time: string;
+  memo_file?: string;
+  photo_sample?: string;
   priority: 'normal' | 'urgent' | 'critical';
   status:
     | 'pending'
@@ -51,7 +59,6 @@ interface StockOrderRecord {
     | 'in_transit'
     | 'delivered'
     | 'cancelled';
-  sample_officer: string;
   notes?: string;
   created_at: string;
   pickup_time?: string;
@@ -67,8 +74,25 @@ const StockOrder: React.FC = () => {
   const [editingRecord, setEditingRecord] = useState<
     StockOrderRecord | undefined
   >();
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(null);
   const [form] = Form.useForm();
+
+  const [memoFileList, setMemoFileList] = useState<UploadFile[]>([]);
+  const [photoSampleFileList, setPhotoSampleFileList] = useState<UploadFile[]>(
+    [],
+  );
+
+  const handleMemoFileChange: UploadProps['onChange'] = ({
+    fileList: newFileList,
+  }) => {
+    setMemoFileList(newFileList);
+  };
+
+  const handlePhotoSampleChange: UploadProps['onChange'] = ({
+    fileList: newFileList,
+  }) => {
+    setPhotoSampleFileList(newFileList);
+  };
 
   const priorityOptions = [
     { label: 'Normal', value: 'normal' },
@@ -82,10 +106,11 @@ const StockOrder: React.FC = () => {
     { label: 'Balongan - Balongan (6 jam)', value: 'balongan', time: 6 },
   ];
 
-  const sampleOfficerOptions = [
-    { label: 'Moch. Aby Gazal', value: 'aby-gazal' },
-    { label: 'Sedry Muhammad Iqbal', value: 'sedry-iqbal' },
-    { label: 'Ahmad Santoso', value: 'ahmad-santoso' },
+  const categoryTestOptions = [
+    { label: 'Quality Analysis', value: 'quality-analysis' },
+    { label: 'Basic Testing', value: 'basic-testing' },
+    { label: 'Comprehensive Testing', value: 'comprehensive-testing' },
+    { label: 'Emergency Testing', value: 'emergency-testing' },
   ];
 
   // Calendar data for available stock
@@ -291,6 +316,11 @@ const StockOrder: React.FC = () => {
         estimated_delivery_time: labLocation?.time || 1,
         status: 'pending',
         created_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+        memo_file: memoFileList.length > 0 ? memoFileList[0].name : undefined,
+        photo_sample:
+          photoSampleFileList.length > 0
+            ? photoSampleFileList[0].name
+            : undefined,
       };
 
       if (editingRecord) {
@@ -304,6 +334,8 @@ const StockOrder: React.FC = () => {
       setDrawerVisible(false);
       form.resetFields();
       setSelectedStock(null);
+      setMemoFileList([]);
+      setPhotoSampleFileList([]);
       actionRef.current?.reload();
     } catch (_error) {
       message.error('Gagal menyimpan pesanan stock');
@@ -369,7 +401,7 @@ const StockOrder: React.FC = () => {
       render: (_, record) => (
         <Space direction="vertical" size={0}>
           <span style={{ fontWeight: 500 }}>{record.order_number}</span>
-          <Tag color={getPriorityColor(record.priority)} size="small">
+          <Tag color={getPriorityColor(record.priority)}>
             {record.priority.toUpperCase()}
           </Tag>
         </Space>
@@ -420,9 +452,16 @@ const StockOrder: React.FC = () => {
       ),
     },
     {
-      title: 'Sample Officer',
-      dataIndex: 'sample_officer',
-      key: 'sample_officer',
+      title: 'Category Test',
+      dataIndex: 'category_test',
+      key: 'category_test',
+    },
+    {
+      title: 'Estimasi Waktu Sampai',
+      dataIndex: 'estimated_arrival_time',
+      key: 'estimated_arrival_time',
+      valueType: 'dateTime',
+      sorter: true,
     },
     {
       title: 'Status',
@@ -449,6 +488,40 @@ const StockOrder: React.FC = () => {
       valueType: 'dateTime',
       sorter: true,
     },
+    {
+      title: 'Memo File',
+      dataIndex: 'memo_file',
+      key: 'memo_file',
+      render: (text) =>
+        text ? (
+          <a
+            href={`/uploads/${text}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {text}
+          </a>
+        ) : (
+          '-'
+        ),
+    },
+    {
+      title: 'Foto Sample',
+      dataIndex: 'photo_sample',
+      key: 'photo_sample',
+      render: (text) =>
+        text ? (
+          <a
+            href={`/uploads/${text}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {text}
+          </a>
+        ) : (
+          '-'
+        ),
+    },
   ];
 
   const mockData: StockOrderRecord[] = [
@@ -465,7 +538,10 @@ const StockOrder: React.FC = () => {
       estimated_delivery_time: 1,
       priority: 'urgent',
       status: 'in_transit',
-      sample_officer: 'Moch. Aby Gazal',
+      category_test: 'Quality Analysis',
+      estimated_arrival_time: '2025-08-06 14:00',
+      memo_file: 'memo_sample_1.pdf',
+      photo_sample: 'photo_sample_1.jpg',
       created_at: '2025-08-06 08:30:00',
       pickup_time: '2025-08-06 09:00:00',
       current_location: 'Jalan Tol Cikampek KM 15',
@@ -483,7 +559,8 @@ const StockOrder: React.FC = () => {
       estimated_delivery_time: 1,
       priority: 'normal',
       status: 'confirmed',
-      sample_officer: 'Ahmad Santoso',
+      category_test: 'Basic Testing',
+      estimated_arrival_time: '2025-08-06 16:00',
       created_at: '2025-08-06 10:15:00',
     },
   ];
@@ -618,6 +695,8 @@ const StockOrder: React.FC = () => {
           setDrawerVisible(false);
           form.resetFields();
           setSelectedStock(null);
+          setMemoFileList([]);
+          setPhotoSampleFileList([]);
         }}
         extra={
           <Space>
@@ -751,34 +830,99 @@ const StockOrder: React.FC = () => {
             </Select>
           </Form.Item>
 
+          <Form.Item
+            name="category_test"
+            label="Category Test"
+            rules={[{ required: true, message: 'Category test wajib dipilih' }]}
+          >
+            <Select
+              placeholder="Pilih category test"
+              options={categoryTestOptions}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="estimated_arrival_time"
+            label="Estimasi Waktu Sampai"
+            rules={[
+              { required: true, message: 'Estimasi waktu sampai wajib diisi' },
+            ]}
+          >
+            <DatePicker
+              showTime
+              format="DD/MM/YYYY HH:mm"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
-                name="sample_officer"
-                label="Sample Officer"
-                rules={[
-                  { required: true, message: 'Sample officer wajib dipilih' },
-                ]}
+                name="memo_file"
+                label="Memo File"
+                valuePropName="fileList"
+                getValueFromEvent={(e) => {
+                  if (Array.isArray(e)) {
+                    return e;
+                  }
+                  return e?.fileList;
+                }}
               >
-                <Select
-                  placeholder="Pilih sample officer"
-                  options={sampleOfficerOptions}
-                />
+                <Upload.Dragger
+                  name="memoFile"
+                  multiple={false}
+                  beforeUpload={() => false} // Prevent automatic upload
+                  onChange={handleMemoFileChange}
+                  fileList={memoFileList}
+                >
+                  <p className="ant-upload-drag-icon">
+                    <UploadOutlined />
+                  </p>
+                  <p className="ant-upload-text">Drag & Drop File</p>
+                  <p className="ant-upload-hint">
+                    Dukungan untuk single upload.
+                  </p>
+                </Upload.Dragger>
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                name="priority"
-                label="Prioritas"
-                rules={[{ required: true, message: 'Prioritas wajib dipilih' }]}
+                name="photo_sample"
+                label="Foto Sample"
+                valuePropName="fileList"
+                getValueFromEvent={(e) => {
+                  if (Array.isArray(e)) {
+                    return e;
+                  }
+                  return e?.fileList;
+                }}
               >
-                <Select
-                  placeholder="Pilih prioritas"
-                  options={priorityOptions}
-                />
+                <Upload.Dragger
+                  name="photoSample"
+                  multiple={false}
+                  beforeUpload={() => false} // Prevent automatic upload
+                  onChange={handlePhotoSampleChange}
+                  fileList={photoSampleFileList}
+                >
+                  <p className="ant-upload-drag-icon">
+                    <UploadOutlined />
+                  </p>
+                  <p className="ant-upload-text">Drag & Drop File</p>
+                  <p className="ant-upload-hint">
+                    Dukungan untuk single upload.
+                  </p>
+                </Upload.Dragger>
               </Form.Item>
             </Col>
           </Row>
+
+          <Form.Item
+            name="priority"
+            label="Prioritas"
+            rules={[{ required: true, message: 'Prioritas wajib dipilih' }]}
+          >
+            <Select placeholder="Pilih prioritas" options={priorityOptions} />
+          </Form.Item>
 
           <Form.Item name="notes" label="Catatan">
             <Input.TextArea

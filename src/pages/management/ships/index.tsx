@@ -23,6 +23,7 @@ import {
   Select,
   Space,
   Statistic,
+  Tag,
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
@@ -53,7 +54,7 @@ interface ShipRecord {
 const Ships: React.FC = () => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ShipRecord | undefined>();
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(null);
   const [form] = Form.useForm();
 
   const vesselTypeOptions = [
@@ -99,9 +100,6 @@ const Ships: React.FC = () => {
     form.setFieldsValue({
       ...record,
       arrival_date: record.arrival_date ? dayjs(record.arrival_date) : null,
-      departure_date: record.departure_date
-        ? dayjs(record.departure_date)
-        : null,
     });
     setDrawerVisible(true);
   };
@@ -125,7 +123,6 @@ const Ships: React.FC = () => {
       const _formattedValues = {
         ..._values,
         arrival_date: _values.arrival_date?.format('YYYY-MM-DD HH:mm'),
-        departure_date: _values.departure_date?.format('YYYY-MM-DD HH:mm'),
       };
 
       if (editingRecord) {
@@ -255,18 +252,7 @@ const Ships: React.FC = () => {
       valueType: 'dateTime',
       sorter: true,
     },
-    {
-      title: 'Keberangkatan',
-      dataIndex: 'departure_date',
-      key: 'departure_date',
-      valueType: 'dateTime',
-      render: (_, record) =>
-        record.departure_date ? (
-          <span>{dayjs(record.departure_date).format('DD/MM/YYYY HH:mm')}</span>
-        ) : (
-          <span style={{ color: '#999' }}>-</span>
-        ),
-    },
+
     {
       title: 'Lokasi Dermaga',
       dataIndex: 'berth_location',
@@ -454,16 +440,6 @@ const Ships: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="Berangkat"
-              value={shipSummary.departed}
-              prefix={<CarOutlined style={{ color: '#999' }} />}
-              valueStyle={{ color: '#999' }}
-            />
-          </Card>
-        </Col>
       </Row>
 
       <ProTable<ShipRecord>
@@ -607,32 +583,19 @@ const Ships: React.FC = () => {
             </Col>
           </Row>
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="arrival_date"
-                label="Tanggal Kedatangan"
-                rules={[
-                  { required: true, message: 'Tanggal kedatangan wajib diisi' },
-                ]}
-              >
-                <DatePicker
-                  showTime
-                  format="DD/MM/YYYY HH:mm"
-                  style={{ width: '100%' }}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="departure_date" label="Tanggal Keberangkatan">
-                <DatePicker
-                  showTime
-                  format="DD/MM/YYYY HH:mm"
-                  style={{ width: '100%' }}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
+          <Form.Item
+            name="arrival_date"
+            label="Tanggal Kedatangan"
+            rules={[
+              { required: true, message: 'Tanggal kedatangan wajib diisi' },
+            ]}
+          >
+            <DatePicker
+              showTime
+              format="DD/MM/YYYY HH:mm"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
 
           <Row gutter={16}>
             <Col span={12}>
