@@ -54,10 +54,11 @@ export default {
   // Go Sample specific menus
   'menu.management': 'Manajemen',
   'menu.management.users': 'Manajemen User',
-  'menu.management.stock': 'Manajemen Stock',
-  'menu.management.categories': 'Manajemen Kategori',
   'menu.management.ships': 'Manajemen Kapal',
-  'menu.management.laboratories': 'Manajemen Laboratorium',
+  'menu.management.roles': 'Manajemen Role',
+
+  'menu.stock': 'Stock',
+  'menu.stock.estimation': 'Estimasi Stock Sample',
 
   'menu.sample-order': 'Pemesanan Sampel',
 

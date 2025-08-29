@@ -57,6 +57,7 @@ export default {
   'menu.management.categories': 'Category Management',
   'menu.management.ships': 'Ship Management',
   'menu.management.laboratories': 'Laboratory Management',
+  'menu.management.roles': 'Role Management',
 
   'menu.sample-order': 'Sample Order',
   'menu.sample-order.stock-order': 'Stock Order',

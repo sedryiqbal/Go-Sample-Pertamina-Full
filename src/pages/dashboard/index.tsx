@@ -1,6 +1,7 @@
 import {
   CalendarOutlined,
   CheckCircleOutlined,
+  CloseCircleOutlined,
   ExperimentOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
@@ -9,7 +10,16 @@ import { PageContainer } from '@ant-design/pro-components';
 import { Badge, Calendar, Card, Col, Row, Statistic } from 'antd';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
-import { useState } from 'react';
+import React, { useState } from 'react';
+
+// Import modular components
+import {
+  RecentActivities,
+  SampleCalendar,
+  StatCard,
+  TestResultsSummary,
+  WeeklyTestResults,
+} from './components';
 
 const Dashboard: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
@@ -118,197 +128,72 @@ const Dashboard: React.FC = () => {
       </div>
     );
   };
-
   return (
     <PageContainer
       title="Dashboard Go Sample"
       content="Monitoring dan analisis sampel Pertamina Aviation Soekarno-Hatta"
     >
       <Row gutter={[16, 16]}>
-        {/* Statistics Cards */}
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title="Total Pengujian Lab"
-              value={123}
-              prefix={<ExperimentOutlined style={{ color: '#0073fe' }} />}
-              valueStyle={{ color: '#0073fe' }}
-            />
-          </Card>
+        {/* Top Statistics Cards */}
+        <Col xs={24} sm={12} lg={6} xl={4}>
+          <StatCard
+            title="Total Sample Pengujian Lab"
+            value={125}
+            icon={<ExperimentOutlined />}
+            color="#1890ff"
+          />
         </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title="Sudah Diuji"
-              value={107}
-              prefix={<CheckCircleOutlined style={{ color: '#9fe400' }} />}
-              valueStyle={{ color: '#9fe400' }}
-            />
-          </Card>
+        <Col xs={24} sm={12} lg={6} xl={4}>
+          <StatCard
+            title="Total Siring Ready Detail Ready / Not Ready"
+            value="98/27"
+            icon={<CheckCircleOutlined />}
+            color="#52c41a"
+          />
         </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title="Sedang Diproses"
-              value={16}
-              prefix={<SyncOutlined spin style={{ color: '#fd0017' }} />}
-              valueStyle={{ color: '#fd0017' }}
-            />
-          </Card>
+        <Col xs={24} sm={12} lg={6} xl={4}>
+          <StatCard
+            title="Total Berhasil Di uji"
+            value={98}
+            icon={<CheckCircleOutlined />}
+            color="#52c41a"
+          />
         </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title="Total Berhasil"
-              value={107}
-              suffix="/ 123"
-              prefix={<CheckCircleOutlined style={{ color: '#9fe400' }} />}
-              valueStyle={{ color: '#9fe400' }}
-            />
-          </Card>
+        <Col xs={24} sm={12} lg={6} xl={4}>
+          <StatCard
+            title="Sedang di proses Uji"
+            value={15}
+            icon={<SyncOutlined spin />}
+            color="#faad14"
+          />
+        </Col>
+        <Col xs={24} sm={12} lg={6} xl={4}>
+          <StatCard
+            title="Total Gagal Di uji"
+            value={12}
+            icon={<CloseCircleOutlined />}
+            color="#ff4d4f"
+          />
         </Col>
 
-        {/* Calendar */}
+        {/* Calendar Section */}
         <Col xs={24} lg={14}>
-          <Card
-            title={
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <CalendarOutlined
-                  style={{ marginRight: 8, color: '#fd0017' }}
-                />
-                Estimasi Ketersediaan Stock
-              </div>
-            }
-          >
-            <div style={{ overflow: 'hidden' }}>
-              <Calendar
-                mode="month"
-                cellRender={dateCellRender}
-                value={selectedDate}
-                onChange={setSelectedDate}
-                style={{
-                  height: 400,
-                  width: '100%',
-                }}
-              />
-            </div>
-          </Card>
+          <SampleCalendar />
         </Col>
 
-        {/* Pie Chart */}
+        {/* Success/Failure Summary */}
         <Col xs={24} lg={10}>
-          <Card title="Total Pengujian Berhasil & Gagal">
-            <Pie {...pieConfig} />
-            <div style={{ marginTop: 16, textAlign: 'center' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-                <div>
-                  <div style={{ color: '#9fe400', fontWeight: 'bold' }}>
-                    Berhasil
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '24px',
-                      fontWeight: 'bold',
-                      color: '#9fe400',
-                    }}
-                  >
-                    107
-                  </div>
-                  <div style={{ color: '#666' }}>87%</div>
-                </div>
-                <div>
-                  <div style={{ color: '#fd0017', fontWeight: 'bold' }}>
-                    Gagal
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '24px',
-                      fontWeight: 'bold',
-                      color: '#fd0017',
-                    }}
-                  >
-                    16
-                  </div>
-                  <div style={{ color: '#666' }}>13%</div>
-                </div>
-              </div>
-            </div>
-          </Card>
+          <TestResultsSummary />
         </Col>
 
-        {/* Line Chart */}
+        {/* Weekly Results Chart */}
         <Col xs={24}>
-          <Card title="Pengujian 7 Hari Terakhir">
-            <Line {...lineConfig} />
-          </Card>
+          <WeeklyTestResults />
         </Col>
 
         {/* Recent Activities */}
         <Col xs={24}>
-          <Card title="Aktivitas Terbaru">
-            <div style={{ maxHeight: 300, overflowY: 'auto' }}>
-              {[
-                {
-                  time: '10:30',
-                  action:
-                    'Sampel JET A-1 dari MT. Commodore One diterima lab LPUJ',
-                  status: 'success',
-                },
-                {
-                  time: '09:45',
-                  action: 'Pengujian sampel Avgas dari MT. Pioneer selesai',
-                  status: 'success',
-                },
-                {
-                  time: '09:15',
-                  action: 'Komparasi dokumen sampel JET A-1 - OnSpec',
-                  status: 'success',
-                },
-                {
-                  time: '08:30',
-                  action: 'Pengantaran sampel ke lab Lemigas dalam perjalanan',
-                  status: 'processing',
-                },
-                {
-                  time: '08:00',
-                  action: 'Pemesanan sampel baru dari MT. Explorer',
-                  status: 'warning',
-                },
-              ].map((item) => (
-                <div
-                  key={`${item.time}-${item.action}`}
-                  style={{
-                    padding: '12px 0',
-                    borderBottom: '1px solid #f0f0f0',
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 60,
-                      color: '#666',
-                      fontSize: '12px',
-                      marginRight: 16,
-                    }}
-                  >
-                    {item.time}
-                  </div>
-                  <div style={{ flex: 1 }}>{item.action}</div>
-                  <Badge
-                    status={item.status as any}
-                    text={
-                      item.status === 'success'
-                        ? 'Selesai'
-                        : item.status === 'processing'
-                          ? 'Proses'
-                          : 'Pending'
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          </Card>
+          <RecentActivities />
         </Col>
       </Row>
     </PageContainer>

@@ -42,9 +42,6 @@ interface RequestOrderRecord {
   category: 'import' | 'local' | 'reference';
   quantity: number;
   unit: string;
-  company_sender: string;
-  sender_name: string;
-  sender_phone: string;
   estimated_arrival: string;
   lab_location: string;
   estimated_delivery_time: number;
@@ -56,7 +53,6 @@ interface RequestOrderRecord {
     | 'in_transit'
     | 'delivered'
     | 'cancelled';
-  sample_officer: string;
   memo_file?: string;
   photo_file?: string;
   notes?: string;
@@ -71,7 +67,7 @@ const RequestOrder: React.FC = () => {
   const [editingRecord, setEditingRecord] = useState<
     RequestOrderRecord | undefined
   >();
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(null);
   const [form] = Form.useForm();
 
   const categoryOptions = [
@@ -657,48 +653,6 @@ const RequestOrder: React.FC = () => {
                     format="DD/MM/YYYY HH:mm"
                     style={{ width: '100%' }}
                   />
-                </Form.Item>
-              </Col>
-            </Row>
-          </Card>
-
-          {/* Sender Information */}
-          <Card
-            title="Informasi Pengirim"
-            size="small"
-            style={{ marginBottom: 16 }}
-          >
-            <Form.Item
-              name="company_sender"
-              label="Perusahaan Pengirim"
-              rules={[
-                { required: true, message: 'Perusahaan pengirim wajib diisi' },
-              ]}
-            >
-              <Input placeholder="SHAFTI" />
-            </Form.Item>
-
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  name="sender_name"
-                  label="Nama Pengirim"
-                  rules={[
-                    { required: true, message: 'Nama pengirim wajib diisi' },
-                  ]}
-                >
-                  <Input placeholder="Moch. Aby Gazal" />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  name="sender_phone"
-                  label="Telepon Pengirim"
-                  rules={[
-                    { required: true, message: 'Telepon pengirim wajib diisi' },
-                  ]}
-                >
-                  <Input placeholder="+62-21-12345678" />
                 </Form.Item>
               </Col>
             </Row>
