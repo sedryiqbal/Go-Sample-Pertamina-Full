@@ -433,6 +433,7 @@ const LaboratoryTesting: React.FC = () => {
                   key="confirm"
                   type="link"
                   size="small"
+                  icon={<EditOutlined />}
                   onClick={() => handleLabAction(record, 'confirm_sample')}
                   style={{ color: '#52c41a' }}
                 >
@@ -445,6 +446,7 @@ const LaboratoryTesting: React.FC = () => {
                   key="waiting"
                   type="link"
                   size="small"
+                  icon={<EditOutlined />}
                   onClick={() => handleLabAction(record, 'waiting_test')}
                   style={{ color: '#faad14' }}
                 >
@@ -457,6 +459,7 @@ const LaboratoryTesting: React.FC = () => {
                   key="process"
                   type="link"
                   size="small"
+                  icon={<EditOutlined />}
                   onClick={() => handleLabAction(record, 'process_test')}
                   style={{ color: '#1890ff' }}
                 >
@@ -469,6 +472,7 @@ const LaboratoryTesting: React.FC = () => {
                   key="input"
                   type="link"
                   size="small"
+                  icon={<EditOutlined />}
                   onClick={() => handleLabAction(record, 'input_result')}
                   style={{ color: '#722ed1' }}
                 >
@@ -481,6 +485,7 @@ const LaboratoryTesting: React.FC = () => {
                   key="complete"
                   type="link"
                   size="small"
+                  icon={<EditOutlined />}
                   onClick={() => handleLabAction(record, 'complete_test')}
                   style={{ color: '#fd0017' }}
                 >

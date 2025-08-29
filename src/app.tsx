@@ -32,10 +32,14 @@ export async function getInitialState(): Promise<{
 }> {
   const fetchUserInfo = async () => {
     try {
-      const msg = await queryCurrentUser({
-        skipErrorHandler: true,
-      });
-      return msg.data;
+      // const msg = await queryCurrentUser({
+      //   skipErrorHandler: true,
+      // });
+      return {
+        name: 'John Doe',
+        avatar: 'https://example.com/avatar.jpg',
+        email: 'john.doe@example.com',
+      };
     } catch (_error) {
       history.push(loginPath);
     }
@@ -154,6 +158,6 @@ export const layout: RunTimeLayoutConfig = ({
  * @doc https://umijs.org/docs/max/request#配置
  */
 export const request: RequestConfig = {
-  baseURL: 'https://proapi.azurewebsites.net',
+  // baseURL: 'https://proapi.azurewebsites.net',
   ...errorConfig,
 };

@@ -11,11 +11,17 @@ export async function getFakeCaptcha(
   },
   options?: { [key: string]: any },
 ) {
-  return request<API.FakeCaptcha>('/api/login/captcha', {
-    method: 'GET',
-    params: {
-      ...params,
+  return {
+    code: 0,
+    data: {
+      captcha: '1234',
     },
-    ...(options || {}),
-  });
+  };
+  // return request<API.FakeCaptcha>('/api/login/captcha', {
+  //   method: 'GET',
+  //   params: {
+  //     ...params,
+  //   },
+  //   ...(options || {}),
+  // });
 }
