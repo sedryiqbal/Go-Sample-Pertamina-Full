@@ -97,7 +97,7 @@ export default defineConfig({
     preset: 'antd',
     plugins: ['duration'],
   },
-  /** 
+  /**
    * @name 国际化插件
    * @doc https://umijs.org/docs/max/i18n
    */

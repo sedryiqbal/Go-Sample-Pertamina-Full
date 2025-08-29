@@ -1,160 +1,305 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 
 import { Helmet, SelectLang, useIntl, useModel } from '@umijs/max';
-import { Alert, App, Button, Checkbox, Form, Input } from 'antd';
+import { Alert, App, Button, Carousel, Checkbox, Form, Input } from 'antd';
 import { createStyles } from 'antd-style';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { login } from '@/services/ant-design-pro/api';
 import Settings from '../../../../config/defaultSettings';
 
-const useStyles = createStyles(({ token }) => {
-  return {
-    container: {
-      height: '100vh',
-      background: '#f5f5f5',
-      display: 'flex',
-      overflow: 'hidden',
-    },
-    leftPanel: {
-      flex: 1,
-      background: 'linear-gradient(135deg, #fd0017 0%, #b8000f 100%)',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      position: 'relative',
-      padding: '40px',
-    },
-    rightPanel: {
-      flex: 1,
-      background: '#fff',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '40px',
-    },
-    logo: {
-      position: 'absolute',
-      top: '30px',
-      left: '30px',
-      zIndex: 10,
-    },
-    logoImg: {
-      height: '40px',
-      width: 'auto',
-    },
-    illustration: {
-      width: '300px',
-      height: '300px',
-      borderRadius: '50%',
-      background: '#fff',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: '30px',
-      boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)',
-    },
-    illustrationContent: {
-      textAlign: 'center',
-      color: '#fd0017',
-    },
-    illustrationIcon: {
-      fontSize: '80px',
-      marginBottom: '20px',
-      display: 'block',
-    },
-    illustrationText: {
-      fontSize: '24px',
-      fontWeight: 'bold',
-      color: '#fd0017',
-      margin: 0,
-    },
-    loginForm: {
-      width: '100%',
-      maxWidth: '400px',
-    },
-    loginTitle: {
-      fontSize: '32px',
-      fontWeight: 'bold',
-      color: '#333',
-      marginBottom: '40px',
-      textAlign: 'center',
-    },
-    formInput: {
-      height: '50px',
-      fontSize: '16px',
-      marginBottom: '20px',
-    },
-    loginButton: {
-      width: '100%',
-      height: '50px',
-      fontSize: '16px',
-      fontWeight: 'bold',
-      marginTop: '10px',
-    },
-    formBottom: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginTop: '20px',
-    },
-    lang: {
-      position: 'fixed',
-      top: '20px',
-      right: '20px',
-      zIndex: 100,
-      background: 'rgba(255, 255, 255, 0.1)',
-      borderRadius: token.borderRadius,
-      padding: '8px',
-      '&:hover': {
-        background: 'rgba(255, 255, 255, 0.2)',
-      },
-    },
+const useStyles = createStyles(({ token }) => ({
+  container: {
+    height: '100vh',
+    background: '#f5f5f5',
+    display: 'flex',
+    overflow: 'hidden',
     '@media (max-width: 768px)': {
-      container: {
-        flexDirection: 'column',
-      },
-      leftPanel: {
-        minHeight: '40vh',
-        padding: '20px',
-      },
-      rightPanel: {
-        padding: '20px',
-      },
-      illustration: {
-        width: '200px',
-        height: '200px',
-      },
-      illustrationText: {
-        fontSize: '18px',
-      },
-      loginTitle: {
-        fontSize: '24px',
-      },
+      flexDirection: 'column',
     },
-  };
-});
+  },
+  leftPanel: {
+    flex: 2.5,
+    background: `
+      linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.7) 100%),
+      url('/images/bg2.jpg') center/cover
+    `,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    padding: '40px',
+    overflow: 'hidden',
+    '@media (max-width: 768px)': {
+      flex: 1,
+      padding: '30px 20px 20px',
+    },
+  },
+  rightPanel: {
+    flex: 1,
+    background: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '40px 30px',
+    minWidth: '400px',
+    '@media (max-width: 768px)': {
+      minWidth: 'auto',
+      padding: '20px',
+      flex: 1,
+    },
+  },
+  logo: {
+    position: 'absolute',
+    top: '30px',
+    left: '30px',
+    zIndex: 10,
+  },
+  logoImg: {
+    height: '50px',
+    width: 'auto',
+    filter: 'brightness(0) invert(1)',
+  },
+  sliderContainer: {
+    width: '100%',
+    maxWidth: '500px',
+    textAlign: 'center',
+    zIndex: 2,
+  },
+  sliderContent: {
+    padding: '40px 20px',
+    textAlign: 'center',
+    color: '#fff',
+  },
+  sliderTitle: {
+    fontSize: '42px',
+    fontWeight: 'bold',
+    marginBottom: '16px',
+    lineHeight: '1.2',
+    color: '#fff',
+    textShadow: '2px 2px 8px rgba(0,0,0,0.7)',
+    '@media (max-width: 768px)': {
+      fontSize: '28px',
+      marginBottom: '12px',
+    },
+  },
+  sliderSubtitle: {
+    fontSize: '18px',
+    marginBottom: '30px',
+    opacity: 0.95,
+    lineHeight: '1.5',
+    textShadow: '1px 1px 4px rgba(0,0,0,0.6)',
+    '@media (max-width: 768px)': {
+      fontSize: '15px',
+      marginBottom: '20px',
+    },
+  },
+  featureCard: {
+    background: 'rgba(255, 255, 255, 0.15)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '16px',
+    padding: '24px',
+    margin: '0 auto',
+    maxWidth: '350px',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+  },
+  featureIcon: {
+    fontSize: '48px',
+    marginBottom: '16px',
+    display: 'block',
+  },
+  featureTitle: {
+    fontSize: '20px',
+    fontWeight: 'bold',
+    marginBottom: '8px',
+    color: '#fff',
+  },
+  featureDescription: {
+    fontSize: '14px',
+    opacity: 0.9,
+    lineHeight: '1.4',
+  },
+  carouselDots: {
+    '& .ant-carousel .ant-carousel-dots': {
+      bottom: '20px',
+    },
+    '& .ant-carousel .ant-carousel-dots li button': {
+      background: 'rgba(255, 255, 255, 0.4)',
+      borderRadius: '4px',
+      width: '24px',
+      height: '4px',
+    },
+    '& .ant-carousel .ant-carousel-dots li.ant-carousel-dot-active button': {
+      background: '#fff',
+      width: '32px',
+    },
+  },
+  illustration: {
+    width: '200px',
+    height: '200px',
+    borderRadius: '20px',
+    background: 'rgba(255, 255, 255, 0.95)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: '30px',
+    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+    backdropFilter: 'blur(10px)',
+  },
+  illustrationContent: {
+    textAlign: 'center',
+    color: '#fd0017',
+  },
+  illustrationIcon: {
+    fontSize: '80px',
+    marginBottom: '20px',
+    display: 'block',
+  },
+  illustrationText: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#fd0017',
+    margin: 0,
+  },
+  loginForm: {
+    width: '100%',
+    maxWidth: '320px',
+  },
+  loginTitle: {
+    fontSize: '28px',
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: '30px',
+    textAlign: 'center',
+  },
+  formInput: {
+    height: '45px',
+    fontSize: '14px',
+    marginBottom: '16px',
+    borderRadius: '8px',
+  },
+  loginButton: {
+    width: '100%',
+    height: '45px',
+    fontSize: '15px',
+    fontWeight: 'bold',
+    marginTop: '8px',
+    borderRadius: '8px',
+    background: 'linear-gradient(135deg, #fd0017 0%, #b8000f 100%)',
+    border: 'none',
+    '&:hover': {
+      background: 'linear-gradient(135deg, #e8001a 0%, #a5000d 100%)',
+    },
+  },
+  formBottom: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: '12px',
+  },
+  lang: {
+    position: 'fixed',
+    top: '20px',
+    right: '20px',
+    zIndex: 100,
+    background: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: token.borderRadius,
+    padding: '8px',
+    backdropFilter: 'blur(10px)',
+    '&:hover': {
+      background: 'rgba(255, 255, 255, 0.25)',
+    },
+  },
+  compactCheckbox: {
+    fontSize: '13px',
+    color: '#666',
+  },
+}));
 
-const IllustrationComponent = () => {
+const SliderComponent = () => {
+  const { styles } = useStyles();
+  const carouselRef = useRef(null);
+
+  const slides = [
+    {
+      icon: '🧪',
+      title: 'Analisis Laboratorium',
+      description:
+        'Sistem terintegrasi untuk manajemen sampel dan analisis laboratorium dengan teknologi terdepan.',
+    },
+    {
+      icon: '🚢',
+      title: 'Manajemen Kapal',
+      description:
+        'Tracking dan monitoring kapal serta pengiriman sampel secara real-time dan akurat.',
+    },
+    {
+      icon: '📊',
+      title: 'Laporan Digital',
+      description:
+        'Dashboard analitik dan laporan komprehensif untuk mendukung pengambilan keputusan.',
+    },
+    {
+      icon: '⚡',
+      title: 'Proses Cepat',
+      description:
+        'Otomatisasi proses untuk meningkatkan efisiensi dan mengurangi waktu operasional.',
+    },
+  ];
+
+  return (
+    <div className={styles.sliderContainer}>
+      <div className={styles.carouselDots}>
+        <Carousel
+          ref={carouselRef}
+          autoplay
+          autoplaySpeed={4000}
+          dots={true}
+          dotPosition="bottom"
+          effect="fade"
+        >
+          {slides.map((slide, slideIndex) => (
+            <div key={slide.title}>
+              <div className={styles.sliderContent}>
+                <h1 className={styles.sliderTitle}>Go Sample</h1>
+                <p className={styles.sliderSubtitle}>
+                  Sistem Manajemen Sampel Laboratorium Pertamina
+                </p>
+                <div className={styles.featureCard}>
+                  <div className={styles.featureIcon}>{slide.icon}</div>
+                  <h3 className={styles.featureTitle}>{slide.title}</h3>
+                  <p className={styles.featureDescription}>
+                    {slide.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </Carousel>
+      </div>
+    </div>
+  );
+};
+
+const _IllustrationComponent = () => {
   const { styles } = useStyles();
 
   return (
     <div className={styles.illustration}>
       <div className={styles.illustrationContent}>
-        <div
+        <img
+          src="/images/Logo Go Sample.png"
+          alt="Go Sample Logo"
           style={{
-            fontSize: '60px',
-            marginBottom: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
+            width: '120px',
+            height: '120px',
+            objectFit: 'contain',
+            display: 'block',
+            borderRadius: '12px',
           }}
-        >
-          🧪 🚢
-        </div>
-        <h2 className={styles.illustrationText}>Go Sample</h2>
+        />
       </div>
     </div>
   );
@@ -253,25 +398,22 @@ const Login: React.FC = () => {
       {/* Left Panel */}
       <div className={styles.leftPanel}>
         <div className={styles.logo}>
-          <img
-            alt="Pertamina Logo"
-            src="/logo.svg"
-            className={styles.logoImg}
-          />
+          <img alt="Company Logo" src="/logo.svg" className={styles.logoImg} />
         </div>
-        <IllustrationComponent />
+
+        <SliderComponent />
       </div>
 
       {/* Right Panel */}
       <div className={styles.rightPanel}>
         <div className={styles.loginForm}>
-          <h1 className={styles.loginTitle}>Login</h1>
+          <h1 className={styles.loginTitle}>Masuk</h1>
 
           {status === 'error' && (
             <LoginMessage
               content={intl.formatMessage({
                 id: 'pages.login.accountLogin.errorMessage',
-                defaultMessage: '账户或密码错误(admin/ant.design)',
+                defaultMessage: 'Username atau password salah',
               })}
             />
           )}
@@ -280,67 +422,58 @@ const Login: React.FC = () => {
             form={form}
             onFinish={handleSubmit}
             layout="vertical"
-            size="large"
+            size="middle"
             initialValues={{
               autoLogin: true,
             }}
           >
             <Form.Item
               name="username"
-              label="Username"
+              label={
+                <span style={{ fontSize: '13px', fontWeight: '500' }}>
+                  Username
+                </span>
+              }
               rules={[
                 {
                   required: true,
-                  message: intl.formatMessage({
-                    id: 'pages.login.username.required',
-                    defaultMessage: '请输入用户名!',
-                  }),
+                  message: 'Silakan masukkan username!',
                 },
               ]}
             >
               <Input
-                size="large"
-                prefix={<UserOutlined />}
+                prefix={<UserOutlined style={{ color: '#999' }} />}
                 className={styles.formInput}
-                placeholder={intl.formatMessage({
-                  id: 'pages.login.username.placeholder',
-                  defaultMessage: '用户名: admin or user',
-                })}
+                placeholder="Masukkan username"
               />
             </Form.Item>
 
             <Form.Item
               name="password"
-              label="Password"
+              label={
+                <span style={{ fontSize: '13px', fontWeight: '500' }}>
+                  Password
+                </span>
+              }
               rules={[
                 {
                   required: true,
-                  message: intl.formatMessage({
-                    id: 'pages.login.password.required',
-                    defaultMessage: '请输入密码！',
-                  }),
+                  message: 'Silakan masukkan password!',
                 },
               ]}
             >
               <Input.Password
-                size="large"
-                prefix={<LockOutlined />}
+                prefix={<LockOutlined style={{ color: '#999' }} />}
                 className={styles.formInput}
-                placeholder={intl.formatMessage({
-                  id: 'pages.login.password.placeholder',
-                  defaultMessage: '密码: ant.design',
-                })}
+                placeholder="Masukkan password"
               />
             </Form.Item>
 
             <Form.Item>
               <div className={styles.formBottom}>
                 <Form.Item name="autoLogin" valuePropName="checked" noStyle>
-                  <Checkbox>
-                    {intl.formatMessage({
-                      id: 'pages.login.rememberMe',
-                      defaultMessage: 'Ingat saya',
-                    })}
+                  <Checkbox className={styles.compactCheckbox}>
+                    Ingat saya
                   </Checkbox>
                 </Form.Item>
               </div>
@@ -353,7 +486,7 @@ const Login: React.FC = () => {
                 className={styles.loginButton}
                 loading={submitting}
               >
-                Login
+                Masuk
               </Button>
             </Form.Item>
           </Form>

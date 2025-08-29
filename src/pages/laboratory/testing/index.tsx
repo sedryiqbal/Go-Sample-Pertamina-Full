@@ -1,14 +1,16 @@
 import {
-  AlertOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
+  DatabaseOutlined,
   EditOutlined,
   ExperimentOutlined,
   EyeOutlined,
-  PlusOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import type {
+  ActionType as ProActionType,
+  ProColumns,
+} from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import {
   Badge,
@@ -29,10 +31,14 @@ import {
   Statistic,
   Steps,
   Tag,
-  Timeline,
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
+import type { ActionType as LabActionType } from '@/components/LaboratoryActionModal';
+import LaboratoryActionModal from '@/components/LaboratoryActionModal';
+import SiringManagement, {
+  type SiringData,
+} from '@/components/SiringManagement';
 
 interface TestingRecord {
   id: string;
@@ -70,7 +76,17 @@ const LaboratoryTesting: React.FC = () => {
   const [editingRecord, setEditingRecord] = useState<
     TestingRecord | undefined
   >();
-  const actionRef = useRef<ActionType>();
+
+  // New state for action modal and siring management
+  const [actionModalVisible, setActionModalVisible] = useState(false);
+  const [currentActionType, setCurrentActionType] =
+    useState<LabActionType>('confirm_sample');
+  const [siringModalVisible, setSiringModalVisible] = useState(false);
+  const [selectedSiring, setSelectedSiring] = useState<
+    SiringData | undefined
+  >();
+
+  const actionRef = useRef<ProActionType>(null);
   const [form] = Form.useForm();
 
   const testingStatusOptions = [
@@ -134,6 +150,65 @@ const LaboratoryTesting: React.FC = () => {
     { label: 'Aromatics', value: 'aromatics', unit: '%v/v', standard: '< 25' },
   ];
 
+  // Mock Siring data
+  const mockSiringData: SiringData[] = [
+    {
+      id: '1',
+      location: 'Lab Room A - Storage Cabinet 1',
+      current_stock: 15,
+      min_threshold: 5,
+      max_capacity: 50,
+      last_updated: '2025-08-29T08:30:00Z',
+      status: 'normal',
+    },
+    {
+      id: '2',
+      location: 'Lab Room B - Storage Cabinet 2',
+      current_stock: 3,
+      min_threshold: 5,
+      max_capacity: 40,
+      last_updated: '2025-08-29T07:15:00Z',
+      status: 'critical',
+    },
+    {
+      id: '3',
+      location: 'Lab Room C - Storage Cabinet 3',
+      current_stock: 38,
+      min_threshold: 8,
+      max_capacity: 40,
+      last_updated: '2025-08-29T06:45:00Z',
+      status: 'full',
+    },
+  ];
+
+  // Action handlers
+  const handleLabAction = (
+    record: TestingRecord,
+    actionType: LabActionType,
+  ) => {
+    setEditingRecord(record);
+    setCurrentActionType(actionType);
+    setActionModalVisible(true);
+  };
+
+  const handleActionSubmit = async (actionType: LabActionType, data: any) => {
+    console.log('Action submitted:', actionType, data);
+    // Here you would normally send the data to your backend
+    // For now, just update the local state and show success message
+    actionRef.current?.reload();
+  };
+
+  const handleSiringClick = (siring: SiringData) => {
+    setSelectedSiring(siring);
+    setSiringModalVisible(true);
+  };
+
+  const handleSiringUpdate = (updatedSiring: SiringData) => {
+    console.log('Siring updated:', updatedSiring);
+    // Update your siring data here
+    message.success('Stock siring berhasil diperbarui');
+  };
+
   const handleView = (record: TestingRecord) => {
     setViewingRecord(record);
     setEditingRecord(undefined);
@@ -147,7 +222,7 @@ const LaboratoryTesting: React.FC = () => {
     setDrawerVisible(true);
   };
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (_values: any) => {
     try {
       if (editingRecord) {
         message.success('Data pengujian berhasil diperbarui');
@@ -157,12 +232,12 @@ const LaboratoryTesting: React.FC = () => {
       setDrawerVisible(false);
       form.resetFields();
       actionRef.current?.reload();
-    } catch (error) {
+    } catch (_error) {
       message.error('Gagal menyimpan data pengujian');
     }
   };
 
-  const handleStatusUpdate = (record: TestingRecord, newStatus: string) => {
+  const handleStatusUpdate = (_record: TestingRecord, newStatus: string) => {
     Modal.confirm({
       title: 'Update Status',
       content: `Apakah Anda yakin ingin mengubah status menjadi "${newStatus}"?`,
@@ -242,7 +317,7 @@ const LaboratoryTesting: React.FC = () => {
           <span style={{ fontSize: '12px', color: '#666' }}>
             {record.order_number}
           </span>
-          <Tag color={getPriorityColor(record.priority)} size="small">
+          <Tag color={getPriorityColor(record.priority)}>
             {record.priority.toUpperCase()}
           </Tag>
         </Space>
@@ -332,13 +407,13 @@ const LaboratoryTesting: React.FC = () => {
       render: (_, record) => (
         <div>
           {record.test_parameters.slice(0, 2).map((param) => (
-            <Tag key={param} size="small" style={{ marginBottom: 2 }}>
+            <Tag key={param} style={{ marginBottom: 2, fontSize: '12px' }}>
               {testParameterOptions.find((opt) => opt.value === param)?.label ||
                 param}
             </Tag>
           ))}
           {record.test_parameters.length > 2 && (
-            <Tag size="small" color="default">
+            <Tag color="default" style={{ fontSize: '12px' }}>
               +{record.test_parameters.length - 2}
             </Tag>
           )}
@@ -348,27 +423,97 @@ const LaboratoryTesting: React.FC = () => {
     {
       title: 'Aksi',
       key: 'actions',
-      width: 150,
-      render: (_, record) => (
-        <Space>
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleView(record)}
-          >
-            Detail
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
-            Edit
-          </Button>
-        </Space>
-      ),
+      width: 200,
+      render: (_, record) => {
+        const getActionButtons = () => {
+          switch (record.testing_status) {
+            case 'received':
+              return [
+                <Button
+                  key="confirm"
+                  type="link"
+                  size="small"
+                  onClick={() => handleLabAction(record, 'confirm_sample')}
+                  style={{ color: '#52c41a' }}
+                >
+                  Konfirmasi Sample
+                </Button>,
+              ];
+            case 'registered':
+              return [
+                <Button
+                  key="waiting"
+                  type="link"
+                  size="small"
+                  onClick={() => handleLabAction(record, 'waiting_test')}
+                  style={{ color: '#faad14' }}
+                >
+                  Menunggu Pengujian
+                </Button>,
+              ];
+            case 'testing':
+              return [
+                <Button
+                  key="process"
+                  type="link"
+                  size="small"
+                  onClick={() => handleLabAction(record, 'process_test')}
+                  style={{ color: '#1890ff' }}
+                >
+                  Proses Pengujian
+                </Button>,
+              ];
+            case 'waiting_equipment':
+              return [
+                <Button
+                  key="input"
+                  type="link"
+                  size="small"
+                  onClick={() => handleLabAction(record, 'input_result')}
+                  style={{ color: '#722ed1' }}
+                >
+                  Input Hasil Pengujian
+                </Button>,
+              ];
+            default:
+              return [
+                <Button
+                  key="complete"
+                  type="link"
+                  size="small"
+                  onClick={() => handleLabAction(record, 'complete_test')}
+                  style={{ color: '#fd0017' }}
+                >
+                  Selesai Pengujian
+                </Button>,
+              ];
+          }
+        };
+
+        return (
+          <Space direction="vertical" size={4}>
+            {getActionButtons()}
+            <Space>
+              <Button
+                type="link"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => handleView(record)}
+              >
+                Detail
+              </Button>
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => handleEdit(record)}
+              >
+                Edit
+              </Button>
+            </Space>
+          </Space>
+        );
+      },
     },
   ];
 
@@ -500,6 +645,87 @@ const LaboratoryTesting: React.FC = () => {
               prefix={<CheckCircleOutlined style={{ color: '#fd0017' }} />}
               valueStyle={{ color: '#fd0017' }}
             />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Siring Management Cards */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col span={24}>
+          <Card
+            title={
+              <Space>
+                <DatabaseOutlined style={{ color: '#fd0017' }} />
+                Manajemen Stock Siring - Klik untuk Update
+              </Space>
+            }
+            size="small"
+          >
+            <Row gutter={[12, 12]}>
+              {mockSiringData.map((siring) => (
+                <Col xs={24} sm={8} key={siring.id}>
+                  <Card
+                    size="small"
+                    hoverable
+                    onClick={() => handleSiringClick(siring)}
+                    style={{
+                      cursor: 'pointer',
+                      borderColor:
+                        siring.status === 'critical'
+                          ? '#ff4d4f'
+                          : siring.status === 'low'
+                            ? '#faad14'
+                            : siring.status === 'full'
+                              ? '#1890ff'
+                              : '#d9d9d9',
+                    }}
+                  >
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>
+                        {siring.location}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '18px',
+                          fontWeight: 'bold',
+                          color:
+                            siring.status === 'critical'
+                              ? '#ff4d4f'
+                              : siring.status === 'low'
+                                ? '#faad14'
+                                : siring.status === 'full'
+                                  ? '#1890ff'
+                                  : '#52c41a',
+                          marginBottom: 4,
+                        }}
+                      >
+                        {siring.current_stock} / {siring.max_capacity}
+                      </div>
+                      <Badge
+                        status={
+                          siring.status === 'critical'
+                            ? 'error'
+                            : siring.status === 'low'
+                              ? 'warning'
+                              : siring.status === 'full'
+                                ? 'processing'
+                                : 'success'
+                        }
+                        text={
+                          siring.status === 'critical'
+                            ? 'Kritis'
+                            : siring.status === 'low'
+                              ? 'Rendah'
+                              : siring.status === 'full'
+                                ? 'Penuh'
+                                : 'Normal'
+                        }
+                      />
+                    </div>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
           </Card>
         </Col>
       </Row>
@@ -847,21 +1073,26 @@ const LaboratoryTesting: React.FC = () => {
                 <Button
                   type="default"
                   onClick={() =>
-                    handleStatusUpdate(editingRecord!, 'registered')
+                    editingRecord &&
+                    handleStatusUpdate(editingRecord, 'registered')
                   }
                 >
                   Mark as Registered
                 </Button>
                 <Button
                   type="default"
-                  onClick={() => handleStatusUpdate(editingRecord!, 'testing')}
+                  onClick={() =>
+                    editingRecord &&
+                    handleStatusUpdate(editingRecord, 'testing')
+                  }
                 >
                   Start Testing
                 </Button>
                 <Button
                   type="default"
                   onClick={() =>
-                    handleStatusUpdate(editingRecord!, 'waiting_equipment')
+                    editingRecord &&
+                    handleStatusUpdate(editingRecord, 'waiting_equipment')
                   }
                 >
                   Equipment Wait
@@ -870,7 +1101,8 @@ const LaboratoryTesting: React.FC = () => {
                   type="primary"
                   style={{ backgroundColor: '#9fe400', borderColor: '#9fe400' }}
                   onClick={() =>
-                    handleStatusUpdate(editingRecord!, 'completed')
+                    editingRecord &&
+                    handleStatusUpdate(editingRecord, 'completed')
                   }
                 >
                   Mark Complete
@@ -880,6 +1112,23 @@ const LaboratoryTesting: React.FC = () => {
           </Form>
         )}
       </Drawer>
+
+      {/* Laboratory Action Modal */}
+      <LaboratoryActionModal
+        visible={actionModalVisible}
+        onClose={() => setActionModalVisible(false)}
+        actionType={currentActionType}
+        record={editingRecord}
+        onSubmit={handleActionSubmit}
+      />
+
+      {/* Siring Management Modal */}
+      <SiringManagement
+        visible={siringModalVisible}
+        onClose={() => setSiringModalVisible(false)}
+        siringData={selectedSiring}
+        onUpdate={handleSiringUpdate}
+      />
     </PageContainer>
   );
 };

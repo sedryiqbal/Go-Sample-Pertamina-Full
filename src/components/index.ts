@@ -6,7 +6,20 @@
  * 布局组件
  */
 import Footer from './Footer';
-import { Question, SelectLang } from './RightContent';
+import LaboratoryActionModal from './LaboratoryActionModal';
+import NotificationDropdown from './NotificationDropdown';
+import { Notification, Question, SelectLang } from './RightContent';
 import { AvatarDropdown, AvatarName } from './RightContent/AvatarDropdown';
+import SiringManagement from './SiringManagement';
 
-export { AvatarDropdown, AvatarName, Footer, Question, SelectLang };
+export {
+  AvatarDropdown,
+  AvatarName,
+  Footer,
+  Question,
+  SelectLang,
+  Notification,
+  NotificationDropdown,
+  SiringManagement,
+  LaboratoryActionModal,
+};

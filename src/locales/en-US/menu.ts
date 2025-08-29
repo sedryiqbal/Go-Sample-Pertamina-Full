@@ -49,7 +49,7 @@ export default {
   'menu.editor.flow': 'Flow Editor',
   'menu.editor.mind': 'Mind Editor',
   'menu.editor.koni': 'Koni Editor',
-  
+
   // Go Sample specific menus
   'menu.management': 'Management',
   'menu.management.users': 'User Management',
@@ -57,21 +57,21 @@ export default {
   'menu.management.categories': 'Category Management',
   'menu.management.ships': 'Ship Management',
   'menu.management.laboratories': 'Laboratory Management',
-  
+
   'menu.sample-order': 'Sample Order',
   'menu.sample-order.stock-order': 'Stock Order',
   'menu.sample-order.request-order': 'Request Order',
   'menu.sample-order.delivery': 'Delivery',
-  
+
   'menu.laboratory': 'Laboratory',
   'menu.laboratory.testing': 'Testing',
   'menu.laboratory.analysis': 'Result Analysis',
   'menu.laboratory.verification': 'Verification',
-  
+
   'menu.comparison': 'Comparison',
   'menu.comparison.quality-check': 'Product Quality Check',
   'menu.comparison.document': 'Document Comparison',
-  
+
   'menu.stock-opname': 'Sample Stock Opname',
   'menu.monitoring': 'Monitoring',
   'menu.reports': 'Reports',

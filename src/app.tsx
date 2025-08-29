@@ -8,6 +8,7 @@ import {
   AvatarDropdown,
   AvatarName,
   Footer,
+  Notification,
   Question,
   SelectLang,
 } from '@/components';
@@ -68,6 +69,7 @@ export const layout: RunTimeLayoutConfig = ({
   return {
     actionsRender: () => [
       <Question key="doc" />,
+      <Notification key="notification" />,
       <SelectLang key="SelectLang" />,
     ],
     avatarProps: {

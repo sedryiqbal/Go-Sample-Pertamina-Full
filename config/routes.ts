@@ -74,20 +74,7 @@ export default [
     path: '/sample-order',
     name: 'sample-order',
     icon: 'shopping',
-    routes: [
-      {
-        name: 'stock-order',
-        icon: 'dropbox',
-        path: '/sample-order/stock',
-        component: './sample-order/stock',
-      },
-      {
-        name: 'request-order',
-        icon: 'form',
-        path: '/sample-order/request',
-        component: './sample-order/request',
-      },
-    ],
+    component: './sample-order',
   },
   {
     path: '/laboratory',

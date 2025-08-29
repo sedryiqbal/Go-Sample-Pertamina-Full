@@ -2,10 +2,8 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   DatabaseOutlined,
-  DeleteOutlined,
   EditOutlined,
   ExclamationCircleOutlined,
-  PlusOutlined,
   ScanOutlined,
 } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
@@ -16,7 +14,6 @@ import {
   Button,
   Card,
   Col,
-  DatePicker,
   Form,
   Input,
   InputNumber,
@@ -86,7 +83,7 @@ const StockOpname: React.FC = () => {
     { label: 'Damaged', value: 'damaged' },
   ];
 
-  const labLocationOptions = [
+  const _labLocationOptions = [
     { label: 'LPUJ - Priok', value: 'lpuj-priok' },
     { label: 'Lemigas - Jakarta', value: 'lemigas-jakarta' },
     { label: 'Balongan - Balongan', value: 'balongan' },
@@ -107,7 +104,7 @@ const StockOpname: React.FC = () => {
     scanForm.resetFields();
   };
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (_values: any) => {
     try {
       if (editingRecord) {
         message.success('Stock opname berhasil diperbarui');
@@ -118,7 +115,7 @@ const StockOpname: React.FC = () => {
       form.resetFields();
       setEditingRecord(undefined);
       actionRef.current?.reload();
-    } catch (error) {
+    } catch (_error) {
       message.error('Gagal menyimpan data stock opname');
     }
   };
@@ -131,7 +128,7 @@ const StockOpname: React.FC = () => {
       setScanModalVisible(false);
       scanForm.resetFields();
       actionRef.current?.reload();
-    } catch (error) {
+    } catch (_error) {
       message.error('Gagal melakukan scan update');
     }
   };

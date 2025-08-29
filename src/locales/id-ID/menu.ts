@@ -60,9 +60,6 @@ export default {
   'menu.management.laboratories': 'Manajemen Laboratorium',
 
   'menu.sample-order': 'Pemesanan Sampel',
-  'menu.sample-order.stock-order': 'Pemesanan Stock',
-  'menu.sample-order.request-order': 'Pemesanan Request',
-  'menu.sample-order.delivery': 'Pengantaran',
 
   'menu.laboratory': 'Laboratorium',
   'menu.laboratory.testing': 'Pengujian',
