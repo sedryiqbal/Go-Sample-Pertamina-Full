@@ -111,6 +111,34 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
     { label: 'GC-MS System', value: 'gc-ms', available: true },
   ];
 
+  // Unit options for dropdown
+  const unitOptions = [
+    { label: '%vol', value: '%vol' },
+    { label: '°C', value: '°C' },
+    { label: 'kg/m³', value: 'kg/m³' },
+    { label: 'mg/kg', value: 'mg/kg' },
+    { label: 'mg/100ml', value: 'mg/100ml' },
+    { label: 'class', value: 'class' },
+    { label: 'bar', value: 'bar' },
+    { label: 'mm²/s', value: 'mm²/s' },
+    { label: 'g/mol', value: 'g/mol' },
+    { label: 'ppm', value: 'ppm' },
+    { label: '%', value: '%' },
+    { label: 'Pa·s', value: 'Pa·s' },
+  ];
+
+  // Method options for dropdown
+  const methodOptions = [
+    { label: 'ASTM D86-17', value: 'ASTM D86-17' },
+    { label: 'BS EN ISO 13736:2008', value: 'BS EN ISO 13736:2008' },
+    { label: 'ASTM D4052-22', value: 'ASTM D4052-22' },
+    { label: 'ASTM D2386-19', value: 'ASTM D2386-19' },
+    { label: 'ASTM D5006-22', value: 'ASTM D5006-22' },
+    { label: 'ASTM D130-19', value: 'ASTM D130-19' },
+    { label: 'ASTM D381-22', value: 'ASTM D381-22' },
+    { label: 'Custom Method', value: 'custom' },
+  ];
+
   // Test result parameters with expected values - Updated to match the image
   const testParameters = [
     {
@@ -452,7 +480,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
           {config.title}
         </Space>
       }
-      width={600}
+      width={'55%'}
       open={visible}
       onClose={onClose}
       className={styles.actionDrawer}
@@ -792,7 +820,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '30px 1fr 80px 100px 1fr',
+                  gridTemplateColumns: '30px 1fr 140px 220px 1fr',
                   gap: '8px',
                   backgroundColor: '#fafafa',
                   padding: '8px',
@@ -813,7 +841,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
                   key={param.key}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '30px 1fr 80px 100px 1fr',
+                    gridTemplateColumns: '30px 1fr 140px 220px 1fr',
                     gap: '8px',
                     padding: '8px',
                     borderBottom: '1px solid #f0f0f0',
@@ -826,12 +854,34 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
                   <div style={{ fontSize: '12px', fontWeight: 500 }}>
                     {param.name}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>
-                    {param.unit}
-                  </div>
-                  <div style={{ fontSize: '10px', color: '#666' }}>
-                    {param.method}
-                  </div>
+                  <Form.Item
+                    name={['test_results_detailed', param.key, 'unit']}
+                    style={{ margin: 0 }}
+                    initialValue={param.unit}
+                  >
+                    <Select
+                      placeholder="Unit"
+                      size="small"
+                      style={{ width: '100%', fontSize: '11px' }}
+                      options={unitOptions}
+                      defaultValue={param.unit}
+                      dropdownMatchSelectWidth
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name={['test_results_detailed', param.key, 'method']}
+                    style={{ margin: 0 }}
+                    initialValue={param.method}
+                  >
+                    <Select
+                      placeholder="Method"
+                      size="small"
+                      style={{ width: '100%', fontSize: '11px' }}
+                      options={methodOptions}
+                      defaultValue={param.method}
+                      dropdownMatchSelectWidth
+                    />
+                  </Form.Item>
                   <Form.Item
                     name={['test_results_detailed', param.key, 'value']}
                     style={{ margin: 0 }}

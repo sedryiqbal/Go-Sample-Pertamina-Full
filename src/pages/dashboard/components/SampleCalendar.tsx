@@ -41,11 +41,10 @@ const SampleCalendar: React.FC = () => {
 
   const handleDateClick = (date: Dayjs) => {
     const stockData = getStockData(date);
+    console.log('Clicked date:', date.format('YYYY-MM-DD'), stockData);
     if (stockData.length > 0) {
       // Navigate to estimate scheduling sample page with date parameter
-      history.push(
-        `/estimate-scheduling-sample?date=${date.format('YYYY-MM-DD')}`,
-      );
+      history.push(`/laboratory/testing?date=${date.format('YYYY-MM-DD')}`);
       message.info(
         `Navigating to estimate scheduling for ${date.format('DD/MM/YYYY')}`,
       );

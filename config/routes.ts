@@ -83,7 +83,7 @@ export default [
     icon: 'experiment',
     routes: [
       {
-        name: 'testing',
+        name: 'Sample Testing',
         icon: 'interaction',
         path: '/laboratory/testing',
         component: './laboratory/testing',
