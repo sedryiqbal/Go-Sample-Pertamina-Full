@@ -69,6 +69,12 @@ export default [
         path: '/stock/estimate-scheduling',
         component: './stock/estimate-scheduling',
       },
+      {
+        name: 'Request & Order Stock',
+        icon: 'shopping',
+        path: '/stock/request-order',
+        component: './stock/request-order',
+      },
     ],
   },
   // {

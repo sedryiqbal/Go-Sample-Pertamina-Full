@@ -59,6 +59,7 @@ export default {
 
   'menu.stock': 'Stock',
   'menu.stock.estimate-scheduling': 'Estimate Scheduling Sample',
+  'menu.stock.request-order': 'Request & Order Stock',
 
   'menu.estimate-scheduling-sample': 'Estimate Scheduling Sample',
 

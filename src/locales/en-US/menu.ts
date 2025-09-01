@@ -53,16 +53,16 @@ export default {
   // Go Sample specific menus
   'menu.management': 'Management',
   'menu.management.users': 'User Management',
-  'menu.management.stock': 'Stock Management',
-  'menu.management.categories': 'Category Management',
   'menu.management.ships': 'Ship Management',
-  'menu.management.laboratories': 'Laboratory Management',
   'menu.management.roles': 'Role Management',
 
-  'menu.sample-order': 'Sample Order',
-  'menu.sample-order.stock-order': 'Stock Order',
-  'menu.sample-order.request-order': 'Request Order',
-  'menu.sample-order.delivery': 'Delivery',
+  'menu.stock': 'Stock',
+  'menu.stock.estimate-scheduling': 'Estimate Scheduling Sample',
+  'menu.stock.request-order': 'Request & Order Stock',
+
+  'menu.estimate-scheduling-sample': 'Estimate Scheduling Sample',
+
+  'menu.request-order': 'Request Order',
 
   'menu.laboratory': 'Laboratory',
   'menu.laboratory.testing': 'Testing',
@@ -74,7 +74,6 @@ export default {
   'menu.comparison.quality-check': 'Product Quality Check',
   'menu.comparison.document': 'Document Comparison',
 
-  'menu.stock-opname': 'Sample Stock Opname',
   'menu.monitoring': 'Monitoring',
   'menu.reports': 'Reports',
 };
