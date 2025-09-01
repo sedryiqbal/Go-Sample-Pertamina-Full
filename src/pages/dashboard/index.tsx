@@ -135,7 +135,7 @@ const Dashboard: React.FC = () => {
     >
       <Row gutter={[16, 16]}>
         {/* Top Statistics Cards */}
-        <Col xs={24} sm={12} lg={6} xl={4}>
+        <Col xs={24} sm={12} lg={6}>
           <StatCard
             title="Total Sample Pengujian Lab"
             value={125}
@@ -143,15 +143,7 @@ const Dashboard: React.FC = () => {
             color="#1890ff"
           />
         </Col>
-        <Col xs={24} sm={12} lg={6} xl={4}>
-          <StatCard
-            title="Total Siring Ready Detail Ready / Not Ready"
-            value="98/27"
-            icon={<CheckCircleOutlined />}
-            color="#52c41a"
-          />
-        </Col>
-        <Col xs={24} sm={12} lg={6} xl={4}>
+        <Col xs={24} sm={12} lg={6}>
           <StatCard
             title="Total Berhasil Di uji"
             value={98}
@@ -159,7 +151,7 @@ const Dashboard: React.FC = () => {
             color="#52c41a"
           />
         </Col>
-        <Col xs={24} sm={12} lg={6} xl={4}>
+        <Col xs={24} sm={12} lg={6}>
           <StatCard
             title="Sedang di proses Uji"
             value={15}
@@ -167,9 +159,9 @@ const Dashboard: React.FC = () => {
             color="#faad14"
           />
         </Col>
-        <Col xs={24} sm={12} lg={6} xl={4}>
+        <Col xs={24} sm={12} lg={6}>
           <StatCard
-            title="Total Gagal Di uji"
+            title="Total Repeat Sample"
             value={12}
             icon={<CloseCircleOutlined />}
             color="#ff4d4f"

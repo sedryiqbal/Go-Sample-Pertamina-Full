@@ -1,4 +1,5 @@
 import {
+  CalculatorOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExperimentOutlined,
@@ -110,42 +111,135 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
     { label: 'GC-MS System', value: 'gc-ms', available: true },
   ];
 
-  // Test result parameters with expected values
+  // Test result parameters with expected values - Updated to match the image
   const testParameters = [
     {
-      name: 'Kadar Air',
-      key: 'water_content',
-      unit: 'ppm',
-      standard: '< 30',
+      name: 'Distillation',
+      key: 'distillation',
+      unit: '%vol',
+      standard: 'ASTM D86-17',
       min: 0,
       max: 100,
+      method: 'ASTM D86-17',
     },
     {
-      name: 'Viskositas',
-      key: 'viscosity',
-      unit: 'cSt',
-      standard: '1.0-3.0',
-      min: 0.5,
-      max: 5.0,
-    },
-    {
-      name: 'Densitas',
-      key: 'density',
-      unit: 'kg/m³',
-      standard: '775-840',
-      min: 700,
-      max: 900,
-    },
-    {
-      name: 'Flash Point',
-      key: 'flash_point',
+      name: 'IBP',
+      key: 'ibp',
       unit: '°C',
-      standard: '> 38',
-      min: 30,
+      standard: 'ASTM D86-17',
+      min: 100,
+      max: 200,
+      method: 'ASTM D86-17',
+    },
+    {
+      name: '10%',
+      key: 'ten_percent',
+      unit: '°C',
+      standard: '',
+      min: 120,
+      max: 180,
+      method: 'ASTM D86-17',
+    },
+    {
+      name: '50%',
+      key: 'fifty_percent',
+      unit: '°C',
+      standard: '',
+      min: 150,
+      max: 220,
+      method: 'ASTM D86-17',
+    },
+    {
+      name: '90%',
+      key: 'ninety_percent',
+      unit: '°C',
+      standard: '',
+      min: 180,
+      max: 250,
+      method: 'ASTM D86-17',
+    },
+    {
+      name: 'FBP',
+      key: 'fbp',
+      unit: '°C',
+      standard: '',
+      min: 200,
+      max: 300,
+      method: 'ASTM D86-17',
+    },
+    {
+      name: 'Residue',
+      key: 'residue',
+      unit: '%vol',
+      standard: '',
+      min: 0,
+      max: 5,
+      method: 'ASTM D86-17',
+    },
+    {
+      name: 'Loss',
+      key: 'loss',
+      unit: '%vol',
+      standard: '',
+      min: 0,
+      max: 2,
+      method: 'ASTM D86-17',
+    },
+    {
+      name: 'Flash Point Abel',
+      key: 'flash_point_abel',
+      unit: '°C',
+      standard: 'BS EN ISO 13736:2008',
+      min: 38,
       max: 100,
+      method: 'BS EN ISO 13736:2008',
+    },
+    {
+      name: 'Density at 15°C',
+      key: 'density_15c',
+      unit: 'kg/m³',
+      standard: 'ASTM D4052-22',
+      min: 775,
+      max: 840,
+      method: 'ASTM D4052-22',
+    },
+    {
+      name: 'Freezing Point',
+      key: 'freezing_point',
+      unit: '°C',
+      standard: 'ASTM D2386-19',
+      min: -50,
+      max: -40,
+      method: 'ASTM D2386-19',
+    },
+    {
+      name: 'FSII-P.A with SDA',
+      key: 'fsii_pa_sda',
+      unit: 'mg/kg',
+      standard: 'ASTM D5006-22',
+      min: 0,
+      max: 200,
+      method: 'ASTM D5006-22',
+    },
+    {
+      name: 'Copper Strip Corrosion (2h/100°C)',
+      key: 'copper_strip_corrosion',
+      unit: 'class',
+      standard: 'ASTM D130-19',
+      min: 1,
+      max: 4,
+      method: 'ASTM D130-19',
+    },
+    {
+      name: 'Existent Gum (unwashed)',
+      key: 'existent_gum',
+      unit: 'mg/100ml',
+      standard: 'ASTM D381-22',
+      min: 0,
+      max: 7,
+      method: 'ASTM D381-22',
     },
   ];
-
   const getActionConfig = (type: ActionType) => {
     switch (type) {
       case 'confirm_sample':
@@ -551,6 +645,46 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
           </Row>
         )}
 
+        {/* Estimasi Durasi Pengujian */}
+        {(config.fields.includes('estimated_completion') ||
+          config.fields.includes('equipment_needed')) && (
+          <Form.Item
+            name="estimated_duration"
+            label="Estimasi Durasi Pengujian"
+            tooltip="Perkiraan berapa lama pengujian akan berlangsung (dalam jam)"
+          >
+            <Row gutter={8}>
+              <Col span={18}>
+                <Input
+                  type="number"
+                  min={1}
+                  max={72}
+                  placeholder="Masukkan estimasi durasi"
+                  addonAfter="jam"
+                />
+              </Col>
+              <Col span={6}>
+                <Button
+                  icon={<CalculatorOutlined />}
+                  onClick={() => {
+                    // Auto calculate based on selected test parameters
+                    const baseHours = testParameters.length * 0.5; // 30 minutes per parameter
+                    const complexityFactor = isUrgent ? 0.8 : 1.2; // Urgent = faster, normal = more thorough
+                    const estimatedHours = Math.ceil(
+                      baseHours * complexityFactor,
+                    );
+                    form.setFieldsValue({ estimated_duration: estimatedHours });
+                    message.info(`Estimasi otomatis: ${estimatedHours} jam`);
+                  }}
+                  title="Auto calculate"
+                >
+                  Auto
+                </Button>
+              </Col>
+            </Row>
+          </Form.Item>
+        )}
+
         {/* Equipment Selection */}
         {config.fields.includes('equipment_needed') && (
           <Form.Item
@@ -654,12 +788,53 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
             size="small"
             style={{ marginBottom: 16 }}
           >
-            {testParameters.map((param, index) => (
-              <Row gutter={16} key={param.key} style={{ marginBottom: 12 }}>
-                <Col span={8}>
+            <div style={{ marginBottom: 16 }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '30px 1fr 80px 100px 1fr',
+                  gap: '8px',
+                  backgroundColor: '#fafafa',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  border: '1px solid #d9d9d9',
+                }}
+              >
+                <div>No.</div>
+                <div>Property</div>
+                <div>Units</div>
+                <div>Method</div>
+                <div>Results</div>
+              </div>
+              {testParameters.map((param, index) => (
+                <div
+                  key={param.key}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '30px 1fr 80px 100px 1fr',
+                    gap: '8px',
+                    padding: '8px',
+                    borderBottom: '1px solid #f0f0f0',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    {index + 1}
+                  </div>
+                  <div style={{ fontSize: '12px', fontWeight: 500 }}>
+                    {param.name}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    {param.unit}
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#666' }}>
+                    {param.method}
+                  </div>
                   <Form.Item
                     name={['test_results_detailed', param.key, 'value']}
-                    label={`${param.name} (${param.unit})`}
+                    style={{ margin: 0 }}
                     rules={[
                       {
                         required: true,
@@ -670,41 +845,20 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
                     <InputNumber
                       min={param.min}
                       max={param.max}
-                      step={param.key === 'density' ? 1 : 0.1}
+                      step={
+                        param.key.includes('percent') ||
+                        param.key === 'density_15c'
+                          ? 0.1
+                          : 1
+                      }
                       style={{ width: '100%' }}
-                      placeholder={`${param.min}-${param.max}`}
+                      placeholder="Input value"
+                      size="small"
                     />
                   </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item
-                    name={['test_results_detailed', param.key, 'status']}
-                    label="Status"
-                    rules={[
-                      {
-                        required: true,
-                        message: 'Status wajib dipilih',
-                      },
-                    ]}
-                  >
-                    <Select placeholder="Pilih status">
-                      <Select.Option value="pass">PASS</Select.Option>
-                      <Select.Option value="fail">FAIL</Select.Option>
-                      <Select.Option value="borderline">
-                        BORDERLINE
-                      </Select.Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <div
-                    style={{ fontSize: '12px', color: '#666', marginTop: 32 }}
-                  >
-                    Standard: {param.standard}
-                  </div>
-                </Col>
-              </Row>
-            ))}
+                </div>
+              ))}
+            </div>
           </Card>
         )}
 

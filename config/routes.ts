@@ -60,23 +60,23 @@ export default [
   },
   {
     path: '/stock',
-    name: 'stock',
+    name: 'Stock',
     icon: 'database',
     routes: [
       {
-        name: 'estimation',
+        name: 'Estimate Scheduling Sample',
         icon: 'line-chart',
-        path: '/stock/estimation',
-        component: './stock/estimation',
+        path: '/stock/estimate-scheduling',
+        component: './stock/estimate-scheduling',
       },
     ],
   },
-  {
-    path: '/sample-order',
-    name: 'sample-order',
-    icon: 'shopping',
-    component: './sample-order',
-  },
+  // {
+  //   path: '/estimate-scheduling-sample',
+  //   name: 'Estimate Scheduling Sample',
+  //   icon: 'shopping',
+  //   component: './estimate-scheduling-sample',
+  // },
   {
     path: '/laboratory',
     name: 'laboratory',
@@ -88,6 +88,12 @@ export default [
         path: '/laboratory/testing',
         component: './laboratory/testing',
       },
+      {
+        path: '/laboratory/testing/detail/:id',
+        name: 'testing-detail',
+        component: './laboratory/testing/detail',
+        hideInMenu: true,
+      },
     ],
   },
   {
@@ -97,10 +103,10 @@ export default [
     component: './comparison',
   },
   {
-    path: '/stock-opname',
-    name: 'stock-opname',
-    icon: 'database',
-    component: './stock-opname',
+    path: '/request-order',
+    name: 'request-order',
+    icon: 'form',
+    component: './request-order',
   },
   {
     path: '/monitoring',

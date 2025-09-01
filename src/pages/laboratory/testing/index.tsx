@@ -5,6 +5,7 @@ import {
   EditOutlined,
   ExperimentOutlined,
   EyeOutlined,
+  FileTextOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
 import type {
@@ -34,6 +35,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
+import { history } from 'umi';
 import type { ActionType as LabActionType } from '@/components/LaboratoryActionModal';
 import LaboratoryActionModal from '@/components/LaboratoryActionModal';
 import SiringManagement, {
@@ -220,6 +222,10 @@ const LaboratoryTesting: React.FC = () => {
     setViewingRecord(undefined);
     form.setFieldsValue(record);
     setDrawerVisible(true);
+  };
+
+  const handleViewDetail = (record: TestingRecord) => {
+    history.push(`/laboratory/testing/detail/${record.id}`);
   };
 
   const handleSubmit = async (_values: any) => {
@@ -499,6 +505,15 @@ const LaboratoryTesting: React.FC = () => {
           <Space direction="vertical" size={4}>
             {getActionButtons()}
             <Space>
+              <Button
+                type="link"
+                size="small"
+                icon={<FileTextOutlined />}
+                onClick={() => handleViewDetail(record)}
+                style={{ color: '#1890ff' }}
+              >
+                Test Report
+              </Button>
               <Button
                 type="link"
                 size="small"

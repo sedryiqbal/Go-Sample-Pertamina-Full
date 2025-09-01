@@ -66,6 +66,7 @@ export default {
 
   'menu.laboratory': 'Laboratory',
   'menu.laboratory.testing': 'Testing',
+  'menu.laboratory.testing-detail': 'Testing Detail',
   'menu.laboratory.analysis': 'Result Analysis',
   'menu.laboratory.verification': 'Verification',
 
