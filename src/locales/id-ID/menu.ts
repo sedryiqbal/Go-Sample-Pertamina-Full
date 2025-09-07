@@ -58,15 +58,16 @@ export default {
   'menu.management.roles': 'Manajemen Role',
 
   'menu.stock': 'Stock',
-  'menu.stock.estimation': 'Estimasi Stock Sample',
+  'menu.stock.estimate-scheduling': 'Estimate Scheduling Sample',
+  'menu.stock.request-order': 'Request & Order Stock',
 
-  'menu.sample-order': 'Pemesanan Sampel',
-  'menu.sample-order.stock-order': 'Pemesanan Stock',
-  'menu.sample-order.request-order': 'Pemesanan Request',
-  'menu.sample-order.delivery': 'Pengantaran',
+  'menu.estimate-scheduling-sample': 'Estimate Scheduling Sample',
+
+  'menu.request-order': 'Request Order',
 
   'menu.laboratory': 'Laboratorium',
   'menu.laboratory.testing': 'Pengujian',
+  'menu.laboratory.testing-detail': 'Detail Pengujian',
   'menu.laboratory.analysis': 'Analisa Hasil',
   'menu.laboratory.verification': 'Verifikasi',
 
@@ -74,7 +75,6 @@ export default {
   'menu.comparison.quality-check': 'Product Quality Check',
   'menu.comparison.document': 'Komparasi Dokumen',
 
-  'menu.stock-opname': 'Stock Opname Sample',
   'menu.monitoring': 'Monitoring',
   'menu.monitoring-detail': 'Detail Monitoring',
   'menu.reports': 'Laporan',

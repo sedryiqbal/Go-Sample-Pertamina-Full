@@ -4,7 +4,6 @@ import {
   DeleteOutlined,
   EditOutlined,
   EnvironmentOutlined,
-  FileTextOutlined,
   FormOutlined,
   PlusOutlined,
   ShoppingOutlined,
@@ -29,10 +28,8 @@ import {
   Statistic,
   Steps,
   Tag,
-  TimePicker,
   Upload,
 } from 'antd';
-import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
 
@@ -143,7 +140,7 @@ const RequestOrder: React.FC = () => {
         (lab) => lab.value === values.lab_location,
       );
 
-      const requestData = {
+      const _requestData = {
         ...values,
         request_number: requestNumber,
         estimated_arrival: values.estimated_arrival?.format('YYYY-MM-DD HH:mm'),
@@ -163,7 +160,7 @@ const RequestOrder: React.FC = () => {
       setDrawerVisible(false);
       form.resetFields();
       actionRef.current?.reload();
-    } catch (error) {
+    } catch (_error) {
       message.error('Gagal menyimpan request');
     }
   };

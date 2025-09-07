@@ -1,31 +1,31 @@
-import { PageContainer, ProTable } from '@ant-design/pro-components';
-import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { 
-  Card, 
-  Button, 
-  Select, 
-  DatePicker, 
-  Space, 
-  message, 
-  Statistic, 
-  Row, 
-  Col,
-  Tag,
-  Progress
-} from 'antd';
-import { 
-  FileExcelOutlined, 
-  FilePdfOutlined, 
+import {
   BarChartOutlined,
-  PrinterOutlined,
-  DownloadOutlined,
   CalendarOutlined,
   DatabaseOutlined,
-  ExperimentOutlined
+  DownloadOutlined,
+  ExperimentOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
+  PrinterOutlined,
 } from '@ant-design/icons';
-import { useRef, useState } from 'react';
-import dayjs from 'dayjs';
+import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
+import {
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  message,
+  Progress,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Tag,
+} from 'antd';
 import type { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
+import { useRef, useState } from 'react';
 
 const { RangePicker } = DatePicker;
 
@@ -46,7 +46,10 @@ const Reports: React.FC = () => {
   const actionRef = useRef<ActionType>(null);
   const [selectedReportType, setSelectedReportType] = useState('daily');
   const [selectedLaboratory, setSelectedLaboratory] = useState('all');
-  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(7, 'days'), dayjs()]);
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
+    dayjs().subtract(7, 'days'),
+    dayjs(),
+  ]);
 
   const columns: ProColumns<ReportData>[] = [
     {
@@ -55,10 +58,10 @@ const Reports: React.FC = () => {
       key: 'reportType',
       render: (_, record) => {
         const typeConfig = {
-          'daily': { text: 'Harian', color: 'blue' },
-          'weekly': { text: 'Mingguan', color: 'green' },
-          'monthly': { text: 'Bulanan', color: 'orange' },
-          'custom': { text: 'Custom', color: 'purple' },
+          daily: { text: 'Harian', color: 'blue' },
+          weekly: { text: 'Mingguan', color: 'green' },
+          monthly: { text: 'Bulanan', color: 'orange' },
+          custom: { text: 'Custom', color: 'purple' },
         };
         const config = typeConfig[record.reportType as keyof typeof typeConfig];
         return <Tag color={config?.color}>{config?.text}</Tag>;
@@ -89,12 +92,14 @@ const Reports: React.FC = () => {
       title: 'Progress Pengujian',
       key: 'progress',
       render: (_, record) => {
-        const percentage = Math.round((record.completedTests / record.totalSamples) * 100);
+        const percentage = Math.round(
+          (record.completedTests / record.totalSamples) * 100,
+        );
         return (
           <div>
-            <Progress 
-              percent={percentage} 
-              size="small" 
+            <Progress
+              percent={percentage}
+              size="small"
               status={percentage === 100 ? 'success' : 'active'}
             />
             <div style={{ fontSize: '12px', color: '#666' }}>
@@ -159,15 +164,21 @@ const Reports: React.FC = () => {
   ];
 
   const handleDownloadPDF = (record: ReportData) => {
-    message.success(`Downloading PDF report: ${record.reportType} - ${record.dateRange}`);
+    message.success(
+      `Downloading PDF report: ${record.reportType} - ${record.dateRange}`,
+    );
   };
 
   const handleDownloadExcel = (record: ReportData) => {
-    message.success(`Downloading Excel report: ${record.reportType} - ${record.dateRange}`);
+    message.success(
+      `Downloading Excel report: ${record.reportType} - ${record.dateRange}`,
+    );
   };
 
   const handlePrint = (record: ReportData) => {
-    message.success(`Printing report: ${record.reportType} - ${record.dateRange}`);
+    message.success(
+      `Printing report: ${record.reportType} - ${record.dateRange}`,
+    );
   };
 
   const handleGenerateReport = () => {
@@ -288,12 +299,12 @@ const Reports: React.FC = () => {
       </Row>
 
       {/* Report Generator */}
-      <Card 
-        title="Generate New Report" 
+      <Card
+        title="Generate New Report"
         style={{ marginBottom: 24 }}
         extra={
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             icon={<BarChartOutlined />}
             onClick={handleGenerateReport}
           >
@@ -304,7 +315,7 @@ const Reports: React.FC = () => {
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={8} md={6}>
             <div>
-              <label 
+              <label
                 htmlFor="report-type-select"
                 style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}
               >
@@ -326,7 +337,7 @@ const Reports: React.FC = () => {
           </Col>
           <Col xs={24} sm={8} md={6}>
             <div>
-              <label 
+              <label
                 htmlFor="laboratory-select"
                 style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}
               >
@@ -349,7 +360,7 @@ const Reports: React.FC = () => {
           </Col>
           <Col xs={24} sm={8} md={12}>
             <div>
-              <label 
+              <label
                 htmlFor="date-range-picker"
                 style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}
               >

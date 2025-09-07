@@ -23,7 +23,6 @@ import {
   Select,
   Space,
   Statistic,
-  Switch,
   Tag,
 } from 'antd';
 import React, { useRef, useState } from 'react';
@@ -133,7 +132,7 @@ const Laboratories: React.FC = () => {
     });
   };
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (_values: any) => {
     try {
       if (editingRecord) {
         message.success('Data laboratorium berhasil diperbarui');
@@ -143,7 +142,7 @@ const Laboratories: React.FC = () => {
       setDrawerVisible(false);
       form.resetFields();
       actionRef.current?.reload();
-    } catch (error) {
+    } catch (_error) {
       message.error('Gagal menyimpan data laboratorium');
     }
   };

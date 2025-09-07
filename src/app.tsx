@@ -8,6 +8,7 @@ import {
   AvatarDropdown,
   AvatarName,
   Footer,
+  Notification,
   Question,
   SelectLang,
 } from '@/components';
@@ -31,10 +32,14 @@ export async function getInitialState(): Promise<{
 }> {
   const fetchUserInfo = async () => {
     try {
-      const msg = await queryCurrentUser({
-        skipErrorHandler: true,
-      });
-      return msg.data;
+      // const msg = await queryCurrentUser({
+      //   skipErrorHandler: true,
+      // });
+      return {
+        name: 'John Doe',
+        avatar: 'https://example.com/avatar.jpg',
+        email: 'john.doe@example.com',
+      };
     } catch (_error) {
       history.push(loginPath);
     }
@@ -68,6 +73,7 @@ export const layout: RunTimeLayoutConfig = ({
   return {
     actionsRender: () => [
       <Question key="doc" />,
+      <Notification key="notification" />,
       <SelectLang key="SelectLang" />,
     ],
     avatarProps: {

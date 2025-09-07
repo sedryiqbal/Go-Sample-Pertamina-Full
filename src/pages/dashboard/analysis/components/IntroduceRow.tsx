@@ -1,10 +1,9 @@
 import { InfoCircleOutlined } from '@ant-design/icons';
-import { Area, Column } from '@ant-design/plots';
+import { Area } from '@ant-design/plots';
 import { Col, Progress, Row, Tooltip } from 'antd';
 import numeral from 'numeral';
 import type { DataItem } from '../data.d';
 import useStyles from '../style.style';
-import Yuan from '../utils/Yuan';
 import { ChartCard, Field } from './Charts';
 import Trend from './Trend';
 
@@ -12,8 +11,8 @@ const topColResponsiveProps = {
   xs: 24,
   sm: 12,
   md: 12,
-  lg: 12,
-  xl: 6,
+  lg: 8,
+  xl: 8,
   style: {
     marginBottom: 24,
   },
@@ -31,18 +30,20 @@ const IntroduceRow = ({
       <Col {...topColResponsiveProps}>
         <ChartCard
           variant="borderless"
-          title="总销售额"
+          title="Total Sampel Aktif"
           action={
-            <Tooltip title="指标说明">
+            <Tooltip title="Total sampel yang sedang dalam proses pengujian">
               <InfoCircleOutlined />
             </Tooltip>
           }
           loading={loading}
-          total={() => <Yuan>126560</Yuan>}
+          total={() => (
+            <span style={{ fontSize: '30px', fontWeight: 'bold' }}>156</span>
+          )}
           footer={
             <Field
-              label="日销售额"
-              value={`￥${numeral(12423).format('0,0')}`}
+              label="Sampel Hari Ini"
+              value={`${numeral(12).format('0,0')} sampel`}
             />
           }
           contentHeight={46}
@@ -53,12 +54,12 @@ const IntroduceRow = ({
               marginRight: 16,
             }}
           >
-            周同比
-            <span className={styles.trendText}>12%</span>
+            Minggu Ini
+            <span className={styles.trendText}>8%</span>
           </Trend>
-          <Trend flag="down">
-            日同比
-            <span className={styles.trendText}>11%</span>
+          <Trend flag="up">
+            Bulan Ini
+            <span className={styles.trendText}>15%</span>
           </Trend>
         </ChartCard>
       </Col>
@@ -67,15 +68,15 @@ const IntroduceRow = ({
         <ChartCard
           variant="borderless"
           loading={loading}
-          title="访问量"
+          title="Pengujian Selesai"
           action={
-            <Tooltip title="指标说明">
+            <Tooltip title="Total pengujian yang telah selesai bulan ini">
               <InfoCircleOutlined />
             </Tooltip>
           }
-          total={numeral(8846).format('0,0')}
+          total={numeral(284).format('0,0')}
           footer={
-            <Field label="日访问量" value={numeral(1234).format('0,0')} />
+            <Field label="Target Bulanan" value={numeral(300).format('0,0')} />
           }
           contentHeight={46}
         >
@@ -86,7 +87,7 @@ const IntroduceRow = ({
             height={46}
             axis={false}
             style={{
-              fill: 'linear-gradient(-90deg, white 0%, #975FE4 100%)',
+              fill: 'linear-gradient(-90deg, white 0%, #52C41A 100%)',
               fillOpacity: 0.6,
               width: '100%',
             }}
@@ -99,38 +100,13 @@ const IntroduceRow = ({
         <ChartCard
           variant="borderless"
           loading={loading}
-          title="支付笔数"
+          title="Efisiensi Laboratorium"
           action={
-            <Tooltip title="指标说明">
+            <Tooltip title="Tingkat efisiensi pengujian laboratorium">
               <InfoCircleOutlined />
             </Tooltip>
           }
-          total={numeral(6560).format('0,0')}
-          footer={<Field label="转化率" value="60%" />}
-          contentHeight={46}
-        >
-          <Column
-            xField="x"
-            yField="y"
-            padding={-20}
-            axis={false}
-            height={46}
-            data={visitData}
-            scale={{ x: { paddingInner: 0.4 } }}
-          />
-        </ChartCard>
-      </Col>
-      <Col {...topColResponsiveProps}>
-        <ChartCard
-          loading={loading}
-          variant="borderless"
-          title="运营活动效果"
-          action={
-            <Tooltip title="指标说明">
-              <InfoCircleOutlined />
-            </Tooltip>
-          }
-          total="78%"
+          total="92%"
           footer={
             <div
               style={{
@@ -144,20 +120,20 @@ const IntroduceRow = ({
                   marginRight: 16,
                 }}
               >
-                周同比
-                <span className={styles.trendText}>12%</span>
+                Target
+                <span className={styles.trendText}>85%</span>
               </Trend>
-              <Trend flag="down">
-                日同比
-                <span className={styles.trendText}>11%</span>
+              <Trend flag="up">
+                Bulan Lalu
+                <span className={styles.trendText}>89%</span>
               </Trend>
             </div>
           }
           contentHeight={46}
         >
           <Progress
-            percent={78}
-            strokeColor={{ from: '#108ee9', to: '#87d068' }}
+            percent={92}
+            strokeColor={{ from: '#1890ff', to: '#52C41A' }}
             status="active"
           />
         </ChartCard>

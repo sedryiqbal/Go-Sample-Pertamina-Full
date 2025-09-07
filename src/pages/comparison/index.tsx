@@ -1,31 +1,31 @@
-import { PageContainer } from '@ant-design/pro-components';
-import { 
-  Card, 
-  Tabs, 
-  Button, 
-  Upload, 
-  message, 
-  Typography, 
-  Space, 
-  Progress, 
-  Tag,
-  Alert,
-  List,
-  Row,
-  Col
-} from 'antd';
-import { 
-  FileAddOutlined, 
-  FilePdfOutlined, 
-  DiffOutlined,
+import {
   CheckCircleOutlined,
-  ExclamationCircleOutlined,
   CloseCircleOutlined,
+  DiffOutlined,
+  DownloadOutlined,
+  ExclamationCircleOutlined,
+  FileAddOutlined,
+  FilePdfOutlined,
   UploadOutlined,
-  DownloadOutlined
 } from '@ant-design/icons';
-import { useState } from 'react';
+import { PageContainer } from '@ant-design/pro-components';
 import type { UploadProps } from 'antd';
+import {
+  Alert,
+  Button,
+  Card,
+  Col,
+  List,
+  message,
+  Progress,
+  Row,
+  Space,
+  Tabs,
+  Tag,
+  Typography,
+  Upload,
+} from 'antd';
+import { useState } from 'react';
 
 const { Title, Text } = Typography;
 
@@ -120,9 +120,10 @@ const Comparison: React.FC = () => {
     multiple: true,
     accept: '.pdf,.doc,.docx,.xls,.xlsx',
     beforeUpload: (file) => {
-      const isValidType = file.type === 'application/pdf' || 
-                         file.type.includes('document') || 
-                         file.type.includes('sheet');
+      const isValidType =
+        file.type === 'application/pdf' ||
+        file.type.includes('document') ||
+        file.type.includes('sheet');
       if (!isValidType) {
         message.error('Hanya file PDF, Word, dan Excel yang diperbolehkan!');
         return false;
@@ -141,19 +142,27 @@ const Comparison: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pass': return 'success';
-      case 'warning': return 'warning';
-      case 'fail': return 'error';
-      default: return 'default';
+      case 'pass':
+        return 'success';
+      case 'warning':
+        return 'warning';
+      case 'fail':
+        return 'error';
+      default:
+        return 'default';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pass': return <CheckCircleOutlined />;
-      case 'warning': return <ExclamationCircleOutlined />;
-      case 'fail': return <CloseCircleOutlined />;
-      default: return null;
+      case 'pass':
+        return <CheckCircleOutlined />;
+      case 'warning':
+        return <ExclamationCircleOutlined />;
+      case 'fail':
+        return <CloseCircleOutlined />;
+      default:
+        return null;
     }
   };
 
@@ -166,13 +175,15 @@ const Comparison: React.FC = () => {
         showIcon
         style={{ marginBottom: 16 }}
       />
-      
+
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={8}>
           <Card>
             <div style={{ textAlign: 'center' }}>
               <CheckCircleOutlined style={{ fontSize: 32, color: '#52c41a' }} />
-              <Title level={3} style={{ margin: '8px 0', color: '#52c41a' }}>3</Title>
+              <Title level={3} style={{ margin: '8px 0', color: '#52c41a' }}>
+                3
+              </Title>
               <Text>Parameter Lulus</Text>
             </div>
           </Card>
@@ -180,8 +191,12 @@ const Comparison: React.FC = () => {
         <Col xs={24} sm={8}>
           <Card>
             <div style={{ textAlign: 'center' }}>
-              <ExclamationCircleOutlined style={{ fontSize: 32, color: '#faad14' }} />
-              <Title level={3} style={{ margin: '8px 0', color: '#faad14' }}>0</Title>
+              <ExclamationCircleOutlined
+                style={{ fontSize: 32, color: '#faad14' }}
+              />
+              <Title level={3} style={{ margin: '8px 0', color: '#faad14' }}>
+                0
+              </Title>
               <Text>Peringatan</Text>
             </div>
           </Card>
@@ -190,7 +205,9 @@ const Comparison: React.FC = () => {
           <Card>
             <div style={{ textAlign: 'center' }}>
               <CloseCircleOutlined style={{ fontSize: 32, color: '#ff4d4f' }} />
-              <Title level={3} style={{ margin: '8px 0', color: '#ff4d4f' }}>1</Title>
+              <Title level={3} style={{ margin: '8px 0', color: '#ff4d4f' }}>
+                1
+              </Title>
               <Text>Parameter Gagal</Text>
             </div>
           </Card>
@@ -203,14 +220,14 @@ const Comparison: React.FC = () => {
           renderItem={(item) => (
             <List.Item
               actions={[
-                <Button 
+                <Button
                   key={`detail-${item.id}`}
-                  type="link" 
+                  type="link"
                   size="small"
                   onClick={() => message.info(`Detail untuk ${item.parameter}`)}
                 >
                   Detail
-                </Button>
+                </Button>,
               ]}
             >
               <List.Item.Meta
@@ -219,16 +236,26 @@ const Comparison: React.FC = () => {
                   <Space>
                     {item.parameter}
                     <Tag color={getStatusColor(item.status)}>
-                      {item.status === 'pass' ? 'Lulus' : 
-                       item.status === 'warning' ? 'Peringatan' : 'Gagal'}
+                      {item.status === 'pass'
+                        ? 'Lulus'
+                        : item.status === 'warning'
+                          ? 'Peringatan'
+                          : 'Gagal'}
                     </Tag>
                   </Space>
                 }
                 description={
                   <div>
-                    <Text>Standar: {item.standardValue} {item.unit}</Text>
+                    <Text>
+                      Standar: {item.standardValue} {item.unit}
+                    </Text>
                     <br />
-                    <Text>Aktual: <strong>{item.actualValue} {item.unit}</strong></Text>
+                    <Text>
+                      Aktual:{' '}
+                      <strong>
+                        {item.actualValue} {item.unit}
+                      </strong>
+                    </Text>
                     <br />
                     <Text type="secondary">{item.difference}</Text>
                   </div>
@@ -241,14 +268,16 @@ const Comparison: React.FC = () => {
 
       <div style={{ marginTop: 16, textAlign: 'center' }}>
         <Space>
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             icon={<FilePdfOutlined />}
-            onClick={() => message.success('Generating quality comparison report...')}
+            onClick={() =>
+              message.success('Generating quality comparison report...')
+            }
           >
             Generate Report PDF
           </Button>
-          <Button 
+          <Button
             icon={<DownloadOutlined />}
             onClick={() => message.success('Downloading detailed analysis...')}
           >
@@ -281,16 +310,18 @@ const Comparison: React.FC = () => {
                 Mendukung PDF, Word, dan Excel. Maksimal 10MB per file.
               </p>
             </Upload.Dragger>
-            
+
             <Space>
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 icon={<DiffOutlined />}
-                onClick={() => message.success('Starting document comparison...')}
+                onClick={() =>
+                  message.success('Starting document comparison...')
+                }
               >
                 Start Comparison
               </Button>
-              <Button 
+              <Button
                 icon={<UploadOutlined />}
                 onClick={() => message.info('Select documents to compare')}
               >
@@ -307,19 +338,25 @@ const Comparison: React.FC = () => {
               renderItem={(item) => (
                 <List.Item
                   actions={[
-                    <Button 
+                    <Button
                       key={`download-${item.id}`}
-                      type="link" 
+                      type="link"
                       size="small"
                       icon={<DownloadOutlined />}
-                      onClick={() => message.success(`Downloading ${item.fileName}`)}
+                      onClick={() =>
+                        message.success(`Downloading ${item.fileName}`)
+                      }
                     >
                       Download
-                    </Button>
+                    </Button>,
                   ]}
                 >
                   <List.Item.Meta
-                    avatar={<FilePdfOutlined style={{ fontSize: 24, color: '#1890ff' }} />}
+                    avatar={
+                      <FilePdfOutlined
+                        style={{ fontSize: 24, color: '#1890ff' }}
+                      />
+                    }
                     title={item.fileName}
                     description={
                       <div>
@@ -327,16 +364,21 @@ const Comparison: React.FC = () => {
                         <br />
                         <Text type="secondary">Upload: {item.uploadDate}</Text>
                         <br />
-                        {item.comparisonStatus === 'completed' && item.similarityScore && (
-                          <div style={{ marginTop: 8 }}>
-                            <Text>Similarity Score:</Text>
-                            <Progress 
-                              percent={item.similarityScore} 
-                              size="small"
-                              status={item.similarityScore > 90 ? 'success' : 'normal'}
-                            />
-                          </div>
-                        )}
+                        {item.comparisonStatus === 'completed' &&
+                          item.similarityScore && (
+                            <div style={{ marginTop: 8 }}>
+                              <Text>Similarity Score:</Text>
+                              <Progress
+                                percent={item.similarityScore}
+                                size="small"
+                                status={
+                                  item.similarityScore > 90
+                                    ? 'success'
+                                    : 'normal'
+                                }
+                              />
+                            </div>
+                          )}
                         {item.comparisonStatus === 'pending' && (
                           <Tag color="processing">Processing...</Tag>
                         )}
@@ -358,8 +400,8 @@ const Comparison: React.FC = () => {
       content="Modul perbandingan untuk quality check dan analisis dokumen"
     >
       <Card>
-        <Tabs 
-          activeKey={activeTab} 
+        <Tabs
+          activeKey={activeTab}
           onChange={setActiveTab}
           items={[
             {

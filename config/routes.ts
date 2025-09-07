@@ -60,46 +60,45 @@ export default [
   },
   {
     path: '/stock',
-    name: 'stock',
+    name: 'Stock',
     icon: 'database',
     routes: [
       {
-        name: 'estimation',
+        name: 'Estimate Scheduling Sample',
         icon: 'line-chart',
-        path: '/stock/estimation',
-        component: './stock/estimation',
+        path: '/stock/estimate-scheduling',
+        component: './stock/estimate-scheduling',
+      },
+      {
+        name: 'Request & Order Stock',
+        icon: 'shopping',
+        path: '/stock/request-order',
+        component: './stock/request-order',
       },
     ],
   },
-  {
-    path: '/sample-order',
-    name: 'sample-order',
-    icon: 'shopping',
-    routes: [
-      {
-        name: 'stock-order',
-        icon: 'dropbox',
-        path: '/sample-order/stock',
-        component: './sample-order/stock',
-      },
-      {
-        name: 'request-order',
-        icon: 'form',
-        path: '/sample-order/request',
-        component: './sample-order/request',
-      },
-    ],
-  },
+  // {
+  //   path: '/estimate-scheduling-sample',
+  //   name: 'Estimate Scheduling Sample',
+  //   icon: 'shopping',
+  //   component: './estimate-scheduling-sample',
+  // },
   {
     path: '/laboratory',
     name: 'laboratory',
     icon: 'experiment',
     routes: [
       {
-        name: 'testing',
+        name: 'Sample Testing',
         icon: 'interaction',
         path: '/laboratory/testing',
         component: './laboratory/testing',
+      },
+      {
+        path: '/laboratory/testing/detail/:id',
+        name: 'testing-detail',
+        component: './laboratory/testing/detail',
+        hideInMenu: true,
       },
     ],
   },
@@ -110,10 +109,10 @@ export default [
     component: './comparison',
   },
   {
-    path: '/stock-opname',
-    name: 'stock-opname',
-    icon: 'database',
-    component: './stock-opname',
+    path: '/request-order',
+    name: 'request-order',
+    icon: 'form',
+    component: './request-order',
   },
   {
     path: '/monitoring',
