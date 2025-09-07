@@ -54,11 +54,14 @@ export default {
   'menu.management': 'Management',
   'menu.management.users': 'User Management',
   'menu.management.ships': 'Ship Management',
+  'menu.management.laboratories': 'Laboratory Management',
   'menu.management.roles': 'Role Management',
 
-  'menu.stock': 'Stock',
-  'menu.stock.estimate-scheduling': 'Estimate Scheduling Sample',
-  'menu.stock.request-order': 'Request & Order Stock',
+  'menu.sample': 'Sample',
+  'menu.sample.estimation': 'Sample Estimation',
+  'menu.sample.order': 'Sample Order',
+
+  'menu.shipping': 'Shipping',
 
   'menu.estimate-scheduling-sample': 'Estimate Scheduling Sample',
 

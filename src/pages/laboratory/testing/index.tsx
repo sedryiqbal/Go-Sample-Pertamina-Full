@@ -38,9 +38,9 @@ import React, { useRef, useState } from 'react';
 import { history } from 'umi';
 import type { ActionType as LabActionType } from '@/components/LaboratoryActionModal';
 import LaboratoryActionModal from '@/components/LaboratoryActionModal';
-import SiringManagement, {
-  type SiringData,
-} from '@/components/SiringManagement';
+import SyringeManagement, {
+  type SyringeData,
+} from '@/components/SyringeManagement';
 
 interface TestingRecord {
   id: string;
@@ -79,13 +79,13 @@ const LaboratoryTesting: React.FC = () => {
     TestingRecord | undefined
   >();
 
-  // New state for action modal and siring management
+  // New state for action modal and syringe management
   const [actionModalVisible, setActionModalVisible] = useState(false);
   const [currentActionType, setCurrentActionType] =
     useState<LabActionType>('confirm_sample');
-  const [siringModalVisible, setSiringModalVisible] = useState(false);
-  const [selectedSiring, setSelectedSiring] = useState<
-    SiringData | undefined
+  const [syringeModalVisible, setSyringeModalVisible] = useState(false);
+  const [selectedSyringe, setSelectedSyringe] = useState<
+    SyringeData | undefined
   >();
 
   const actionRef = useRef<ProActionType>(null);
@@ -152,11 +152,11 @@ const LaboratoryTesting: React.FC = () => {
     { label: 'Aromatics', value: 'aromatics', unit: '%v/v', standard: '< 25' },
   ];
 
-  // Mock Siring data
-  const mockSiringData: SiringData[] = [
+  // Mock Syringe data
+  const mockSyringeData: SyringeData[] = [
     {
       id: '1',
-      location: 'Lab Room A - Storage Cabinet 1',
+      location: 'Lab Room A - Storage Unit 1',
       current_stock: 15,
       min_threshold: 5,
       max_capacity: 50,
@@ -165,16 +165,16 @@ const LaboratoryTesting: React.FC = () => {
     },
     {
       id: '2',
-      location: 'Lab Room B - Storage Cabinet 2',
+      location: 'Lab Room B - Storage Unit 2',
       current_stock: 3,
       min_threshold: 5,
       max_capacity: 40,
       last_updated: '2025-08-29T07:15:00Z',
-      status: 'critical',
+      status: 'urgent',
     },
     {
       id: '3',
-      location: 'Lab Room C - Storage Cabinet 3',
+      location: 'Lab Room C - Storage Unit 3',
       current_stock: 38,
       min_threshold: 8,
       max_capacity: 40,
@@ -200,15 +200,15 @@ const LaboratoryTesting: React.FC = () => {
     actionRef.current?.reload();
   };
 
-  const handleSiringClick = (siring: SiringData) => {
-    setSelectedSiring(siring);
-    setSiringModalVisible(true);
+  const handleSyringeClick = (syringe: SyringeData) => {
+    setSelectedSyringe(syringe);
+    setSyringeModalVisible(true);
   };
 
-  const handleSiringUpdate = (updatedSiring: SiringData) => {
-    console.log('Siring updated:', updatedSiring);
-    // Update your siring data here
-    message.success('Stock siring berhasil diperbarui');
+  const handleSyringeUpdate = (updatedSyringe: SyringeData) => {
+    console.log('Syringe updated:', updatedSyringe);
+    // Update your syringe data here
+    message.success('Stock syringe berhasil diperbarui');
   };
 
   const handleView = (record: TestingRecord) => {
@@ -669,74 +669,74 @@ const LaboratoryTesting: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Siring Management Cards */}
+      {/* Syringe Management Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={24}>
           <Card
             title={
               <Space>
                 <DatabaseOutlined style={{ color: '#fd0017' }} />
-                Manajemen Stock Siring - Klik untuk Update
+                Manajemen Stock Syringe - Klik untuk Update
               </Space>
             }
             size="small"
           >
             <Row gutter={[12, 12]}>
-              {mockSiringData.map((siring) => (
-                <Col xs={24} sm={8} key={siring.id}>
+              {mockSyringeData.map((syringe) => (
+                <Col xs={24} sm={8} key={syringe.id}>
                   <Card
                     size="small"
                     hoverable
-                    onClick={() => handleSiringClick(siring)}
+                    onClick={() => handleSyringeClick(syringe)}
                     style={{
                       cursor: 'pointer',
                       borderColor:
-                        siring.status === 'critical'
+                        syringe.status === 'urgent'
                           ? '#ff4d4f'
-                          : siring.status === 'low'
+                          : syringe.status === 'low'
                             ? '#faad14'
-                            : siring.status === 'full'
+                            : syringe.status === 'full'
                               ? '#1890ff'
                               : '#d9d9d9',
                     }}
                   >
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontWeight: 500, marginBottom: 4 }}>
-                        {siring.location}
+                        {syringe.location}
                       </div>
                       <div
                         style={{
                           fontSize: '18px',
                           fontWeight: 'bold',
                           color:
-                            siring.status === 'critical'
+                            syringe.status === 'urgent'
                               ? '#ff4d4f'
-                              : siring.status === 'low'
+                              : syringe.status === 'low'
                                 ? '#faad14'
-                                : siring.status === 'full'
+                                : syringe.status === 'full'
                                   ? '#1890ff'
                                   : '#52c41a',
                           marginBottom: 4,
                         }}
                       >
-                        {siring.current_stock} / {siring.max_capacity}
+                        {syringe.current_stock} / {syringe.max_capacity}
                       </div>
                       <Badge
                         status={
-                          siring.status === 'critical'
+                          syringe.status === 'urgent'
                             ? 'error'
-                            : siring.status === 'low'
+                            : syringe.status === 'low'
                               ? 'warning'
-                              : siring.status === 'full'
+                              : syringe.status === 'full'
                                 ? 'processing'
                                 : 'success'
                         }
                         text={
-                          siring.status === 'critical'
-                            ? 'Kritis'
-                            : siring.status === 'low'
+                          syringe.status === 'urgent'
+                            ? 'Mendesak'
+                            : syringe.status === 'low'
                               ? 'Rendah'
-                              : siring.status === 'full'
+                              : syringe.status === 'full'
                                 ? 'Penuh'
                                 : 'Normal'
                         }
@@ -1142,12 +1142,12 @@ const LaboratoryTesting: React.FC = () => {
         onSubmit={handleActionSubmit}
       />
 
-      {/* Siring Management Modal */}
-      <SiringManagement
-        visible={siringModalVisible}
-        onClose={() => setSiringModalVisible(false)}
-        siringData={selectedSiring}
-        onUpdate={handleSiringUpdate}
+      {/* Syringe Management Modal */}
+      <SyringeManagement
+        visible={syringeModalVisible}
+        onClose={() => setSyringeModalVisible(false)}
+        syringeData={selectedSyringe}
+        onUpdate={handleSyringeUpdate}
       />
     </PageContainer>
   );

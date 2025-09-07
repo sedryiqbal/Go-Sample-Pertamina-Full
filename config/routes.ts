@@ -51,6 +51,12 @@ export default [
         component: './management/ships',
       },
       {
+        name: 'laboratories',
+        icon: 'experiment',
+        path: '/management/laboratories',
+        component: './management/laboratories',
+      },
+      {
         name: 'roles',
         icon: 'safety',
         path: '/management/roles',
@@ -59,23 +65,29 @@ export default [
     ],
   },
   {
-    path: '/stock',
-    name: 'Stock',
+    path: '/sample',
+    name: 'Sample',
     icon: 'database',
     routes: [
       {
-        name: 'Estimate Scheduling Sample',
+        name: 'Estimasi Sample',
         icon: 'line-chart',
-        path: '/stock/estimate-scheduling',
-        component: './stock/estimate-scheduling',
+        path: '/sample/estimation',
+        component: './sample/estimation',
       },
       {
-        name: 'Request & Order Stock',
+        name: 'Sample Order',
         icon: 'shopping',
-        path: '/stock/request-order',
-        component: './stock/request-order',
+        path: '/sample/order',
+        component: './sample/order',
       },
     ],
+  },
+  {
+    path: '/shipping',
+    name: 'Shipping',
+    icon: 'car',
+    component: './shipping',
   },
   // {
   //   path: '/estimate-scheduling-sample',

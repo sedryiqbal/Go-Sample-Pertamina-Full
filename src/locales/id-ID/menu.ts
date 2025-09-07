@@ -55,11 +55,14 @@ export default {
   'menu.management': 'Manajemen',
   'menu.management.users': 'Manajemen User',
   'menu.management.ships': 'Manajemen Kapal',
+  'menu.management.laboratories': 'Manajemen Laboratorium',
   'menu.management.roles': 'Manajemen Role',
 
-  'menu.stock': 'Stock',
-  'menu.stock.estimate-scheduling': 'Estimate Scheduling Sample',
-  'menu.stock.request-order': 'Request & Order Stock',
+  'menu.sample': 'Sample',
+  'menu.sample.estimation': 'Estimasi Sample',
+  'menu.sample.order': 'Sample Order',
+
+  'menu.shipping': 'Shipping',
 
   'menu.estimate-scheduling-sample': 'Estimate Scheduling Sample',
 
