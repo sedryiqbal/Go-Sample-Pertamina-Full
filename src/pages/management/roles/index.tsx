@@ -18,7 +18,6 @@ import {
   Typography,
 } from 'antd';
 import React, { useRef, useState } from 'react';
-import { createRole, deleteRole, updateRole } from '@/services/roles/api';
 import type {
   CreateRoleRequest,
   Role,
@@ -97,7 +96,7 @@ const RoleManagement: React.FC = () => {
 
           message.success(`Role ${record.name} berhasil dihapus`);
           actionRef.current?.reload();
-        } catch (error) {
+        } catch (_error) {
           message.error('Gagal menghapus role');
         } finally {
           setLoading(false);
@@ -150,7 +149,7 @@ const RoleManagement: React.FC = () => {
       setDrawerVisible(false);
       form.resetFields();
       actionRef.current?.reload();
-    } catch (error) {
+    } catch (_error) {
       message.error(
         editingRecord ? 'Gagal memperbarui role' : 'Gagal menambahkan role',
       );

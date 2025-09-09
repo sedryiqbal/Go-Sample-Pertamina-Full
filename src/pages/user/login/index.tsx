@@ -5,7 +5,6 @@ import { Alert, App, Button, Carousel, Checkbox, Form, Input } from 'antd';
 import { createStyles } from 'antd-style';
 import React, { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { login } from '@/services/ant-design-pro/api';
 import Settings from '../../../../config/defaultSettings';
 
 const useStyles = createStyles(({ token }) => ({
@@ -260,7 +259,7 @@ const SliderComponent = () => {
           dotPosition="bottom"
           effect="fade"
         >
-          {slides.map((slide, slideIndex) => (
+          {slides.map((slide, _slideIndex) => (
             <div key={slide.title}>
               <div className={styles.sliderContent}>
                 <h1 className={styles.sliderTitle}>Go Sample</h1>
@@ -351,7 +350,7 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (values: API.LoginParams) => {
+  const handleSubmit = async (_values: API.LoginParams) => {
     setSubmitting(true);
     try {
       // const msg = await login({ ...values, type: 'account' });

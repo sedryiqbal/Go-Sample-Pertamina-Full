@@ -5,7 +5,7 @@ import {
   SyncOutlined,
 } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Col, Row, Statistic } from 'antd';
+import { Col, Row } from 'antd';
 import React from 'react';
 
 // Import modular components

@@ -11,7 +11,6 @@ import {
   Card,
   Col,
   Descriptions,
-  Divider,
   message,
   Row,
   Space,
@@ -201,7 +200,7 @@ const LaboratoryTestingDetail: React.FC = () => {
         };
 
         setTestRecord(mockTestRecord);
-      } catch (error) {
+      } catch (_error) {
         message.error('Failed to load test record');
       } finally {
         setLoading(false);

@@ -13,7 +13,7 @@ const TestResultsSummary: React.FC<TestResultsSummaryProps> = ({
   failureRate = 13,
 }) => {
   return (
-    <Card title="Total Pengujian Berhasil / Gagal" size="small">
+    <Card title="Total Pengujian Berhasil / Repeat" size="small">
       <div style={{ textAlign: 'center', padding: '20px 0' }}>
         <div style={{ marginBottom: '20px' }}>
           <div
@@ -59,7 +59,7 @@ const TestResultsSummary: React.FC<TestResultsSummaryProps> = ({
           </Col>
           <Col span={12}>
             <div style={{ color: '#ff4d4f', fontWeight: 'bold' }}>
-              Gagal: {failureRate}%
+              Repeat: {failureRate}%
             </div>
           </Col>
         </Row>

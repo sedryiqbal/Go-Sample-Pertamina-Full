@@ -1278,7 +1278,7 @@ const RequestOrderStock: React.FC = () => {
                         showTime
                         format="DD/MM/YYYY HH:mm"
                         style={{ width: '100%' }}
-                        getPopupContainer={(trigger) => document.body}
+                        getPopupContainer={(_trigger) => document.body}
                       />
                     </Form.Item>
                   </Col>
@@ -1516,7 +1516,7 @@ const RequestOrderStock: React.FC = () => {
                 <DatePicker
                   style={{ width: '100%' }}
                   disabled={!!selectedStock}
-                  getPopupContainer={(trigger) => document.body}
+                  getPopupContainer={(_trigger) => document.body}
                 />
               </Form.Item>
 
@@ -1635,7 +1635,7 @@ const RequestOrderStock: React.FC = () => {
                   showTime
                   format="DD/MM/YYYY HH:mm"
                   style={{ width: '100%' }}
-                  getPopupContainer={(trigger) => document.body}
+                  getPopupContainer={(_trigger) => document.body}
                 />
               </Form.Item>
 

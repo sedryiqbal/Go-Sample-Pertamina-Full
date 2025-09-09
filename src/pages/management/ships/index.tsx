@@ -39,6 +39,7 @@ interface ShipRecord {
   capacity: number;
   arrival_date: string;
   departure_date?: string;
+  completed_time?: string;
   berth_location: string;
   cargo_type: string;
   status: 'approaching' | 'berthed' | 'loading' | 'unloading' | 'departed';
@@ -100,6 +101,9 @@ const Ships: React.FC = () => {
     form.setFieldsValue({
       ...record,
       arrival_date: record.arrival_date ? dayjs(record.arrival_date) : null,
+      completed_time: record.completed_time
+        ? dayjs(record.completed_time)
+        : null,
     });
     setDrawerVisible(true);
   };
@@ -123,6 +127,7 @@ const Ships: React.FC = () => {
       const _formattedValues = {
         ..._values,
         arrival_date: _values.arrival_date?.format('YYYY-MM-DD HH:mm'),
+        completed_time: _values.completed_time?.format('YYYY-MM-DD HH:mm'),
       };
 
       if (editingRecord) {
@@ -252,6 +257,24 @@ const Ships: React.FC = () => {
       valueType: 'dateTime',
       sorter: true,
     },
+    {
+      title: 'Waktu Selesai',
+      dataIndex: 'completed_time',
+      key: 'completed_time',
+      valueType: 'dateTime',
+      sorter: true,
+      render: (_, record) =>
+        record.completed_time ? (
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <CalendarOutlined style={{ color: '#52c41a', marginRight: 4 }} />
+            <span>
+              {dayjs(record.completed_time).format('DD/MM/YYYY HH:mm')}
+            </span>
+          </div>
+        ) : (
+          <span style={{ color: '#999' }}>-</span>
+        ),
+    },
 
     {
       title: 'Lokasi Dermaga',
@@ -330,6 +353,7 @@ const Ships: React.FC = () => {
       capacity: 50000,
       arrival_date: '2025-08-05 08:00',
       departure_date: '2025-08-07 16:00',
+      completed_time: '2025-08-07 14:30',
       berth_location: 'Berth 1A - Soekarno-Hatta',
       cargo_type: 'JET A-1',
       status: 'unloading',
@@ -350,6 +374,7 @@ const Ships: React.FC = () => {
       captain_name: 'Captain Ahmad',
       capacity: 35000,
       arrival_date: '2025-08-06 14:00',
+      completed_time: '2025-08-08 10:15',
       berth_location: 'Berth 2A - Soekarno-Hatta',
       cargo_type: 'Avgas',
       status: 'berthed',
@@ -594,6 +619,19 @@ const Ships: React.FC = () => {
               showTime
               format="DD/MM/YYYY HH:mm"
               style={{ width: '100%' }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="completed_time"
+            label="Waktu Selesai Operasi"
+            tooltip="Waktu penyelesaian loading/unloading atau operasi lainnya"
+          >
+            <DatePicker
+              showTime
+              format="DD/MM/YYYY HH:mm"
+              style={{ width: '100%' }}
+              placeholder="Pilih waktu selesai operasi"
             />
           </Form.Item>
 
