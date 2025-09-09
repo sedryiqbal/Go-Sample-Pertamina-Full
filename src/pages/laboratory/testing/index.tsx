@@ -1,12 +1,13 @@
 import {
   CheckCircleOutlined,
-  ClockCircleOutlined,
   DatabaseOutlined,
   EditOutlined,
   ExperimentOutlined,
   EyeOutlined,
   FileTextOutlined,
+  HistoryOutlined,
   SyncOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import type {
   ActionType as ProActionType,
@@ -27,10 +28,11 @@ import {
   message,
   Progress,
   Row,
-  Select,
   Space,
   Statistic,
   Steps,
+  Table,
+  Tabs,
   Tag,
 } from 'antd';
 import dayjs from 'dayjs';
@@ -56,7 +58,10 @@ interface TestingRecord {
     | 'testing'
     | 'waiting_equipment'
     | 'completed'
-    | 'failed';
+    | 'failed'
+    | 'pending'
+    | 'shipped'
+    | 'proses';
   lab_technician: string;
   equipment_used?: string;
   test_parameters: string[];
@@ -68,6 +73,15 @@ interface TestingRecord {
   quality_notes?: string;
   created_at: string;
   updated_at: string;
+}
+
+interface AuditLog {
+  id: string;
+  timestamp: string;
+  action: string;
+  user: string;
+  details: string;
+  type: 'info' | 'warning' | 'success' | 'error';
 }
 
 const LaboratoryTesting: React.FC = () => {
@@ -88,6 +102,9 @@ const LaboratoryTesting: React.FC = () => {
     SyringeData | undefined
   >();
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState('all');
+
   const actionRef = useRef<ProActionType>(null);
   const [form] = Form.useForm();
 
@@ -98,88 +115,89 @@ const LaboratoryTesting: React.FC = () => {
     { label: 'Waiting Equipment', value: 'waiting_equipment' },
     { label: 'Completed', value: 'completed' },
     { label: 'Failed', value: 'failed' },
-  ];
-
-  const labTechnicianOptions = [
-    { label: 'Dr. Ahmad Laboratorium', value: 'ahmad-lab' },
-    { label: 'Ir. Budi Santoso', value: 'budi-santoso' },
-    { label: 'Drs. Cahaya Wijaya', value: 'cahaya-wijaya' },
-    { label: 'Dr. Siti Rahayu', value: 'siti-rahayu' },
-  ];
-
-  const equipmentOptions = [
-    { label: 'Viscometer Alat A', value: 'viscometer-a' },
-    { label: 'Viscometer Alat B', value: 'viscometer-b' },
-    { label: 'Flash Point Tester', value: 'flash-point' },
-    { label: 'Karl Fischer Titrator', value: 'karl-fischer' },
-    { label: 'Density Meter', value: 'density-meter' },
-    { label: 'Freeze Point Tester', value: 'freeze-point' },
-    { label: 'GC-MS System', value: 'gc-ms' },
-  ];
-
-  const testParameterOptions = [
-    {
-      label: 'Kadar Air',
-      value: 'water_content',
-      unit: 'ppm',
-      standard: '< 30',
-    },
-    {
-      label: 'Viskositas',
-      value: 'viscosity',
-      unit: 'cSt',
-      standard: '1.0-3.0',
-    },
-    { label: 'Densitas', value: 'density', unit: 'kg/m³', standard: '775-840' },
-    {
-      label: 'Flash Point',
-      value: 'flash_point',
-      unit: '°C',
-      standard: '> 38',
-    },
-    {
-      label: 'Freeze Point',
-      value: 'freeze_point',
-      unit: '°C',
-      standard: '< -47',
-    },
-    {
-      label: 'Sulfur Content',
-      value: 'sulfur_content',
-      unit: 'mg/kg',
-      standard: '< 3000',
-    },
-    { label: 'Aromatics', value: 'aromatics', unit: '%v/v', standard: '< 25' },
+    { label: 'Pending', value: 'pending' },
+    { label: 'Shipped', value: 'shipped' },
+    { label: 'Proses', value: 'proses' },
   ];
 
   // Mock Syringe data
   const mockSyringeData: SyringeData[] = [
     {
       id: '1',
-      location: 'Lab Room A - Storage Unit 1',
+      location: 'Laboratory Storage',
       current_stock: 15,
       min_threshold: 5,
       max_capacity: 50,
       last_updated: '2025-08-29T08:30:00Z',
       status: 'normal',
     },
+  ];
+
+  // Mock Audit Logs
+  const mockAuditLogs: AuditLog[] = [
+    {
+      id: '1',
+      timestamp: '2025-09-08T10:30:00Z',
+      action: 'Stock Updated',
+      user: 'Dr. Ahmad Laboratorium',
+      details: 'Updated stock from 12 to 15 units',
+      type: 'success',
+    },
     {
       id: '2',
-      location: 'Lab Room B - Storage Unit 2',
-      current_stock: 3,
-      min_threshold: 5,
-      max_capacity: 40,
-      last_updated: '2025-08-29T07:15:00Z',
-      status: 'urgent',
+      timestamp: '2025-09-08T09:15:00Z',
+      action: 'Stock Usage',
+      user: 'Ir. Budi Santoso',
+      details: 'Used 3 syringes for sample testing',
+      type: 'info',
     },
     {
       id: '3',
-      location: 'Lab Room C - Storage Unit 3',
-      current_stock: 38,
-      min_threshold: 8,
-      max_capacity: 40,
-      last_updated: '2025-08-29T06:45:00Z',
-      status: 'full',
+      timestamp: '2025-09-08T08:45:00Z',
+      action: 'Low Stock Alert',
+      user: 'System',
+      details: 'Stock level reached minimum threshold',
+      type: 'warning',
+    },
+    {
+      id: '4',
+      timestamp: '2025-09-07T16:20:00Z',
+      action: 'Stock Replenishment',
+      user: 'Drs. Cahaya Wijaya',
+      details: 'Added 20 units to inventory',
+      type: 'success',
+    },
+    {
+      id: '5',
+      timestamp: '2025-09-07T14:15:00Z',
+      action: 'Stock Usage',
+      user: 'Dr. Siti Rahayu',
+      details: 'Used 5 syringes for urgent testing',
+      type: 'info',
+    },
+    {
+      id: '6',
+      timestamp: '2025-09-07T11:30:00Z',
+      action: 'Equipment Maintenance',
+      user: 'Technical Team',
+      details: 'Performed routine maintenance on storage unit',
+      type: 'info',
+    },
+    {
+      id: '7',
+      timestamp: '2025-09-06T16:45:00Z',
+      action: 'Stock Updated',
+      user: 'Dr. Ahmad Laboratorium',
+      details: 'Manual stock adjustment after audit',
+      type: 'success',
+    },
+    {
+      id: '8',
+      timestamp: '2025-09-06T09:20:00Z',
+      action: 'Critical Stock Alert',
+      user: 'System',
+      details: 'Stock level critically low - immediate action required',
+      type: 'error',
     },
   ];
 
@@ -268,6 +286,12 @@ const LaboratoryTesting: React.FC = () => {
         return 'success';
       case 'failed':
         return 'error';
+      case 'pending':
+        return 'warning';
+      case 'shipped':
+        return 'processing';
+      case 'proses':
+        return 'processing';
       default:
         return 'default';
     }
@@ -287,6 +311,12 @@ const LaboratoryTesting: React.FC = () => {
         return 'Selesai';
       case 'failed':
         return 'Gagal';
+      case 'pending':
+        return 'Pending';
+      case 'shipped':
+        return 'Shipped';
+      case 'proses':
+        return 'Proses';
       default:
         return status;
     }
@@ -311,6 +341,224 @@ const LaboratoryTesting: React.FC = () => {
     if (percentage >= 50) return '#1890ff';
     return '#fd0017';
   };
+
+  // Filter data based on active tab
+  const getFilteredData = () => {
+    if (activeTab === 'all') return mockData;
+    if (activeTab === 'pending')
+      return mockData.filter((item) =>
+        ['received', 'registered', 'pending'].includes(item.testing_status),
+      );
+    if (activeTab === 'process')
+      return mockData.filter((item) =>
+        ['testing', 'waiting_equipment', 'proses'].includes(
+          item.testing_status,
+        ),
+      );
+    if (activeTab === 'completed')
+      return mockData.filter((item) => item.testing_status === 'completed');
+    return mockData;
+  };
+
+  const getTabCount = (tabKey: string) => {
+    if (tabKey === 'all') return mockData.length;
+    if (tabKey === 'pending')
+      return mockData.filter((item) =>
+        ['received', 'registered', 'pending'].includes(item.testing_status),
+      ).length;
+    if (tabKey === 'process')
+      return mockData.filter((item) =>
+        ['testing', 'waiting_equipment', 'proses'].includes(
+          item.testing_status,
+        ),
+      ).length;
+    if (tabKey === 'completed')
+      return mockData.filter((item) => item.testing_status === 'completed')
+        .length;
+    return 0;
+  };
+
+  // Audit Logs Table Columns
+  const auditLogsColumns = [
+    {
+      title: 'Timestamp',
+      dataIndex: 'timestamp',
+      key: 'timestamp',
+      width: 150,
+      render: (timestamp: string) => (
+        <div>
+          <div style={{ fontWeight: 500, fontSize: '12px' }}>
+            {dayjs(timestamp).format('DD MMM YYYY')}
+          </div>
+          <div style={{ fontSize: '11px', color: '#8c8c8c' }}>
+            {dayjs(timestamp).format('HH:mm:ss')}
+          </div>
+        </div>
+      ),
+      sorter: (a: AuditLog, b: AuditLog) =>
+        dayjs(a.timestamp).unix() - dayjs(b.timestamp).unix(),
+      defaultSortOrder: 'descend' as const,
+    },
+    {
+      title: 'Action',
+      dataIndex: 'action',
+      key: 'action',
+      width: 120,
+      render: (action: string, record: AuditLog) => (
+        <Tag
+          color={
+            record.type === 'success'
+              ? 'success'
+              : record.type === 'warning'
+                ? 'warning'
+                : record.type === 'error'
+                  ? 'error'
+                  : 'processing'
+          }
+          style={{ fontSize: '11px', fontWeight: 500 }}
+        >
+          {action}
+        </Tag>
+      ),
+      filters: [
+        { text: 'Stock Updated', value: 'Stock Updated' },
+        { text: 'Stock Usage', value: 'Stock Usage' },
+        { text: 'Stock Replenishment', value: 'Stock Replenishment' },
+        { text: 'Low Stock Alert', value: 'Low Stock Alert' },
+        { text: 'Critical Stock Alert', value: 'Critical Stock Alert' },
+        { text: 'Equipment Maintenance', value: 'Equipment Maintenance' },
+      ],
+      onFilter: (value: any, record: AuditLog) => record.action === value,
+    },
+    {
+      title: 'User',
+      dataIndex: 'user',
+      key: 'user',
+      width: 140,
+      render: (user: string) => (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '4px 8px',
+            borderRadius: 6,
+            background: user === 'System' ? '#f0f0f0' : '#e6f7ff',
+            border: `1px solid ${user === 'System' ? '#d9d9d9' : '#bae7ff'}`,
+          }}
+        >
+          <UserOutlined
+            style={{
+              fontSize: '12px',
+              color: user === 'System' ? '#8c8c8c' : '#1890ff',
+              marginRight: 6,
+            }}
+          />
+          <span
+            style={{
+              fontSize: '12px',
+              fontWeight: 500,
+              color: user === 'System' ? '#595959' : '#0c4a6e',
+            }}
+          >
+            {user}
+          </span>
+        </div>
+      ),
+      filters: [
+        { text: 'Dr. Ahmad Laboratorium', value: 'Dr. Ahmad Laboratorium' },
+        { text: 'Ir. Budi Santoso', value: 'Ir. Budi Santoso' },
+        { text: 'Drs. Cahaya Wijaya', value: 'Drs. Cahaya Wijaya' },
+        { text: 'Dr. Siti Rahayu', value: 'Dr. Siti Rahayu' },
+        { text: 'Technical Team', value: 'Technical Team' },
+        { text: 'System', value: 'System' },
+      ],
+      onFilter: (value: any, record: AuditLog) => record.user === value,
+    },
+    {
+      title: 'Details',
+      dataIndex: 'details',
+      key: 'details',
+      render: (details: string) => (
+        <div
+          style={{
+            fontSize: '13px',
+            color: '#595959',
+            lineHeight: 1.4,
+          }}
+        >
+          {details}
+        </div>
+      ),
+    },
+    {
+      title: 'Type',
+      dataIndex: 'type',
+      key: 'type',
+      width: 80,
+      render: (type: string) => (
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '2px 6px',
+            borderRadius: 12,
+            background:
+              type === 'success'
+                ? '#f6ffed'
+                : type === 'warning'
+                  ? '#fffbe6'
+                  : type === 'error'
+                    ? '#fff2f0'
+                    : '#e6f7ff',
+            border: `1px solid ${
+              type === 'success'
+                ? '#d9f7be'
+                : type === 'warning'
+                  ? '#ffe58f'
+                  : type === 'error'
+                    ? '#ffccc7'
+                    : '#bae7ff'
+            }`,
+            fontSize: '10px',
+            fontWeight: 600,
+            color:
+              type === 'success'
+                ? '#52c41a'
+                : type === 'warning'
+                  ? '#faad14'
+                  : type === 'error'
+                    ? '#ff4d4f'
+                    : '#1890ff',
+          }}
+        >
+          <div
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background:
+                type === 'success'
+                  ? '#52c41a'
+                  : type === 'warning'
+                    ? '#faad14'
+                    : type === 'error'
+                      ? '#ff4d4f'
+                      : '#1890ff',
+              marginRight: 4,
+            }}
+          />
+          {type.toUpperCase()}
+        </div>
+      ),
+      filters: [
+        { text: 'Success', value: 'success' },
+        { text: 'Info', value: 'info' },
+        { text: 'Warning', value: 'warning' },
+        { text: 'Error', value: 'error' },
+      ],
+      onFilter: (value: any, record: AuditLog) => record.type === value,
+    },
+  ];
 
   const columns: ProColumns<TestingRecord>[] = [
     {
@@ -349,11 +597,7 @@ const LaboratoryTesting: React.FC = () => {
       valueType: 'date',
       sorter: true,
     },
-    {
-      title: 'Lab Technician',
-      dataIndex: 'lab_technician',
-      key: 'lab_technician',
-    },
+
     {
       title: 'Progress',
       dataIndex: 'progress_percentage',
@@ -406,26 +650,7 @@ const LaboratoryTesting: React.FC = () => {
         </div>
       ),
     },
-    {
-      title: 'Parameter',
-      dataIndex: 'test_parameters',
-      key: 'test_parameters',
-      render: (_, record) => (
-        <div>
-          {record.test_parameters.slice(0, 2).map((param) => (
-            <Tag key={param} style={{ marginBottom: 2, fontSize: '12px' }}>
-              {testParameterOptions.find((opt) => opt.value === param)?.label ||
-                param}
-            </Tag>
-          ))}
-          {record.test_parameters.length > 2 && (
-            <Tag color="default" style={{ fontSize: '12px' }}>
-              +{record.test_parameters.length - 2}
-            </Tag>
-          )}
-        </div>
-      ),
-    },
+
     {
       title: 'Aksi',
       key: 'actions',
@@ -546,7 +771,7 @@ const LaboratoryTesting: React.FC = () => {
       vessel_name: 'MT. Commodore One',
       tank_number: 'T.107',
       received_date: '2025-08-06',
-      testing_status: 'testing',
+      testing_status: 'pending',
       lab_technician: 'Dr. Ahmad Laboratorium',
       equipment_used: 'Viscometer Alat A',
       test_parameters: ['water_content', 'viscosity', 'density', 'flash_point'],
@@ -555,7 +780,7 @@ const LaboratoryTesting: React.FC = () => {
         viscosity: { value: 1.5, unit: 'cSt', status: 'pass' },
         density: { value: 800, unit: 'kg/m³', status: 'pass' },
       },
-      progress_percentage: 75,
+      progress_percentage: 50,
       priority: 'urgent',
       estimated_completion: '2025-08-06 18:00',
       created_at: '2025-08-06 10:00:00',
@@ -569,11 +794,11 @@ const LaboratoryTesting: React.FC = () => {
       vessel_name: 'MT. Pioneer',
       tank_number: 'T.203',
       received_date: '2025-08-06',
-      testing_status: 'waiting_equipment',
+      testing_status: 'proses',
       lab_technician: 'Ir. Budi Santoso',
       test_parameters: ['water_content', 'density', 'aromatics'],
       test_results: {},
-      progress_percentage: 25,
+      progress_percentage: 75,
       priority: 'normal',
       estimated_completion: '2025-08-07 12:00',
       quality_notes: 'Menunggu ketersediaan alat GC-MS',
@@ -604,6 +829,27 @@ const LaboratoryTesting: React.FC = () => {
       created_at: '2025-08-05 09:00:00',
       updated_at: '2025-08-05 15:30:00',
     },
+    {
+      id: '4',
+      sample_id: 'SMPL-20250806-005',
+      order_number: 'SO-20250806-005',
+      sample_type: 'Gasoline',
+      vessel_name: 'MT. Navigator',
+      tank_number: 'T.405',
+      received_date: '2025-08-06',
+      testing_status: 'shipped',
+      lab_technician: 'Dr. Siti Rahayu',
+      equipment_used: '',
+      test_parameters: ['octane_rating', 'density', 'vapor_pressure'],
+      test_results: {},
+      progress_percentage: 25,
+      priority: 'normal',
+      estimated_completion: '2025-08-08 14:00',
+      quality_notes:
+        'Sample shipped to external laboratory for specialized testing',
+      created_at: '2025-08-06 13:00:00',
+      updated_at: '2025-08-06 16:00:00',
+    },
   ];
 
   const testingSummary = {
@@ -613,9 +859,7 @@ const LaboratoryTesting: React.FC = () => {
     testing: mockData.filter((item) =>
       ['registered', 'testing'].includes(item.testing_status),
     ).length,
-    waiting: mockData.filter(
-      (item) => item.testing_status === 'waiting_equipment',
-    ).length,
+    syringes: mockSyringeData[0]?.current_stock || 0,
     completed: mockData.filter((item) => item.testing_status === 'completed')
       .length,
   };
@@ -650,9 +894,9 @@ const LaboratoryTesting: React.FC = () => {
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="Menunggu Alat"
-              value={testingSummary.waiting}
-              prefix={<ClockCircleOutlined style={{ color: '#faad14' }} />}
+              title="Stock Syringe"
+              value={testingSummary.syringes}
+              prefix={<DatabaseOutlined style={{ color: '#faad14' }} />}
               valueStyle={{ color: '#faad14' }}
             />
           </Card>
@@ -669,86 +913,322 @@ const LaboratoryTesting: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Syringe Management Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col span={24}>
-          <Card
-            title={
-              <Space>
-                <DatabaseOutlined style={{ color: '#fd0017' }} />
-                Manajemen Stock Syringe - Klik untuk Update
-              </Space>
-            }
-            size="small"
-          >
-            <Row gutter={[12, 12]}>
-              {mockSyringeData.map((syringe) => (
-                <Col xs={24} sm={8} key={syringe.id}>
-                  <Card
-                    size="small"
-                    hoverable
-                    onClick={() => handleSyringeClick(syringe)}
-                    style={{
-                      cursor: 'pointer',
-                      borderColor:
-                        syringe.status === 'urgent'
-                          ? '#ff4d4f'
-                          : syringe.status === 'low'
-                            ? '#faad14'
-                            : syringe.status === 'full'
-                              ? '#1890ff'
-                              : '#d9d9d9',
-                    }}
-                  >
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontWeight: 500, marginBottom: 4 }}>
-                        {syringe.location}
+      {/* Tabs for Testing Records */}
+      <Card style={{ marginBottom: 24 }}>
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={[
+            {
+              key: 'all',
+              label: (
+                <Space>
+                  <ExperimentOutlined />
+                  <span>All Records</span>
+                  <Badge
+                    count={getTabCount('all')}
+                    style={{ backgroundColor: '#52c41a' }}
+                  />
+                </Space>
+              ),
+            },
+            {
+              key: 'pending',
+              label: (
+                <Space>
+                  <CheckCircleOutlined />
+                  <span>Pending</span>
+                  <Badge
+                    count={getTabCount('pending')}
+                    style={{ backgroundColor: '#1890ff' }}
+                  />
+                </Space>
+              ),
+            },
+            {
+              key: 'process',
+              label: (
+                <Space>
+                  <SyncOutlined />
+                  <span>Proses</span>
+                  <Badge
+                    count={getTabCount('process')}
+                    style={{ backgroundColor: '#faad14' }}
+                  />
+                </Space>
+              ),
+            },
+            {
+              key: 'completed',
+              label: (
+                <Space>
+                  <CheckCircleOutlined />
+                  <span>Selesai</span>
+                  <Badge
+                    count={getTabCount('completed')}
+                    style={{ backgroundColor: '#52c41a' }}
+                  />
+                </Space>
+              ),
+            },
+            {
+              key: 'syringe',
+              label: (
+                <Space>
+                  <DatabaseOutlined />
+                  <span>Manajemen Syringe</span>
+                </Space>
+              ),
+            },
+          ]}
+        />
+
+        {/* Tab Content */}
+        {activeTab === 'syringe' ? (
+          <div style={{ padding: '24px 0' }}>
+            {/* Syringe Card - Centered */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                marginBottom: 32,
+              }}
+            >
+              <div style={{ maxWidth: '400px', width: '100%' }}>
+                {mockSyringeData.map((syringe) => {
+                  const stockPercentage =
+                    (syringe.current_stock / syringe.max_capacity) * 100;
+                  const getStockColor = () => {
+                    if (syringe.status === 'urgent') return '#ff4d4f';
+                    if (syringe.status === 'low') return '#faad14';
+                    if (syringe.status === 'full') return '#1890ff';
+                    return '#52c41a';
+                  };
+
+                  const getStatusText = () => {
+                    if (syringe.status === 'urgent') return 'Mendesak';
+                    if (syringe.status === 'low') return 'Rendah';
+                    if (syringe.status === 'full') return 'Penuh';
+                    return 'Normal';
+                  };
+
+                  return (
+                    <Card
+                      key={syringe.id}
+                      hoverable
+                      onClick={() => handleSyringeClick(syringe)}
+                      style={{
+                        cursor: 'pointer',
+                        borderRadius: 16,
+                        background:
+                          'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                        border: `2px solid ${getStockColor()}`,
+                        boxShadow: `0 8px 24px rgba(0,0,0,0.08), 0 0 0 1px ${getStockColor()}20`,
+                        transition: 'all 0.3s ease',
+                        overflow: 'hidden',
+                      }}
+                      bodyStyle={{ padding: '24px' }}
+                    >
+                      {/* Header Section */}
+                      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 64,
+                            height: 64,
+                            borderRadius: '50%',
+                            background: `linear-gradient(135deg, ${getStockColor()}15, ${getStockColor()}25)`,
+                            marginBottom: 16,
+                          }}
+                        >
+                          <DatabaseOutlined
+                            style={{
+                              fontSize: 28,
+                              color: getStockColor(),
+                            }}
+                          />
+                        </div>
+                        <div
+                          style={{
+                            fontSize: '18px',
+                            fontWeight: 600,
+                            color: '#262626',
+                            marginBottom: 4,
+                          }}
+                        >
+                          {syringe.location}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: '12px',
+                            color: '#8c8c8c',
+                            fontWeight: 500,
+                          }}
+                        >
+                          Last Updated:{' '}
+                          {dayjs(syringe.last_updated).format('DD MMM, HH:mm')}
+                        </div>
                       </div>
+
+                      {/* Stock Display */}
+                      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                        <div
+                          style={{
+                            fontSize: '36px',
+                            fontWeight: 700,
+                            color: getStockColor(),
+                            lineHeight: 1,
+                            marginBottom: 8,
+                          }}
+                        >
+                          {syringe.current_stock}
+                          <span
+                            style={{
+                              fontSize: '18px',
+                              color: '#8c8c8c',
+                              fontWeight: 500,
+                              marginLeft: 4,
+                            }}
+                          >
+                            / {syringe.max_capacity}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            fontSize: '14px',
+                            color: '#595959',
+                            fontWeight: 500,
+                          }}
+                        >
+                          Stock Available
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div style={{ marginBottom: 20 }}>
+                        <Progress
+                          percent={stockPercentage}
+                          strokeColor={{
+                            '0%': getStockColor(),
+                            '100%': getStockColor(),
+                          }}
+                          trailColor="#f0f0f0"
+                          strokeWidth={12}
+                          showInfo={false}
+                          style={{ marginBottom: 8 }}
+                        />
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            fontSize: '12px',
+                            color: '#8c8c8c',
+                          }}
+                        >
+                          <span>Min: {syringe.min_threshold}</span>
+                          <span>{stockPercentage.toFixed(1)}%</span>
+                          <span>Max: {syringe.max_capacity}</span>
+                        </div>
+                      </div>
+
+                      {/* Status Badge */}
+                      <div style={{ textAlign: 'center' }}>
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '8px 16px',
+                            borderRadius: 20,
+                            background: `${getStockColor()}15`,
+                            border: `1px solid ${getStockColor()}30`,
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            color: getStockColor(),
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              background: getStockColor(),
+                              marginRight: 8,
+                            }}
+                          />
+                          {getStatusText()}
+                        </div>
+                      </div>
+
+                      {/* Click to Update Text */}
                       <div
                         style={{
-                          fontSize: '18px',
-                          fontWeight: 'bold',
-                          color:
-                            syringe.status === 'urgent'
-                              ? '#ff4d4f'
-                              : syringe.status === 'low'
-                                ? '#faad14'
-                                : syringe.status === 'full'
-                                  ? '#1890ff'
-                                  : '#52c41a',
-                          marginBottom: 4,
+                          textAlign: 'center',
+                          marginTop: 16,
+                          padding: '12px',
+                          borderRadius: 8,
+                          background: '#fafafa',
+                          border: '1px dashed #d9d9d9',
                         }}
                       >
-                        {syringe.current_stock} / {syringe.max_capacity}
+                        <div
+                          style={{
+                            fontSize: '12px',
+                            color: '#8c8c8c',
+                            fontWeight: 500,
+                          }}
+                        >
+                          🖱️ Click to Update Stock
+                        </div>
                       </div>
-                      <Badge
-                        status={
-                          syringe.status === 'urgent'
-                            ? 'error'
-                            : syringe.status === 'low'
-                              ? 'warning'
-                              : syringe.status === 'full'
-                                ? 'processing'
-                                : 'success'
-                        }
-                        text={
-                          syringe.status === 'urgent'
-                            ? 'Mendesak'
-                            : syringe.status === 'low'
-                              ? 'Rendah'
-                              : syringe.status === 'full'
-                                ? 'Penuh'
-                                : 'Normal'
-                        }
-                      />
-                    </div>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          </Card>
-        </Col>
-      </Row>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Audit Logs Section - Full Width */}
+            <Card
+              title={
+                <Space>
+                  <HistoryOutlined style={{ color: '#1890ff' }} />
+                  <span style={{ fontSize: '16px', fontWeight: 600 }}>
+                    Audit Logs
+                  </span>
+                </Space>
+              }
+              size="small"
+              style={{
+                borderRadius: 12,
+                border: '1px solid #e8e8e8',
+                background: '#fafafa',
+              }}
+              bodyStyle={{ padding: '20px' }}
+            >
+              <Table
+                columns={auditLogsColumns}
+                dataSource={mockAuditLogs}
+                rowKey="id"
+                size="small"
+                pagination={{
+                  pageSize: 5,
+                  showSizeChanger: true,
+                  showQuickJumper: true,
+                  showTotal: (total, range) =>
+                    `${range[0]}-${range[1]} of ${total} items`,
+                  pageSizeOptions: ['5', '10', '20'],
+                }}
+                scroll={{ x: 'max-content' }}
+                style={{
+                  background: '#ffffff',
+                  borderRadius: 8,
+                }}
+              />
+            </Card>
+          </div>
+        ) : null}
+      </Card>
 
       <ProTable<TestingRecord>
         actionRef={actionRef}
@@ -757,14 +1237,24 @@ const LaboratoryTesting: React.FC = () => {
           labelWidth: 'auto',
         }}
         columns={columns}
-        dataSource={mockData}
+        dataSource={getFilteredData()}
         pagination={{
           pageSize: 10,
           showSizeChanger: true,
           showQuickJumper: true,
         }}
         dateFormatter="string"
-        headerTitle="Daftar Pengujian"
+        headerTitle={`Daftar Pengujian - ${
+          activeTab === 'all'
+            ? 'Semua Record'
+            : activeTab === 'pending'
+              ? 'Pending'
+              : activeTab === 'process'
+                ? 'Proses'
+                : activeTab === 'completed'
+                  ? 'Selesai'
+                  : 'Manajemen Syringe'
+        }`}
         toolBarRender={() => [
           <Button key="equipment" type="default">
             Status Alat
@@ -776,6 +1266,7 @@ const LaboratoryTesting: React.FC = () => {
             Export Excel
           </Button>,
         ]}
+        style={{ display: activeTab === 'syringe' ? 'none' : 'block' }}
       />
 
       <Drawer
@@ -902,9 +1393,6 @@ const LaboratoryTesting: React.FC = () => {
                 <strong>Parameter yang Diuji:</strong>
                 <div style={{ marginTop: 8 }}>
                   {viewingRecord.test_parameters.map((param) => {
-                    const paramInfo = testParameterOptions.find(
-                      (opt) => opt.value === param,
-                    );
                     const result = viewingRecord.test_results[param];
                     return (
                       <div
@@ -919,9 +1407,7 @@ const LaboratoryTesting: React.FC = () => {
                           border: `1px solid ${result ? '#d9f7be' : '#ffd591'}`,
                         }}
                       >
-                        <span style={{ fontWeight: 500 }}>
-                          {paramInfo?.label}
-                        </span>
+                        <span style={{ fontWeight: 500 }}>{param}</span>
                         <div>
                           {result ? (
                             <span style={{ color: '#9fe400' }}>
@@ -933,15 +1419,6 @@ const LaboratoryTesting: React.FC = () => {
                               Belum diuji
                             </span>
                           )}
-                          <div
-                            style={{
-                              fontSize: '10px',
-                              color: '#666',
-                              textAlign: 'right',
-                            }}
-                          >
-                            Standard: {paramInfo?.standard}
-                          </div>
                         </div>
                       </div>
                     );
@@ -952,12 +1429,6 @@ const LaboratoryTesting: React.FC = () => {
 
             <Card title="Informasi Lab" size="small">
               <Descriptions column={2} size="small">
-                <Descriptions.Item label="Lab Technician">
-                  {viewingRecord.lab_technician}
-                </Descriptions.Item>
-                <Descriptions.Item label="Equipment">
-                  {viewingRecord.equipment_used || '-'}
-                </Descriptions.Item>
                 <Descriptions.Item label="Estimasi Selesai">
                   {dayjs(viewingRecord.estimated_completion).format(
                     'DD/MM/YYYY HH:mm',
@@ -997,21 +1468,7 @@ const LaboratoryTesting: React.FC = () => {
               style={{ marginBottom: 16 }}
             >
               <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="testing_status"
-                    label="Status Pengujian"
-                    rules={[
-                      { required: true, message: 'Status wajib dipilih' },
-                    ]}
-                  >
-                    <Select
-                      placeholder="Pilih status"
-                      options={testingStatusOptions}
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
+                <Col span={24}>
                   <Form.Item
                     name="progress_percentage"
                     label="Progress (%)"
@@ -1023,61 +1480,6 @@ const LaboratoryTesting: React.FC = () => {
                   </Form.Item>
                 </Col>
               </Row>
-
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="lab_technician"
-                    label="Lab Technician"
-                    rules={[
-                      {
-                        required: true,
-                        message: 'Lab technician wajib dipilih',
-                      },
-                    ]}
-                  >
-                    <Select
-                      placeholder="Pilih technician"
-                      options={labTechnicianOptions}
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="equipment_used"
-                    label="Equipment yang Digunakan"
-                  >
-                    <Select
-                      placeholder="Pilih equipment"
-                      options={equipmentOptions}
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-            </Card>
-
-            <Card
-              title="Parameter Pengujian"
-              size="small"
-              style={{ marginBottom: 16 }}
-            >
-              <Form.Item
-                name="test_parameters"
-                label="Parameter yang Diuji"
-                rules={[{ required: true, message: 'Parameter wajib dipilih' }]}
-              >
-                <Select
-                  mode="multiple"
-                  placeholder="Pilih parameter pengujian"
-                  options={testParameterOptions}
-                  showSearch
-                  filterOption={(input, option) =>
-                    (option?.label ?? '')
-                      .toLowerCase()
-                      .includes(input.toLowerCase())
-                  }
-                />
-              </Form.Item>
             </Card>
 
             <Form.Item name="quality_notes" label="Catatan Kualitas">

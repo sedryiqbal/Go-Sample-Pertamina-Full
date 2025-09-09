@@ -10,7 +10,6 @@ import {
   Typography,
 } from 'antd';
 import React, { useEffect, useState } from 'react';
-import { getAvailableModules } from '@/services/roles/api';
 import type { AvailableModule } from '@/services/roles/typings';
 import { mockAvailableModules } from '../../../../../mock/roles.mock';
 

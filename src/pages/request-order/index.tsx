@@ -7,7 +7,6 @@ import {
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import {
-  Badge,
   Button,
   Card,
   Col,
@@ -90,7 +89,7 @@ const RequestOrder: React.FC = () => {
     setDrawerVisible(true);
   };
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (_values: any) => {
     try {
       if (editingRecord) {
         message.success('Request order berhasil diperbarui');
@@ -106,7 +105,7 @@ const RequestOrder: React.FC = () => {
   };
 
   const handleStatusUpdate = (
-    record: RequestOrderRecord,
+    _record: RequestOrderRecord,
     newStatus: string,
   ) => {
     Modal.confirm({

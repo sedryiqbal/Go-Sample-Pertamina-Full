@@ -559,14 +559,6 @@ const SampleEstimation: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            name="location"
-            label="Lokasi"
-            rules={[{ required: true, message: 'Lokasi wajib diisi' }]}
-          >
-            <Input placeholder="SHAFTI" />
-          </Form.Item>
-
-          <Form.Item
             name="status"
             label="Status"
             rules={[{ required: true, message: 'Status wajib dipilih' }]}

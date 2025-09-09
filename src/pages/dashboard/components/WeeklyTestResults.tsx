@@ -84,7 +84,7 @@ const WeeklyTestResults: React.FC = () => {
               marginRight: '4px',
             }}
           />
-          <Text style={{ fontSize: '12px' }}>Gagal</Text>
+          <Text style={{ fontSize: '12px' }}>Repeat</Text>
         </div>
       </div>
     </Card>

@@ -767,32 +767,6 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
           </Form.Item>
         )}
 
-        {config.fields.includes('equipment_used') && (
-          <Form.Item
-            name="equipment_used"
-            label="Equipment yang Digunakan"
-            rules={[
-              {
-                required: true,
-                message: 'Equipment yang digunakan wajib diisi',
-              },
-            ]}
-          >
-            <Select
-              placeholder="Pilih equipment yang sedang digunakan"
-              onChange={setSelectedEquipment}
-            >
-              {equipmentOptions
-                .filter((eq) => eq.available)
-                .map((equipment) => (
-                  <Select.Option key={equipment.value} value={equipment.value}>
-                    {equipment.label}
-                  </Select.Option>
-                ))}
-            </Select>
-          </Form.Item>
-        )}
-
         {/* Technician Notes */}
         {config.fields.includes('technician_notes') && (
           <Form.Item
