@@ -274,24 +274,18 @@ const LaboratoryTesting: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'received':
+      case 'shipped':
         return 'default';
+      case 'pending':
+        return 'warning';
       case 'registered':
         return 'processing';
       case 'testing':
-        return 'warning';
-      case 'waiting_equipment':
-        return 'error';
+        return 'processing';
       case 'completed':
         return 'success';
       case 'failed':
         return 'error';
-      case 'pending':
-        return 'warning';
-      case 'shipped':
-        return 'default';
-      case 'proses':
-        return 'processing';
       default:
         return 'default';
     }
@@ -337,7 +331,7 @@ const LaboratoryTesting: React.FC = () => {
 
   const getProgressColor = (percentage: number) => {
     if (percentage >= 90) return '#9fe400';
-    if (percentage >= 70) return '#1890ff';
+    if (percentage >= 50) return '#1890ff';
     if (percentage >= 40) return '#faad14';
     return '#808080';
   };
@@ -565,27 +559,58 @@ const LaboratoryTesting: React.FC = () => {
       title: 'Sample ID',
       dataIndex: 'sample_id',
       key: 'sample_id',
+      width: 180,
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
-          <span style={{ fontWeight: 500 }}>{record.sample_id}</span>
-          <span style={{ fontSize: '12px', color: '#666' }}>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: 4 }}>
+            {record.sample_id}
+          </div>
+          <div style={{ fontSize: '12px', color: '#8c8c8c', marginBottom: 6 }}>
             {record.order_number}
-          </span>
-          <Tag color={getPriorityColor(record.priority)}>
+          </div>
+          <Tag
+            color={getPriorityColor(record.priority)}
+            style={{
+              fontSize: '10px',
+              fontWeight: 500,
+              border: 'none',
+              borderRadius: 4,
+            }}
+          >
             {record.priority.toUpperCase()}
           </Tag>
-        </Space>
+        </div>
       ),
     },
     {
       title: 'Detail Sampel',
       dataIndex: 'sample_type',
       key: 'sample_type',
+      width: 200,
       render: (_, record) => (
         <div>
-          <div style={{ fontWeight: 500 }}>{record.sample_type}</div>
-          <div style={{ fontSize: '12px', color: '#666' }}>
-            {record.vessel_name} • {record.tank_number}
+          <div
+            style={{
+              fontWeight: 500,
+              fontSize: '14px',
+              color: '#262626',
+              marginBottom: 4,
+            }}
+          >
+            {record.sample_type}
+          </div>
+          <div
+            style={{
+              fontSize: '12px',
+              color: '#8c8c8c',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            <span>{record.vessel_name}</span>
+            <span>•</span>
+            <span>{record.tank_number}</span>
           </div>
         </div>
       ),
@@ -594,25 +619,40 @@ const LaboratoryTesting: React.FC = () => {
       title: 'Tanggal Diterima',
       dataIndex: 'received_date',
       key: 'received_date',
-      valueType: 'date',
+      width: 140,
+      render: (_, record) => (
+        <div style={{ fontSize: '13px', fontWeight: 500 }}>
+          {dayjs(record.received_date).format('DD MMM YYYY')}
+        </div>
+      ),
       sorter: true,
     },
-
     {
       title: 'Progress',
       dataIndex: 'progress_percentage',
       key: 'progress_percentage',
+      width: 140,
       render: (_, record) => (
         <div>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 4,
+            }}
+          >
+            <span style={{ fontSize: '12px', fontWeight: 500 }}>
+              {record.progress_percentage}%
+            </span>
+          </div>
           <Progress
             percent={record.progress_percentage}
             size="small"
             strokeColor={getProgressColor(record.progress_percentage)}
             showInfo={false}
+            strokeWidth={6}
           />
-          <div style={{ fontSize: '12px', color: '#666', marginTop: 2 }}>
-            {record.progress_percentage}% selesai
-          </div>
         </div>
       ),
       sorter: true,
@@ -621,8 +661,18 @@ const LaboratoryTesting: React.FC = () => {
       title: 'Status',
       dataIndex: 'testing_status',
       key: 'testing_status',
+      width: 120,
       render: (_, record) => (
-        <Tag color={getStatusColor(record.testing_status)}>
+        <Tag
+          color={getStatusColor(record.testing_status)}
+          style={{
+            fontSize: '12px',
+            fontWeight: 500,
+            padding: '4px 8px',
+            borderRadius: 6,
+            border: 'none',
+          }}
+        >
           {getStatusLabel(record.testing_status)}
         </Tag>
       ),
@@ -635,103 +685,155 @@ const LaboratoryTesting: React.FC = () => {
       title: 'Estimasi Selesai',
       dataIndex: 'estimated_completion',
       key: 'estimated_completion',
-      valueType: 'dateTime',
+      width: 160,
       render: (_, record) => (
         <div>
-          <div>
-            {dayjs(record.estimated_completion).format('DD/MM/YYYY HH:mm')}
+          <div style={{ fontSize: '13px', fontWeight: 500, marginBottom: 2 }}>
+            {record.estimated_completion
+              ? dayjs(record.estimated_completion).format('DD/MM/YYYY')
+              : '-'}
+          </div>
+          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+            {record.estimated_completion
+              ? dayjs(record.estimated_completion).format('HH:mm')
+              : ''}
           </div>
           {record.actual_completion && (
-            <div style={{ fontSize: '12px', color: '#9fe400' }}>
-              Selesai:{' '}
-              {dayjs(record.actual_completion).format('DD/MM/YYYY HH:mm')}
+            <div
+              style={{
+                fontSize: '11px',
+                color: '#52c41a',
+                fontWeight: 500,
+                marginTop: 2,
+              }}
+            >
+              ✓ Selesai: {dayjs(record.actual_completion).format('DD/MM HH:mm')}
             </div>
           )}
         </div>
       ),
     },
-
     {
       title: 'Aksi',
       key: 'actions',
-      width: 200,
+      width: 160,
+      fixed: 'right',
       render: (_, record) => {
-        const getActionButtons = () => {
+        // Get status-specific action button
+        const getStatusAction = () => {
           switch (record.testing_status) {
             case 'pending':
-              return [
+              return (
                 <Button
                   key="confirm"
-                  type="link"
+                  type="primary"
                   size="small"
-                  icon={<EditOutlined />}
                   onClick={() => handleLabAction(record, 'confirm_sample')}
-                  style={{ color: '#52c41a' }}
+                  style={{
+                    backgroundColor: '#faad14',
+                    borderColor: '#faad14',
+                    fontSize: '11px',
+                    height: 26,
+                    width: '100%',
+                    marginBottom: 4,
+                  }}
                 >
                   Konfirmasi Sample
-                </Button>,
-              ];
+                </Button>
+              );
             case 'registered':
-              return [
+              return (
                 <Button
                   key="waiting"
-                  type="link"
+                  type="primary"
                   size="small"
-                  icon={<EditOutlined />}
                   onClick={() => handleLabAction(record, 'waiting_test')}
-                  style={{ color: '#faad14' }}
+                  style={{
+                    backgroundColor: '#1890ff',
+                    borderColor: '#1890ff',
+                    fontSize: '11px',
+                    height: 26,
+                    width: '100%',
+                    marginBottom: 4,
+                  }}
                 >
-                  Menunggu Pengujian
-                </Button>,
-              ];
-
-            case 'proses':
-              return [
+                  Mulai Pengujian
+                </Button>
+              );
+            case 'testing':
+              return (
                 <Button
                   key="input"
-                  type="link"
+                  type="primary"
                   size="small"
-                  icon={<EditOutlined />}
                   onClick={() => handleLabAction(record, 'input_result')}
-                  style={{ color: '#722ed1' }}
+                  style={{
+                    backgroundColor: '#52c41a',
+                    borderColor: '#52c41a',
+                    fontSize: '11px',
+                    height: 26,
+                    width: '100%',
+                    marginBottom: 4,
+                  }}
                 >
-                  Input Hasil Pengujian
-                </Button>,
-              ];
+                  Input Hasil
+                </Button>
+              );
+            default:
+              return null;
           }
         };
 
         return (
-          <Space direction="vertical" size={4}>
-            {getActionButtons()}
-            <Space>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {getStatusAction()}
+
+            {/* Standard Actions */}
+            <div style={{ display: 'flex', gap: 2 }}>
               <Button
-                type="link"
                 size="small"
                 icon={<FileTextOutlined />}
                 onClick={() => handleViewDetail(record)}
-                style={{ color: '#1890ff' }}
+                style={{
+                  fontSize: '11px',
+                  height: 24,
+                  flex: 1,
+                  color: '#1890ff',
+                  borderColor: '#1890ff',
+                }}
               >
-                Test Report
+                Report
               </Button>
               <Button
-                type="link"
                 size="small"
                 icon={<EyeOutlined />}
                 onClick={() => handleView(record)}
+                style={{
+                  fontSize: '11px',
+                  height: 24,
+                  flex: 1,
+                }}
               >
                 Detail
               </Button>
-              <Button
-                type="link"
-                size="small"
-                icon={<EditOutlined />}
-                onClick={() => handleEdit(record)}
-              >
-                Edit
-              </Button>
-            </Space>
-          </Space>
+            </div>
+
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+              style={{
+                color: '#8c8c8c',
+                fontSize: '11px',
+                height: 22,
+                justifyContent: 'flex-start',
+                padding: '0 4px',
+              }}
+            >
+              Edit
+            </Button>
+          </div>
         );
       },
     },
@@ -753,7 +855,7 @@ const LaboratoryTesting: React.FC = () => {
       test_results: {},
       progress_percentage: 20,
       priority: 'normal',
-      estimated_completion: '2025-08-08 14:00',
+      estimated_completion: '',
       quality_notes:
         'Sample shipped to external laboratory for specialized testing',
       created_at: '2025-08-06 13:00:00',
@@ -790,7 +892,7 @@ const LaboratoryTesting: React.FC = () => {
       vessel_name: 'MT. Commodore One',
       tank_number: 'T.107',
       received_date: '2025-08-06',
-      testing_status: 'pending',
+      testing_status: 'registered',
       lab_technician: 'Dr. Ahmad Laboratorium',
       equipment_used: 'Viscometer Alat A',
       test_parameters: ['water_content', 'viscosity', 'density', 'flash_point'],
@@ -813,7 +915,7 @@ const LaboratoryTesting: React.FC = () => {
       vessel_name: 'MT. Pioneer',
       tank_number: 'T.203',
       received_date: '2025-08-06',
-      testing_status: 'proses',
+      testing_status: 'testing',
       lab_technician: 'Ir. Budi Santoso',
       test_parameters: ['water_content', 'density', 'aromatics'],
       test_results: {},
@@ -841,7 +943,7 @@ const LaboratoryTesting: React.FC = () => {
         flash_point: { value: 42, unit: '°C', status: 'pass' },
         density: { value: 820, unit: 'kg/m³', status: 'pass' },
       },
-      progress_percentage: 90,
+      progress_percentage: 100,
       priority: 'normal',
       estimated_completion: '2025-08-05 16:00',
       actual_completion: '2025-08-05 15:30',
@@ -1346,7 +1448,7 @@ const LaboratoryTesting: React.FC = () => {
               <Steps
                 size="small"
                 current={
-                  viewingRecord.testing_status === 'received'
+                  viewingRecord.testing_status === 'shipped'
                     ? 0
                     : viewingRecord.testing_status === 'registered'
                       ? 1
@@ -1364,7 +1466,7 @@ const LaboratoryTesting: React.FC = () => {
                 items={[
                   {
                     title: 'Diterima',
-                    description: 'Sampel diterima lab',
+                    description: 'Sample diterima lab',
                   },
                   {
                     title: 'Registrasi',
@@ -1380,49 +1482,6 @@ const LaboratoryTesting: React.FC = () => {
                   },
                 ]}
               />
-            </Card>
-
-            <Card
-              title="Parameter & Hasil Pengujian"
-              size="small"
-              style={{ marginBottom: 16 }}
-            >
-              <div style={{ marginBottom: 16 }}>
-                <strong>Parameter yang Diuji:</strong>
-                <div style={{ marginTop: 8 }}>
-                  {viewingRecord.test_parameters.map((param) => {
-                    const result = viewingRecord.test_results[param];
-                    return (
-                      <div
-                        key={param}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          padding: '8px 12px',
-                          backgroundColor: result ? '#f6ffed' : '#fff2e8',
-                          marginBottom: 4,
-                          borderRadius: 4,
-                          border: `1px solid ${result ? '#d9f7be' : '#ffd591'}`,
-                        }}
-                      >
-                        <span style={{ fontWeight: 500 }}>{param}</span>
-                        <div>
-                          {result ? (
-                            <span style={{ color: '#9fe400' }}>
-                              {result.value} {result.unit} •{' '}
-                              {result.status === 'pass' ? 'PASS' : 'FAIL'}
-                            </span>
-                          ) : (
-                            <span style={{ color: '#faad14' }}>
-                              Belum diuji
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
             </Card>
 
             <Card title="Informasi Lab" size="small">

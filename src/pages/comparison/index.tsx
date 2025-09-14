@@ -1,7 +1,6 @@
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
-  DiffOutlined,
   ExperimentOutlined,
   EyeOutlined,
   FileDoneOutlined,
@@ -17,19 +16,7 @@ import {
   type ProColumns,
   ProTable,
 } from '@ant-design/pro-components';
-import {
-  Badge,
-  Button,
-  Card,
-  Col,
-  Descriptions,
-  message,
-  Row,
-  Space,
-  Statistic,
-  Tag,
-  Tooltip,
-} from 'antd';
+import { Button, Card, Col, message, Row, Statistic, Tag, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import { useRef, useState } from 'react';
 import AverageCOQModal from '../../components/AverageCOQModal';
@@ -218,7 +205,7 @@ const Comparison: React.FC = () => {
       message.success('Lab Tester status updated successfully!');
 
       // Update record status - in real app, this would come from backend
-      const updatedData = mockComparisonData.map((item) =>
+      const _updatedData = mockComparisonData.map((item) =>
         item.id === record.id
           ? {
               ...item,
@@ -258,7 +245,7 @@ const Comparison: React.FC = () => {
       message.success('Comparison results berhasil di-generate!');
 
       // Update record status - in real app, this would come from backend
-      const updatedData = mockComparisonData.map((item) =>
+      const _updatedData = mockComparisonData.map((item) =>
         item.id === record.id
           ? {
               ...item,
@@ -703,38 +690,6 @@ const Comparison: React.FC = () => {
                 }}
               >
                 COQ
-              </Button>
-            </Tooltip>
-
-            <Tooltip title="Lab Tester">
-              <Button
-                type={
-                  record.lab_tester_status === 'completed'
-                    ? 'default'
-                    : 'primary'
-                }
-                size="small"
-                icon={<FileDoneOutlined />}
-                onClick={() => handleLabTester(record)}
-                style={{
-                  flex: 1,
-                  fontSize: '11px',
-                  height: 28,
-                  backgroundColor:
-                    record.lab_tester_status === 'completed'
-                      ? '#f0f0f0'
-                      : '#fa8c16',
-                  borderColor:
-                    record.lab_tester_status === 'completed'
-                      ? '#d9d9d9'
-                      : '#fa8c16',
-                  color:
-                    record.lab_tester_status === 'completed'
-                      ? '#8c8c8c'
-                      : '#fff',
-                }}
-              >
-                Lab
               </Button>
             </Tooltip>
           </div>

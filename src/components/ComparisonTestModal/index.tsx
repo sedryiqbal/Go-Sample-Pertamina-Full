@@ -4,17 +4,7 @@ import {
   ExperimentOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
-import {
-  Card,
-  Col,
-  Divider,
-  Modal,
-  Row,
-  Statistic,
-  Table,
-  Tag,
-  Typography,
-} from 'antd';
+import { Card, Col, Modal, Row, Statistic, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 
@@ -247,7 +237,7 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
       dataIndex: 'limits',
       key: 'limits',
       width: 200,
-      render: (text, record) => (
+      render: (text, _record) => (
         <div
           style={{
             fontSize: '12px',
@@ -333,7 +323,7 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
       dataIndex: 'allowable_difference',
       key: 'allowable_difference',
       width: 160,
-      render: (text, record) => (
+      render: (text, _record) => (
         <div
           style={{
             fontSize: '12px',

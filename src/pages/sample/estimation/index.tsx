@@ -25,11 +25,14 @@ import {
   Select,
   Space,
   Statistic,
+  Tabs,
   Tag,
 } from 'antd';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
+import { StadisManagement } from '@/components';
+import type { StadisData } from '@/components/StadisManagement';
 
 interface SampleEstimationRecord {
   id: string;
@@ -45,6 +48,167 @@ interface SampleEstimationRecord {
   notes?: string;
 }
 
+// Stadis Stock Card Component
+const StadisStockCard: React.FC<{
+  stadis: StadisData;
+  handleStadisEdit: (stadis: StadisData) => void;
+}> = ({ stadis, handleStadisEdit }) => {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'normal':
+        return '#52c41a';
+      case 'low':
+        return '#faad14';
+      case 'urgent':
+        return '#ff4d4f';
+      case 'full':
+        return '#1890ff';
+      default:
+        return '#d9d9d9';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'normal':
+        return 'Normal';
+      case 'low':
+        return 'Stock Rendah';
+      case 'urgent':
+        return 'Urgent';
+      case 'full':
+        return 'Penuh';
+      default:
+        return 'Tidak Diketahui';
+    }
+  };
+
+  const getStockPercentage = () => {
+    return Math.round((stadis.current_stock / stadis.max_capacity) * 100);
+  };
+
+  return (
+    <Card
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <DatabaseOutlined style={{ color: '#fd0017' }} />
+          <span>Stadis Stock - {stadis.location}</span>
+        </div>
+      }
+      extra={
+        <Button
+          type="primary"
+          size="small"
+          icon={<EditOutlined />}
+          onClick={() => handleStadisEdit(stadis)}
+          style={{
+            backgroundColor: '#fd0017',
+            borderColor: '#fd0017',
+            boxShadow: 'none',
+          }}
+        >
+          Kelola Stock
+        </Button>
+      }
+      style={{
+        borderRadius: '8px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        border: '1px solid #f0f0f0',
+      }}
+    >
+      <Row gutter={[16, 16]} align="middle">
+        <Col span={24}>
+          <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+            <Statistic
+              title=""
+              value={stadis.current_stock}
+              suffix={`/ ${stadis.max_capacity} unit`}
+              valueStyle={{
+                color: getStatusColor(stadis.status),
+                fontSize: '28px',
+                fontWeight: 'bold',
+              }}
+            />
+            <div
+              style={{
+                marginTop: '8px',
+                fontSize: '16px',
+                fontWeight: '500',
+                color: '#666',
+              }}
+            >
+              {getStockPercentage()}% dari kapasitas
+            </div>
+          </div>
+        </Col>
+
+        <Col span={24}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '12px 16px',
+              backgroundColor: '#fafafa',
+              borderRadius: '6px',
+              border: '1px solid #f0f0f0',
+            }}
+          >
+            <div>
+              <div
+                style={{ fontSize: '12px', color: '#999', marginBottom: '2px' }}
+              >
+                Status Stock
+              </div>
+              <Tag
+                style={{
+                  backgroundColor: getStatusColor(stadis.status),
+                  color: '#fff',
+                  border: 'none',
+                  fontWeight: '500',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                }}
+              >
+                {getStatusText(stadis.status)}
+              </Tag>
+            </div>
+
+            <div style={{ textAlign: 'right' }}>
+              <div
+                style={{ fontSize: '12px', color: '#999', marginBottom: '2px' }}
+              >
+                Batas Minimum
+              </div>
+              <div
+                style={{ fontSize: '14px', fontWeight: '500', color: '#333' }}
+              >
+                {stadis.min_threshold} unit
+              </div>
+            </div>
+          </div>
+        </Col>
+
+        <Col span={24}>
+          <div
+            style={{
+              fontSize: '11px',
+              color: '#999',
+              textAlign: 'center',
+              borderTop: '1px solid #f0f0f0',
+              paddingTop: '8px',
+              marginTop: '8px',
+            }}
+          >
+            Terakhir diperbarui:{' '}
+            {new Date(stadis.last_updated).toLocaleString('id-ID')}
+          </div>
+        </Col>
+      </Row>
+    </Card>
+  );
+};
+
 const SampleEstimation: React.FC = () => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<
@@ -54,6 +218,12 @@ const SampleEstimation: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
   const actionRef = useRef<ActionType>(null);
   const [form] = Form.useForm();
+
+  // Stadis Management states
+  const [stadisDrawerVisible, setStadisDrawerVisible] = useState(false);
+  const [selectedStadis, setSelectedStadis] = useState<
+    StadisData | undefined
+  >();
 
   // Updated sample types as per requirement
   const productTypeOptions = [
@@ -308,6 +478,80 @@ const SampleEstimation: React.FC = () => {
     },
   ];
 
+  // Mock data for stadis management
+  const mockStadisData: StadisData[] = [
+    {
+      id: '1',
+      location: 'Laboratory SHAFTI',
+      current_stock: 45,
+      min_threshold: 20,
+      max_capacity: 100,
+      last_updated: '2025-01-12T09:30:00Z',
+      status: 'normal',
+    },
+  ];
+
+  // Mock audit log data for stadis
+  const mockAuditLogs = [
+    {
+      id: '1',
+      action: 'Stock Update',
+      previous_stock: 40,
+      new_stock: 45,
+      user: 'Admin Lab',
+      timestamp: '2025-01-12 09:30:00',
+      notes: 'Penambahan stock stadis setelah pengiriman baru',
+    },
+    {
+      id: '2',
+      action: 'Stock Adjustment',
+      previous_stock: 50,
+      new_stock: 40,
+      user: 'Supervisor Lab',
+      timestamp: '2025-01-11 14:15:00',
+      notes: 'Koreksi stock setelah audit fisik mingguan',
+    },
+    {
+      id: '3',
+      action: 'Stock Usage',
+      previous_stock: 55,
+      new_stock: 50,
+      user: 'Teknisi Lab',
+      timestamp: '2025-01-10 11:00:00',
+      notes: 'Penggunaan stadis untuk testing sample JET-A1',
+    },
+    {
+      id: '4',
+      action: 'Emergency Restock',
+      previous_stock: 18,
+      new_stock: 55,
+      user: 'Manager Lab',
+      timestamp: '2025-01-09 08:45:00',
+      notes: 'Restocking darurat karena stock hampir habis',
+    },
+    {
+      id: '5',
+      action: 'Stock Usage',
+      previous_stock: 25,
+      new_stock: 18,
+      user: 'Teknisi Lab',
+      timestamp: '2025-01-08 16:30:00',
+      notes: 'Penggunaan stadis untuk testing sample Avgas',
+    },
+  ];
+
+  // Stadis management functions
+  const handleStadisEdit = (stadis: StadisData) => {
+    setSelectedStadis(stadis);
+    setStadisDrawerVisible(true);
+  };
+
+  const handleStadisUpdate = (updatedStadis: StadisData) => {
+    console.log('Updated stadis:', updatedStadis);
+    // Here you would typically update your state or call an API
+    message.success('Stock stadis berhasil diperbarui');
+  };
+
   const stockSummary = {
     total: mockData.length,
     available: mockData.filter((item) => item.status === 'available').length,
@@ -386,200 +630,410 @@ const SampleEstimation: React.FC = () => {
         </Button>,
       ]}
     >
-      {/* Summary Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="Total Sample"
-              value={stockSummary.total}
-              prefix={<DatabaseOutlined style={{ color: '#0073fe' }} />}
-              valueStyle={{ color: '#0073fe' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="Tersedia"
-              value={stockSummary.available}
-              prefix={<DatabaseOutlined style={{ color: '#9fe400' }} />}
-              valueStyle={{ color: '#9fe400' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="Terbatas"
-              value={stockSummary.low}
-              prefix={<WarningOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="Urgent" // Changed from "Kritis"
-              value={stockSummary.urgent}
-              prefix={<WarningOutlined style={{ color: '#fd0017' }} />}
-              valueStyle={{ color: '#fd0017' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <Tabs
+        defaultActiveKey="estimation"
+        items={[
+          {
+            key: 'estimation',
+            label: 'Estimasi Sample',
+            children: (
+              <div>
+                {/* Summary Cards */}
+                <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                  <Col xs={24} sm={6}>
+                    <Card>
+                      <Statistic
+                        title="Total Sample"
+                        value={stockSummary.total}
+                        prefix={
+                          <DatabaseOutlined style={{ color: '#0073fe' }} />
+                        }
+                        valueStyle={{ color: '#0073fe' }}
+                      />
+                    </Card>
+                  </Col>
+                  <Col xs={24} sm={6}>
+                    <Card>
+                      <Statistic
+                        title="Tersedia"
+                        value={stockSummary.available}
+                        prefix={
+                          <DatabaseOutlined style={{ color: '#9fe400' }} />
+                        }
+                        valueStyle={{ color: '#9fe400' }}
+                      />
+                    </Card>
+                  </Col>
+                  <Col xs={24} sm={6}>
+                    <Card>
+                      <Statistic
+                        title="Terbatas"
+                        value={stockSummary.low}
+                        prefix={
+                          <WarningOutlined style={{ color: '#faad14' }} />
+                        }
+                        valueStyle={{ color: '#faad14' }}
+                      />
+                    </Card>
+                  </Col>
+                  <Col xs={24} sm={6}>
+                    <Card>
+                      <Statistic
+                        title="Urgent" // Changed from "Kritis"
+                        value={stockSummary.urgent}
+                        prefix={
+                          <WarningOutlined style={{ color: '#fd0017' }} />
+                        }
+                        valueStyle={{ color: '#fd0017' }}
+                      />
+                    </Card>
+                  </Col>
+                </Row>
 
-      {calendarView ? (
-        <Card title="Kalender Estimasi Sample">
-          <Calendar
-            dateCellRender={dateCellRender}
-            value={selectedDate}
-            onSelect={setSelectedDate}
-          />
-        </Card>
-      ) : (
-        <ProTable<SampleEstimationRecord>
-          actionRef={actionRef}
-          rowKey="id"
-          search={{
-            labelWidth: 'auto',
-          }}
-          columns={columns}
-          dataSource={mockData}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-          }}
-          dateFormatter="string"
-          headerTitle="Daftar Estimasi Sample"
-          toolBarRender={() => [
-            <Button key="export" type="default">
-              Export Excel
-            </Button>,
-            <Button key="import" type="default">
-              Import Excel
-            </Button>,
-          ]}
-        />
-      )}
+                {calendarView ? (
+                  <Card title="Kalender Estimasi Sample">
+                    <Calendar
+                      dateCellRender={dateCellRender}
+                      value={selectedDate}
+                      onSelect={setSelectedDate}
+                    />
+                  </Card>
+                ) : (
+                  <ProTable<SampleEstimationRecord>
+                    actionRef={actionRef}
+                    rowKey="id"
+                    search={{
+                      labelWidth: 'auto',
+                    }}
+                    columns={columns}
+                    dataSource={mockData}
+                    pagination={{
+                      pageSize: 10,
+                      showSizeChanger: true,
+                      showQuickJumper: true,
+                    }}
+                    dateFormatter="string"
+                    headerTitle="Daftar Estimasi Sample"
+                    toolBarRender={() => [
+                      <Button key="export" type="default">
+                        Export Excel
+                      </Button>,
+                      <Button key="import" type="default">
+                        Import Excel
+                      </Button>,
+                    ]}
+                  />
+                )}
 
-      <Drawer
-        title={
-          editingRecord ? 'Edit Estimasi Sample' : 'Tambah Estimasi Sample Baru'
-        }
-        width={600}
-        open={drawerVisible}
+                <Drawer
+                  title={
+                    editingRecord
+                      ? 'Edit Estimasi Sample'
+                      : 'Tambah Estimasi Sample Baru'
+                  }
+                  width={600}
+                  open={drawerVisible}
+                  onClose={() => {
+                    setDrawerVisible(false);
+                    form.resetFields();
+                  }}
+                  extra={
+                    <Space>
+                      <Button onClick={() => setDrawerVisible(false)}>
+                        Batal
+                      </Button>
+                      <Button
+                        type="primary"
+                        onClick={() => form.submit()}
+                        style={{
+                          backgroundColor: '#fd0017',
+                          borderColor: '#fd0017',
+                        }}
+                      >
+                        Simpan
+                      </Button>
+                    </Space>
+                  }
+                >
+                  <Form form={form} layout="vertical" onFinish={handleSubmit}>
+                    <Form.Item
+                      name="sample_type"
+                      label="Jenis Product" // Changed from "Jenis Sample"
+                      rules={[
+                        {
+                          required: true,
+                          message: 'Jenis product wajib dipilih',
+                        },
+                      ]}
+                    >
+                      <Select
+                        placeholder="Pilih jenis product"
+                        options={productTypeOptions}
+                      />
+                    </Form.Item>
+
+                    <Form.Item
+                      name="vessel_name"
+                      label="Kapal"
+                      rules={[
+                        { required: true, message: 'Kapal wajib dipilih' },
+                      ]}
+                    >
+                      <Select
+                        placeholder="Pilih kapal"
+                        options={vesselOptions}
+                      />
+                    </Form.Item>
+
+                    <Form.Item
+                      name="tank_number"
+                      label="Nomor Tangki"
+                      rules={[
+                        {
+                          required: true,
+                          message: 'Nomor tangki wajib dipilih',
+                        },
+                      ]}
+                    >
+                      <Select
+                        placeholder="Pilih nomor tangki"
+                        options={tankNumberOptions}
+                      />
+                    </Form.Item>
+
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                          name="quantity"
+                          label="Kuantitas"
+                          rules={[
+                            {
+                              required: true,
+                              message: 'Kuantitas wajib diisi',
+                            },
+                          ]}
+                        >
+                          <InputNumber
+                            min={0}
+                            placeholder="25"
+                            style={{ width: '100%' }}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          name="unit"
+                          label="Satuan"
+                          rules={[
+                            { required: true, message: 'Satuan wajib diisi' },
+                          ]}
+                        >
+                          <Select placeholder="Pilih satuan">
+                            <Select.Option value="botol">Botol</Select.Option>
+                            <Select.Option value="liter">Liter</Select.Option>
+                            <Select.Option value="ml">ml</Select.Option>
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    <Form.Item
+                      name="received_date"
+                      label="Tanggal Diterima"
+                      rules={[
+                        {
+                          required: true,
+                          message: 'Tanggal diterima wajib diisi',
+                        },
+                      ]}
+                    >
+                      <DatePicker style={{ width: '100%' }} />
+                    </Form.Item>
+
+                    <Form.Item
+                      name="status"
+                      label="Status"
+                      rules={[
+                        { required: true, message: 'Status wajib dipilih' },
+                      ]}
+                    >
+                      <Select placeholder="Pilih status">
+                        <Select.Option value="available">
+                          Tersedia
+                        </Select.Option>
+                        <Select.Option value="low">Terbatas</Select.Option>
+                        <Select.Option value="urgent">Urgent</Select.Option>{' '}
+                        {/* Changed from "Kritis" */}
+                        {/* Removed "Status Terpakai" option as per requirement */}
+                      </Select>
+                    </Form.Item>
+
+                    <Form.Item name="notes" label="Catatan">
+                      <Input.TextArea
+                        rows={3}
+                        placeholder="Catatan tambahan mengenai estimasi sample..."
+                      />
+                    </Form.Item>
+                  </Form>
+                </Drawer>
+              </div>
+            ),
+          },
+          {
+            key: 'stadis',
+            label: 'Stadis Stock Management',
+            children: (
+              <div>
+                <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
+                  {mockStadisData.map((stadis) => (
+                    <Col
+                      xs={24}
+                      sm={24}
+                      md={12}
+                      lg={12}
+                      xl={12}
+                      key={stadis.id}
+                    >
+                      <StadisStockCard
+                        stadis={stadis}
+                        handleStadisEdit={handleStadisEdit}
+                      />
+                    </Col>
+                  ))}
+                </Row>
+
+                {/* Audit Log Section */}
+                <Card
+                  title="Audit Log Stadis Stock"
+                  size="default"
+                  extra={
+                    <Button type="default" size="small">
+                      Export Log
+                    </Button>
+                  }
+                >
+                  <ProTable
+                    rowKey="id"
+                    search={false}
+                    pagination={{
+                      pageSize: 10,
+                      showSizeChanger: false,
+                      showQuickJumper: true,
+                      size: 'small',
+                    }}
+                    toolBarRender={false}
+                    columns={[
+                      {
+                        title: 'Waktu',
+                        dataIndex: 'timestamp',
+                        key: 'timestamp',
+                        width: 140,
+                        sorter: true,
+                      },
+                      {
+                        title: 'Aksi',
+                        dataIndex: 'action',
+                        key: 'action',
+                        width: 120,
+                        render: (_, record) => (
+                          <Tag
+                            color={
+                              record.action.includes('Update')
+                                ? 'blue'
+                                : record.action.includes('Usage')
+                                  ? 'orange'
+                                  : record.action.includes('Adjustment')
+                                    ? 'green'
+                                    : record.action.includes('Emergency')
+                                      ? 'red'
+                                      : 'default'
+                            }
+                          >
+                            {record.action}
+                          </Tag>
+                        ),
+                      },
+                      {
+                        title: 'Stock Sebelum',
+                        dataIndex: 'previous_stock',
+                        key: 'previous_stock',
+                        width: 120,
+                        render: (_, record) => `${record.previous_stock} unit`,
+                        align: 'center',
+                      },
+                      {
+                        title: 'Stock Sesudah',
+                        dataIndex: 'new_stock',
+                        key: 'new_stock',
+                        width: 120,
+                        render: (_, record) => `${record.new_stock} unit`,
+                        align: 'center',
+                      },
+                      {
+                        title: 'Selisih',
+                        key: 'difference',
+                        width: 100,
+                        render: (_, record: any) => {
+                          const diff = record.new_stock - record.previous_stock;
+                          return (
+                            <span
+                              style={{
+                                color:
+                                  diff > 0
+                                    ? '#52c41a'
+                                    : diff < 0
+                                      ? '#ff4d4f'
+                                      : '#666',
+                                fontWeight: 500,
+                              }}
+                            >
+                              {diff > 0 ? '+' : ''}
+                              {diff}
+                            </span>
+                          );
+                        },
+                        align: 'center',
+                      },
+                      {
+                        title: 'User',
+                        dataIndex: 'user',
+                        key: 'user',
+                        width: 120,
+                        render: (_, record) => (
+                          <Space>
+                            <span style={{ fontSize: '12px', color: '#666' }}>
+                              👤
+                            </span>
+                            {record.user}
+                          </Space>
+                        ),
+                      },
+                      {
+                        title: 'Catatan',
+                        dataIndex: 'notes',
+                        key: 'notes',
+                        ellipsis: true,
+                      },
+                    ]}
+                    dataSource={mockAuditLogs}
+                    size="small"
+                  />
+                </Card>
+              </div>
+            ),
+          },
+        ]}
+      />
+
+      <StadisManagement
+        visible={stadisDrawerVisible}
         onClose={() => {
-          setDrawerVisible(false);
-          form.resetFields();
+          setStadisDrawerVisible(false);
+          setSelectedStadis(undefined);
         }}
-        extra={
-          <Space>
-            <Button onClick={() => setDrawerVisible(false)}>Batal</Button>
-            <Button
-              type="primary"
-              onClick={() => form.submit()}
-              style={{ backgroundColor: '#fd0017', borderColor: '#fd0017' }}
-            >
-              Simpan
-            </Button>
-          </Space>
-        }
-      >
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Form.Item
-            name="sample_type"
-            label="Jenis Product" // Changed from "Jenis Sample"
-            rules={[{ required: true, message: 'Jenis product wajib dipilih' }]}
-          >
-            <Select
-              placeholder="Pilih jenis product"
-              options={productTypeOptions}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="vessel_name"
-            label="Kapal"
-            rules={[{ required: true, message: 'Kapal wajib dipilih' }]}
-          >
-            <Select placeholder="Pilih kapal" options={vesselOptions} />
-          </Form.Item>
-
-          <Form.Item
-            name="tank_number"
-            label="Nomor Tangki"
-            rules={[{ required: true, message: 'Nomor tangki wajib dipilih' }]}
-          >
-            <Select
-              placeholder="Pilih nomor tangki"
-              options={tankNumberOptions}
-            />
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="quantity"
-                label="Kuantitas"
-                rules={[{ required: true, message: 'Kuantitas wajib diisi' }]}
-              >
-                <InputNumber
-                  min={0}
-                  placeholder="25"
-                  style={{ width: '100%' }}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="unit"
-                label="Satuan"
-                rules={[{ required: true, message: 'Satuan wajib diisi' }]}
-              >
-                <Select placeholder="Pilih satuan">
-                  <Select.Option value="botol">Botol</Select.Option>
-                  <Select.Option value="liter">Liter</Select.Option>
-                  <Select.Option value="ml">ml</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            name="received_date"
-            label="Tanggal Diterima"
-            rules={[
-              { required: true, message: 'Tanggal diterima wajib diisi' },
-            ]}
-          >
-            <DatePicker style={{ width: '100%' }} />
-          </Form.Item>
-
-          <Form.Item
-            name="status"
-            label="Status"
-            rules={[{ required: true, message: 'Status wajib dipilih' }]}
-          >
-            <Select placeholder="Pilih status">
-              <Select.Option value="available">Tersedia</Select.Option>
-              <Select.Option value="low">Terbatas</Select.Option>
-              <Select.Option value="urgent">Urgent</Select.Option>{' '}
-              {/* Changed from "Kritis" */}
-              {/* Removed "Status Terpakai" option as per requirement */}
-            </Select>
-          </Form.Item>
-
-          <Form.Item name="notes" label="Catatan">
-            <Input.TextArea
-              rows={3}
-              placeholder="Catatan tambahan mengenai estimasi sample..."
-            />
-          </Form.Item>
-        </Form>
-      </Drawer>
+        stadisData={selectedStadis}
+        onUpdate={handleStadisUpdate}
+      />
     </PageContainer>
   );
 };
