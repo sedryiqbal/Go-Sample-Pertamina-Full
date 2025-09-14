@@ -1,9 +1,7 @@
 import {
-  CalculatorOutlined,
   CloseOutlined,
   DeleteOutlined,
   ExperimentOutlined,
-  NumberOutlined,
   PlusOutlined,
   SaveOutlined,
 } from '@ant-design/icons';
@@ -11,7 +9,6 @@ import {
   Button,
   Card,
   Col,
-  Divider,
   Form,
   Input,
   InputNumber,
@@ -20,12 +17,9 @@ import {
   Row,
   Space,
   Table,
-  Tag,
-  Tooltip,
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 
 const { Text, Title } = Typography;
@@ -51,7 +45,7 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
   sampleData,
   onSubmit,
 }) => {
-  const [form] = Form.useForm();
+  const [_form] = Form.useForm();
   const [tankNumbers, setTankNumbers] = useState<string[]>(['1201', '1203']);
   const [tableData, setTableData] = useState<COQParameterData[]>([]);
 
@@ -131,7 +125,7 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
 
     // Update table data by removing the tank column
     const updatedData = tableData.map((row) => {
-      const { [tankNumber]: removed, ...restTanks } = row.tanks;
+      const { [tankNumber]: _removed, ...restTanks } = row.tanks;
       return { ...row, tanks: restTanks };
     });
     setTableData(updatedData);

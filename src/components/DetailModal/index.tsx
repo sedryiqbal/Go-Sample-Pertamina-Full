@@ -27,7 +27,6 @@ import {
   Statistic,
   Steps,
   Tag,
-  Timeline,
 } from 'antd';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -294,7 +293,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
           <Steps
             current={completedTasks - 1}
             status={completedTasks === totalTasks ? 'finish' : 'process'}
-            items={tasks.map((task, index) => ({
+            items={tasks.map((task, _index) => ({
               title: task.title,
               status: task.status === 'completed' ? 'finish' : 'wait',
               icon: React.cloneElement(task.icon, {

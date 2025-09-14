@@ -9,7 +9,6 @@ import {
   Button,
   Card,
   Col,
-  Divider,
   Form,
   Input,
   InputNumber,
@@ -18,15 +17,11 @@ import {
   Row,
   Select,
   Space,
-  Statistic,
   Table,
-  Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
-
-const { Title, Text } = Typography;
 
 interface ProductQCData {
   // Header Information
@@ -159,7 +154,7 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
 
       // Update the record with calculated value
       updateRecord(type, index, 'density_15c', density15C);
-    } catch (error) {
+    } catch (_error) {
       message.error({
         content: 'Failed to calculate Density @ 15°C',
         key: 'density-calc',
@@ -442,7 +437,7 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
       onSubmit(productQCData);
       message.success('Product QC data saved successfully!');
       onClose();
-    } catch (error) {
+    } catch (_error) {
       message.error('Please fill in all required fields');
     }
   };
