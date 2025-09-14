@@ -11,6 +11,7 @@ import NotificationDropdown from './NotificationDropdown';
 import { Notification, Question, SelectLang } from './RightContent';
 import { AvatarDropdown, AvatarName } from './RightContent/AvatarDropdown';
 import SiringManagement from './SiringManagement';
+import StadisManagement from './StadisManagement';
 import SyringeManagement from './SyringeManagement';
 
 export {
@@ -22,6 +23,7 @@ export {
   Notification,
   NotificationDropdown,
   SiringManagement,
+  StadisManagement,
   SyringeManagement,
   LaboratoryActionModal,
 };

@@ -2,431 +2,981 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   DiffOutlined,
-  DownloadOutlined,
-  ExclamationCircleOutlined,
-  FileAddOutlined,
-  FilePdfOutlined,
-  UploadOutlined,
+  ExperimentOutlined,
+  EyeOutlined,
+  FileDoneOutlined,
+  FileTextOutlined,
+  SettingOutlined,
+  SyncOutlined,
+  TagsOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
-import { PageContainer } from '@ant-design/pro-components';
-import type { UploadProps } from 'antd';
+import type { ActionType } from '@ant-design/pro-components';
 import {
-  Alert,
+  PageContainer,
+  type ProColumns,
+  ProTable,
+} from '@ant-design/pro-components';
+import {
+  Badge,
   Button,
   Card,
   Col,
-  List,
+  Descriptions,
   message,
-  Progress,
   Row,
   Space,
-  Tabs,
+  Statistic,
   Tag,
-  Typography,
-  Upload,
+  Tooltip,
 } from 'antd';
-import { useState } from 'react';
+import dayjs from 'dayjs';
+import { useRef, useState } from 'react';
+import AverageCOQModal from '../../components/AverageCOQModal';
+import ComparisonTestModal from '../../components/ComparisonTestModal';
+import DetailModal from '../../components/DetailModal';
+import ProductQCModal from '../../components/ProductQCModal';
 
-const { Title, Text } = Typography;
-
-interface ComparisonResult {
+// Interface untuk data comparison records
+interface ComparisonRecord {
   id: string;
-  parameter: string;
-  standardValue: string;
-  actualValue: string;
-  unit: string;
-  status: 'pass' | 'warning' | 'fail';
-  difference: string;
-}
-
-interface DocumentComparison {
-  id: string;
-  fileName: string;
-  fileType: string;
-  uploadDate: string;
-  comparisonStatus: 'pending' | 'completed' | 'error';
-  similarityScore?: number;
+  sample_id: string;
+  order_number: string;
+  sample_type: string;
+  vessel_name: string;
+  tank_number: string;
+  lab_completion_date: string;
+  comparison_status: 'pending' | 'ready' | 'in_progress' | 'completed';
+  product_qc_status: 'not_started' | 'completed';
+  tank_value_status: 'not_started' | 'completed';
+  lab_tester_status: 'not_started' | 'completed';
+  comparison_test_status: 'not_started' | 'completed';
+  priority: 'normal' | 'urgent';
+  created_at: string;
+  updated_at: string;
+  lab_technician?: string;
+  comparison_technician?: string;
+  notes?: string;
+  release_status?: 'Success' | 'Repeat';
+  release_notes?: string;
+  release_date?: string;
 }
 
 const Comparison: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('quality');
-  const [qualityResults] = useState<ComparisonResult[]>([
+  const actionRef = useRef<ActionType>(null);
+  const [productQCVisible, setProductQCVisible] = useState(false);
+  const [averageCOQVisible, setAverageCOQVisible] = useState(false);
+  const [comparisonTestVisible, setComparisonTestVisible] = useState(false);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<ComparisonRecord | null>(
+    null,
+  );
+
+  // Mock data untuk comparison records
+  const mockComparisonData: ComparisonRecord[] = [
     {
       id: '1',
-      parameter: 'Density at 15°C',
-      standardValue: '775-840',
-      actualValue: '785.2',
-      unit: 'kg/m³',
-      status: 'pass',
-      difference: 'Within range',
+      sample_id: 'SMPL-20250906-001',
+      order_number: 'SO-20250906-001',
+      sample_type: 'JET A-1',
+      vessel_name: 'MT. Commodore One',
+      tank_number: 'T.107',
+      lab_completion_date: '',
+      comparison_status: 'pending',
+      product_qc_status: 'not_started',
+      tank_value_status: 'not_started',
+      lab_tester_status: 'not_started',
+      comparison_test_status: 'not_started',
+      priority: 'urgent',
+      created_at: '2025-09-06 10:00:00',
+      updated_at: '2025-09-06 15:30:00',
     },
     {
       id: '2',
-      parameter: 'Viscosity at -20°C',
-      standardValue: 'Max 8.0',
-      actualValue: '7.8',
-      unit: 'mm²/s',
-      status: 'pass',
-      difference: '-0.2 from max',
+      sample_id: 'SMPL-20250906-002',
+      order_number: 'SO-20250906-002',
+      sample_type: 'Avgas',
+      vessel_name: 'MT. Pioneer',
+      tank_number: 'T.203',
+      lab_completion_date: '2025-09-06 14:15:00',
+      comparison_status: 'ready',
+      product_qc_status: 'completed',
+      tank_value_status: 'completed',
+      lab_tester_status: 'completed',
+      comparison_test_status: 'not_started',
+      priority: 'normal',
+      created_at: '2025-09-06 11:00:00',
+      updated_at: '2025-09-06 16:00:00',
+      comparison_technician: 'Drs. Wijaya Kusuma',
+      notes:
+        'Ready for comparison generation - QC, COQ, and Lab Test completed',
     },
     {
       id: '3',
-      parameter: 'Flash Point',
-      standardValue: 'Min 38',
-      actualValue: '42',
-      unit: '°C',
-      status: 'pass',
-      difference: '+4 above min',
+      sample_id: 'SMPL-20250905-001',
+      order_number: 'SO-20250905-001',
+      sample_type: 'Diesel',
+      vessel_name: 'MT. Explorer',
+      tank_number: 'T.301',
+      lab_completion_date: '2025-09-05 16:30:00',
+      comparison_status: 'completed',
+      product_qc_status: 'completed',
+      tank_value_status: 'completed',
+      lab_tester_status: 'completed',
+      comparison_test_status: 'completed',
+      priority: 'normal',
+      created_at: '2025-09-05 09:00:00',
+      updated_at: '2025-09-05 17:45:00',
+      comparison_technician: 'Dr. Sari Dewi',
+      notes:
+        'Comparison completed successfully, all parameters within acceptable range',
+      release_status: 'Success',
+      release_notes:
+        'All parameters within specification, released for distribution',
+      release_date: '2025-09-05 18:00:00',
     },
     {
       id: '4',
-      parameter: 'Water Content',
-      standardValue: 'Max 0.003',
-      actualValue: '0.0045',
-      unit: '%v/v',
-      status: 'fail',
-      difference: '+0.0015 above max',
+      sample_id: 'SMPL-20250904-003',
+      order_number: 'SO-20250904-003',
+      sample_type: 'Gasoline',
+      vessel_name: 'MT. Navigator',
+      tank_number: 'T.405',
+      lab_completion_date: '2025-09-04 13:20:00',
+      comparison_status: 'completed',
+      product_qc_status: 'completed',
+      tank_value_status: 'completed',
+      lab_tester_status: 'completed',
+      comparison_test_status: 'completed',
+      priority: 'normal',
+      created_at: '2025-09-04 08:00:00',
+      updated_at: '2025-09-04 13:20:00',
+      release_status: 'Repeat',
+      release_notes:
+        'Density values slightly outside acceptable range, requires retesting',
+      release_date: '2025-09-04 14:30:00',
     },
-  ]);
+    {
+      id: '5',
+      sample_id: 'SMPL-20250907-001',
+      order_number: 'SO-20250907-001',
+      sample_type: 'Kerosene',
+      vessel_name: 'MT. Atlantic Star',
+      tank_number: 'T.502',
+      lab_completion_date: '2025-09-07 11:45:00',
+      comparison_status: 'completed',
+      product_qc_status: 'completed',
+      tank_value_status: 'completed',
+      lab_tester_status: 'completed',
+      comparison_test_status: 'completed',
+      priority: 'urgent',
+      created_at: '2025-09-07 08:30:00',
+      updated_at: '2025-09-07 15:20:00',
+      comparison_technician: 'Dr. Ahmad Rizky',
+      notes:
+        'Comparison analysis completed, awaiting release decision based on quality parameters',
+      // Tidak ada release_status, release_notes, atau release_date - menunjukkan belum dirilis
+    },
+  ];
 
-  const [documents] = useState<DocumentComparison[]>([
-    {
-      id: '1',
-      fileName: 'COA_LPUJ_20250806_001.pdf',
-      fileType: 'Certificate of Analysis',
-      uploadDate: '2025-08-06 14:30',
-      comparisonStatus: 'completed',
-      similarityScore: 98.5,
-    },
-    {
-      id: '2',
-      fileName: 'Test_Report_LMG_20250805.pdf',
-      fileType: 'Test Report',
-      uploadDate: '2025-08-05 16:15',
-      comparisonStatus: 'completed',
-      similarityScore: 95.2,
-    },
-    {
-      id: '3',
-      fileName: 'Analysis_Results_BLG.pdf',
-      fileType: 'Analysis Results',
-      uploadDate: '2025-08-04 10:00',
-      comparisonStatus: 'pending',
-    },
-  ]);
-
-  const uploadProps: UploadProps = {
-    name: 'file',
-    multiple: true,
-    accept: '.pdf,.doc,.docx,.xls,.xlsx',
-    beforeUpload: (file) => {
-      const isValidType =
-        file.type === 'application/pdf' ||
-        file.type.includes('document') ||
-        file.type.includes('sheet');
-      if (!isValidType) {
-        message.error('Hanya file PDF, Word, dan Excel yang diperbolehkan!');
-        return false;
-      }
-      const isLt10M = file.size / 1024 / 1024 < 10;
-      if (!isLt10M) {
-        message.error('Ukuran file tidak boleh lebih dari 10MB!');
-        return false;
-      }
-      return false; // Prevent auto upload for demo
-    },
-    onChange: (info) => {
-      message.success(`${info.file.name} berhasil diupload untuk perbandingan`);
-    },
+  // Handler functions
+  const handleProductQC = (record: ComparisonRecord) => {
+    setSelectedRecord(record);
+    setProductQCVisible(true);
   };
 
-  const getStatusColor = (status: string) => {
+  const handleProductQCSubmit = (data: any) => {
+    console.log('Product QC Data submitted:', data);
+    // Here you would normally save to backend
+    // Update the record status to completed
+    message.success('Product QC completed successfully!');
+    actionRef.current?.reload();
+  };
+
+  const handleInputTankValue = (record: ComparisonRecord) => {
+    setSelectedRecord(record);
+    setAverageCOQVisible(true);
+  };
+
+  const handleAverageCOQSubmit = (data: any) => {
+    console.log('Average COQ Data submitted:', data);
+    // Here you would normally save to backend
+    // Update the record status to completed
+    message.success('Average COQ completed successfully!');
+    actionRef.current?.reload();
+  };
+
+  const handleLabTester = (record: ComparisonRecord) => {
+    // Simulate lab tester action
+    const loadingMessage = message.loading(
+      'Processing Lab Tester status...',
+      0,
+    );
+
+    setTimeout(() => {
+      loadingMessage();
+      message.success('Lab Tester status updated successfully!');
+
+      // Update record status - in real app, this would come from backend
+      const updatedData = mockComparisonData.map((item) =>
+        item.id === record.id
+          ? {
+              ...item,
+              lab_tester_status: 'completed',
+              updated_at: new Date().toISOString(),
+            }
+          : item,
+      );
+
+      // Trigger table reload
+      actionRef.current?.reload();
+    }, 1500);
+  };
+
+  const handleGenerateComparison = (record: ComparisonRecord) => {
+    // Check if all three prerequisites are completed
+    if (
+      record.product_qc_status !== 'completed' ||
+      record.tank_value_status !== 'completed' ||
+      record.lab_tester_status !== 'completed'
+    ) {
+      message.warning(
+        'Product QC, Average COQ, dan Lab Tester harus diselesaikan terlebih dahulu sebelum generate comparison',
+      );
+      return;
+    }
+
+    // Show loading message
+    const loadingMessage = message.loading(
+      'Generating comparison results...',
+      0,
+    );
+
+    // Simulate backend API call for generating comparison
+    setTimeout(() => {
+      loadingMessage();
+      message.success('Comparison results berhasil di-generate!');
+
+      // Update record status - in real app, this would come from backend
+      const updatedData = mockComparisonData.map((item) =>
+        item.id === record.id
+          ? {
+              ...item,
+              comparison_test_status: 'completed',
+              comparison_status: 'completed',
+              updated_at: new Date().toISOString(),
+            }
+          : item,
+      );
+
+      // Trigger table reload
+      actionRef.current?.reload();
+    }, 2000);
+  };
+
+  const handleViewComparison = (record: ComparisonRecord) => {
+    if (record.comparison_test_status !== 'completed') {
+      message.warning(
+        'Comparison test belum di-generate. Silakan generate terlebih dahulu.',
+      );
+      return;
+    }
+    setSelectedRecord(record);
+    setComparisonTestVisible(true);
+  };
+
+  const handleViewDetail = (record: ComparisonRecord) => {
+    setSelectedRecord(record);
+    setDetailModalVisible(true);
+  };
+
+  const handleRelease = (releaseData: {
+    status: 'Success' | 'Repeat';
+    notes: string;
+  }) => {
+    console.log('Release Data:', releaseData);
+    message.success(
+      `Sample ${releaseData.status === 'Success' ? 'successfully released' : 'marked for repeat'}!`,
+    );
+
+    // Update record status in real app, this would be sent to backend
+    // For now, we'll just simulate the update
+    const recordIndex = mockComparisonData.findIndex(
+      (item) => item.id === selectedRecord?.id,
+    );
+    if (recordIndex !== -1) {
+      mockComparisonData[recordIndex] = {
+        ...mockComparisonData[recordIndex],
+        release_status: releaseData.status,
+        release_notes: releaseData.notes,
+        release_date: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    }
+
+    actionRef.current?.reload();
+  };
+
+  // Get status color functions
+  const getComparisonStatusColor = (status: string) => {
     switch (status) {
-      case 'pass':
-        return 'success';
-      case 'warning':
+      case 'pending':
+        return 'default';
+      case 'ready':
+        return 'processing';
+      case 'in_progress':
         return 'warning';
-      case 'fail':
-        return 'error';
+      case 'completed':
+        return 'success';
       default:
         return 'default';
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getComparisonStatusText = (status: string) => {
     switch (status) {
-      case 'pass':
-        return <CheckCircleOutlined />;
-      case 'warning':
-        return <ExclamationCircleOutlined />;
-      case 'fail':
-        return <CloseCircleOutlined />;
+      case 'pending':
+        return 'Pending';
+      case 'ready':
+        return 'Ready';
+      case 'in_progress':
+        return 'In Progress';
+      case 'completed':
+        return 'Completed';
       default:
-        return null;
+        return status;
     }
   };
 
-  const renderQualityCheck = () => (
-    <div>
-      <Alert
-        message="Quality Check Summary"
-        description="Hasil perbandingan parameter kualitas sampel dengan standar yang berlaku"
-        type="info"
-        showIcon
-        style={{ marginBottom: 16 }}
-      />
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'normal':
+        return 'default';
+      case 'urgent':
+        return 'warning';
+      default:
+        return 'default';
+    }
+  };
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <div style={{ textAlign: 'center' }}>
-              <CheckCircleOutlined style={{ fontSize: 32, color: '#52c41a' }} />
-              <Title level={3} style={{ margin: '8px 0', color: '#52c41a' }}>
-                3
-              </Title>
-              <Text>Parameter Lulus</Text>
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <div style={{ textAlign: 'center' }}>
-              <ExclamationCircleOutlined
-                style={{ fontSize: 32, color: '#faad14' }}
-              />
-              <Title level={3} style={{ margin: '8px 0', color: '#faad14' }}>
-                0
-              </Title>
-              <Text>Peringatan</Text>
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <div style={{ textAlign: 'center' }}>
-              <CloseCircleOutlined style={{ fontSize: 32, color: '#ff4d4f' }} />
-              <Title level={3} style={{ margin: '8px 0', color: '#ff4d4f' }}>
-                1
-              </Title>
-              <Text>Parameter Gagal</Text>
-            </div>
-          </Card>
-        </Col>
-      </Row>
+  const getTaskStatusIcon = (status: string) => {
+    return status === 'completed' ? (
+      <CheckCircleOutlined style={{ color: '#52c41a' }} />
+    ) : (
+      <CloseCircleOutlined style={{ color: '#d9d9d9' }} />
+    );
+  };
 
-      <Card title="Detail Perbandingan Parameter">
-        <List
-          dataSource={qualityResults}
-          renderItem={(item) => (
-            <List.Item
-              actions={[
-                <Button
-                  key={`detail-${item.id}`}
-                  type="link"
-                  size="small"
-                  onClick={() => message.info(`Detail untuk ${item.parameter}`)}
-                >
-                  Detail
-                </Button>,
-              ]}
+  const getWorkflowStatusIcon = (record: ComparisonRecord) => {
+    const qcCompleted = record.product_qc_status === 'completed';
+    const coqCompleted = record.tank_value_status === 'completed';
+    const labTesterCompleted = record.lab_tester_status === 'completed';
+    const comparisonCompleted = record.comparison_test_status === 'completed';
+
+    if (comparisonCompleted) {
+      return (
+        <CheckCircleOutlined style={{ color: '#722ed1', fontSize: '16px' }} />
+      );
+    } else if (qcCompleted && coqCompleted && labTesterCompleted) {
+      return (
+        <ThunderboltOutlined style={{ color: '#fa8c16', fontSize: '16px' }} />
+      );
+    } else {
+      return <SyncOutlined style={{ color: '#8c8c8c', fontSize: '16px' }} />;
+    }
+  };
+
+  const getWorkflowStatusText = (record: ComparisonRecord) => {
+    const qcCompleted = record.product_qc_status === 'completed';
+    const coqCompleted = record.tank_value_status === 'completed';
+    const labTesterCompleted = record.lab_tester_status === 'completed';
+    const comparisonCompleted = record.comparison_test_status === 'completed';
+
+    if (comparisonCompleted) {
+      return { text: 'Results Available', color: '#722ed1' };
+    } else if (qcCompleted && coqCompleted && labTesterCompleted) {
+      return { text: 'Ready to Generate', color: '#fa8c16' };
+    } else {
+      return { text: 'Pending Prerequisites', color: '#8c8c8c' };
+    }
+  };
+
+  // Calculate summary statistics
+  const summary = {
+    total: mockComparisonData.length,
+    pending: mockComparisonData.filter(
+      (item) => item.comparison_status === 'pending',
+    ).length,
+    ready: mockComparisonData.filter(
+      (item) => item.comparison_status === 'ready',
+    ).length,
+    in_progress: mockComparisonData.filter(
+      (item) => item.comparison_status === 'in_progress',
+    ).length,
+    completed: mockComparisonData.filter(
+      (item) => item.comparison_status === 'completed',
+    ).length,
+    released_success: mockComparisonData.filter(
+      (item) => item.release_status === 'Success',
+    ).length,
+    released_repeat: mockComparisonData.filter(
+      (item) => item.release_status === 'Repeat',
+    ).length,
+  };
+
+  // Table columns
+  const columns: ProColumns<ComparisonRecord>[] = [
+    {
+      title: 'Sample Information',
+      key: 'sample_info',
+      width: 220,
+      fixed: 'left',
+      render: (_, record) => (
+        <div>
+          <div
+            style={{
+              fontWeight: 600,
+              fontSize: '14px',
+              marginBottom: 4,
+              color: '#262626',
+            }}
+          >
+            {record.sample_id}
+          </div>
+          <div style={{ fontSize: '12px', color: '#8c8c8c', marginBottom: 6 }}>
+            {record.order_number}
+          </div>
+          <div style={{ fontSize: '13px', color: '#595959', marginBottom: 4 }}>
+            {record.sample_type}
+          </div>
+          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+            {record.vessel_name} • {record.tank_number}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Lab Completion',
+      dataIndex: 'lab_completion_date',
+      key: 'lab_completion_date',
+      width: 140,
+      render: (_, record) => (
+        <div>
+          {record.lab_completion_date ? (
+            <>
+              <div
+                style={{ fontSize: '13px', fontWeight: 500, color: '#262626' }}
+              >
+                {dayjs(record.lab_completion_date).format('DD MMM YYYY')}
+              </div>
+              <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                {dayjs(record.lab_completion_date).format('HH:mm')}
+              </div>
+            </>
+          ) : (
+            <div
+              style={{
+                fontSize: '13px',
+                color: '#8c8c8c',
+                textAlign: 'center',
+              }}
             >
-              <List.Item.Meta
-                avatar={getStatusIcon(item.status)}
-                title={
-                  <Space>
-                    {item.parameter}
-                    <Tag color={getStatusColor(item.status)}>
-                      {item.status === 'pass'
-                        ? 'Lulus'
-                        : item.status === 'warning'
-                          ? 'Peringatan'
-                          : 'Gagal'}
-                    </Tag>
-                  </Space>
-                }
-                description={
-                  <div>
-                    <Text>
-                      Standar: {item.standardValue} {item.unit}
-                    </Text>
-                    <br />
-                    <Text>
-                      Aktual:{' '}
-                      <strong>
-                        {item.actualValue} {item.unit}
-                      </strong>
-                    </Text>
-                    <br />
-                    <Text type="secondary">{item.difference}</Text>
-                  </div>
-                }
-              />
-            </List.Item>
+              -
+            </div>
           )}
-        />
-      </Card>
-
-      <div style={{ marginTop: 16, textAlign: 'center' }}>
-        <Space>
-          <Button
-            type="primary"
-            icon={<FilePdfOutlined />}
-            onClick={() =>
-              message.success('Generating quality comparison report...')
-            }
+        </div>
+      ),
+      sorter: true,
+    },
+    {
+      title: 'Priority',
+      dataIndex: 'priority',
+      key: 'priority',
+      width: 100,
+      render: (_, record) => (
+        <Tag
+          color={getPriorityColor(record.priority)}
+          style={{
+            fontSize: '11px',
+            fontWeight: 600,
+            padding: '4px 8px',
+            borderRadius: 6,
+          }}
+        >
+          {record.priority.toUpperCase()}
+        </Tag>
+      ),
+      filters: [
+        { text: 'Normal', value: 'normal' },
+        { text: 'Urgent', value: 'urgent' },
+      ],
+    },
+    {
+      title: 'Task Status',
+      key: 'task_status',
+      width: 180,
+      render: (_, record) => (
+        <div>
+          <div
+            style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}
           >
-            Generate Report PDF
-          </Button>
-          <Button
-            icon={<DownloadOutlined />}
-            onClick={() => message.success('Downloading detailed analysis...')}
+            {getTaskStatusIcon(record.product_qc_status)}
+            <span style={{ marginLeft: 8, fontSize: '12px' }}>Product QC</span>
+          </div>
+          <div
+            style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}
           >
-            Download Analysis
-          </Button>
-        </Space>
-      </div>
-    </div>
-  );
+            {getTaskStatusIcon(record.tank_value_status)}
+            <span style={{ marginLeft: 8, fontSize: '12px' }}>Average COQ</span>
+          </div>
+          <div
+            style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}
+          >
+            {getTaskStatusIcon(record.lab_tester_status)}
+            <span style={{ marginLeft: 8, fontSize: '12px' }}>Lab Tester</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            {getTaskStatusIcon(record.comparison_test_status)}
+            <span style={{ marginLeft: 8, fontSize: '12px' }}>
+              Comparison Test
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Workflow Status',
+      key: 'workflow_status',
+      width: 150,
+      render: (_, record) => {
+        const status = getWorkflowStatusText(record);
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {getWorkflowStatusIcon(record)}
+            <div>
+              <div
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: status.color,
+                  lineHeight: 1.2,
+                }}
+              >
+                {status.text}
+              </div>
+              <div style={{ fontSize: '10px', color: '#8c8c8c' }}>
+                {record.comparison_test_status === 'completed'
+                  ? 'Click View Results'
+                  : record.product_qc_status === 'completed' &&
+                      record.tank_value_status === 'completed'
+                    ? 'Click Generate'
+                    : 'Complete tasks first'}
+              </div>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Comparison Status',
+      dataIndex: 'comparison_status',
+      key: 'comparison_status',
+      width: 140,
+      render: (_, record) => (
+        <Tag
+          color={getComparisonStatusColor(record.comparison_status)}
+          style={{
+            fontSize: '12px',
+            fontWeight: 500,
+            padding: '6px 12px',
+            borderRadius: 8,
+            border: 'none',
+          }}
+        >
+          {getComparisonStatusText(record.comparison_status)}
+        </Tag>
+      ),
+      filters: [
+        { text: 'Pending', value: 'pending' },
+        { text: 'Ready', value: 'ready' },
+        { text: 'In Progress', value: 'in_progress' },
+        { text: 'Completed', value: 'completed' },
+      ],
+    },
+    {
+      title: 'Release Status',
+      key: 'release_status',
+      width: 120,
+      render: (_, record) => {
+        if (
+          !record.release_status ||
+          record.comparison_test_status !== 'completed'
+        ) {
+          return <span style={{ color: '#8c8c8c', fontSize: '12px' }}>-</span>;
+        }
 
-  const renderDocumentComparison = () => (
-    <div>
-      <Alert
-        message="Document Comparison Tool"
-        description="Upload dan bandingkan dokumen untuk mengidentifikasi perbedaan dan kesamaan"
-        type="info"
-        showIcon
-        style={{ marginBottom: 16 }}
-      />
+        return (
+          <Tag
+            color={record.release_status === 'Success' ? 'success' : 'warning'}
+            style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              padding: '4px 8px',
+              borderRadius: 6,
+            }}
+          >
+            {record.release_status}
+          </Tag>
+        );
+      },
+      filters: [
+        { text: 'Success', value: 'Success' },
+        { text: 'Repeat', value: 'Repeat' },
+      ],
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 200,
+      fixed: 'right',
+      render: (_, record) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {/* Primary Action Buttons */}
+          <div style={{ display: 'flex', gap: 4 }}>
+            <Tooltip title="Product QC">
+              <Button
+                type={
+                  record.product_qc_status === 'completed'
+                    ? 'default'
+                    : 'primary'
+                }
+                size="small"
+                icon={<FileDoneOutlined />}
+                onClick={() => handleProductQC(record)}
+                style={{
+                  flex: 1,
+                  fontSize: '11px',
+                  height: 28,
+                  backgroundColor:
+                    record.product_qc_status === 'completed'
+                      ? '#f0f0f0'
+                      : '#1890ff',
+                  borderColor:
+                    record.product_qc_status === 'completed'
+                      ? '#d9d9d9'
+                      : '#1890ff',
+                  color:
+                    record.product_qc_status === 'completed'
+                      ? '#8c8c8c'
+                      : '#fff',
+                }}
+              >
+                QC
+              </Button>
+            </Tooltip>
+            <Tooltip title="Average COQ">
+              <Button
+                type={
+                  record.tank_value_status === 'completed'
+                    ? 'default'
+                    : 'primary'
+                }
+                size="small"
+                icon={<SettingOutlined />}
+                onClick={() => handleInputTankValue(record)}
+                style={{
+                  flex: 1,
+                  fontSize: '11px',
+                  height: 28,
+                  backgroundColor:
+                    record.tank_value_status === 'completed'
+                      ? '#f0f0f0'
+                      : '#52c41a',
+                  borderColor:
+                    record.tank_value_status === 'completed'
+                      ? '#d9d9d9'
+                      : '#52c41a',
+                  color:
+                    record.tank_value_status === 'completed'
+                      ? '#8c8c8c'
+                      : '#fff',
+                }}
+              >
+                COQ
+              </Button>
+            </Tooltip>
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={12}>
-          <Card title="Upload Dokumen" style={{ height: '100%' }}>
-            <Upload.Dragger {...uploadProps} style={{ marginBottom: 16 }}>
-              <p className="ant-upload-drag-icon">
-                <FileAddOutlined />
-              </p>
-              <p className="ant-upload-text">Klik atau drag file ke area ini</p>
-              <p className="ant-upload-hint">
-                Mendukung PDF, Word, dan Excel. Maksimal 10MB per file.
-              </p>
-            </Upload.Dragger>
+            <Tooltip title="Lab Tester">
+              <Button
+                type={
+                  record.lab_tester_status === 'completed'
+                    ? 'default'
+                    : 'primary'
+                }
+                size="small"
+                icon={<FileDoneOutlined />}
+                onClick={() => handleLabTester(record)}
+                style={{
+                  flex: 1,
+                  fontSize: '11px',
+                  height: 28,
+                  backgroundColor:
+                    record.lab_tester_status === 'completed'
+                      ? '#f0f0f0'
+                      : '#fa8c16',
+                  borderColor:
+                    record.lab_tester_status === 'completed'
+                      ? '#d9d9d9'
+                      : '#fa8c16',
+                  color:
+                    record.lab_tester_status === 'completed'
+                      ? '#8c8c8c'
+                      : '#fff',
+                }}
+              >
+                Lab
+              </Button>
+            </Tooltip>
+          </div>
 
-            <Space>
+          {/* Generate Comparison / View Results Button */}
+          {record.comparison_test_status === 'completed' ? (
+            <Tooltip title="Lihat Hasil Komparasi">
               <Button
                 type="primary"
-                icon={<DiffOutlined />}
-                onClick={() =>
-                  message.success('Starting document comparison...')
-                }
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => handleViewComparison(record)}
+                style={{
+                  fontSize: '11px',
+                  height: 28,
+                  backgroundColor: '#722ed1',
+                  borderColor: '#722ed1',
+                  color: '#fff',
+                }}
               >
-                Start Comparison
+                View Results
               </Button>
+            </Tooltip>
+          ) : (
+            <Tooltip
+              title={
+                record.product_qc_status !== 'completed' ||
+                record.tank_value_status !== 'completed' ||
+                record.lab_tester_status !== 'completed'
+                  ? 'Selesaikan Product QC, Average COQ, dan Lab Tester terlebih dahulu'
+                  : 'Generate hasil komparasi otomatis'
+              }
+            >
               <Button
-                icon={<UploadOutlined />}
-                onClick={() => message.info('Select documents to compare')}
+                type="primary"
+                size="small"
+                icon={<ThunderboltOutlined />}
+                onClick={() => handleGenerateComparison(record)}
+                disabled={
+                  record.product_qc_status !== 'completed' ||
+                  record.tank_value_status !== 'completed' ||
+                  record.lab_tester_status !== 'completed'
+                }
+                style={{
+                  fontSize: '11px',
+                  height: 28,
+                  backgroundColor:
+                    record.product_qc_status !== 'completed' ||
+                    record.tank_value_status !== 'completed' ||
+                    record.lab_tester_status !== 'completed'
+                      ? '#f0f0f0'
+                      : '#fa8c16',
+                  borderColor:
+                    record.product_qc_status !== 'completed' ||
+                    record.tank_value_status !== 'completed' ||
+                    record.lab_tester_status !== 'completed'
+                      ? '#d9d9d9'
+                      : '#fa8c16',
+                  color:
+                    record.product_qc_status !== 'completed' ||
+                    record.tank_value_status !== 'completed' ||
+                    record.lab_tester_status !== 'completed'
+                      ? '#8c8c8c'
+                      : '#fff',
+                }}
               >
-                Compare Selected
+                Generate
               </Button>
-            </Space>
+            </Tooltip>
+          )}
+
+          {/* Detail Button */}
+          <Button
+            type="dashed"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => handleViewDetail(record)}
+            style={{
+              fontSize: '11px',
+              height: 28,
+              color: '#595959',
+              borderColor: '#d9d9d9',
+            }}
+          >
+            View Detail
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <PageContainer
+      title="Module Komparasi"
+      content="Kelola proses komparasi sampel setelah selesai pengujian laboratorium"
+    >
+      {/* Summary Cards */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={6} md={4}>
+          <Card>
+            <Statistic
+              title="Total Records"
+              value={summary.total}
+              prefix={<FileTextOutlined style={{ color: '#0073fe' }} />}
+              valueStyle={{ color: '#0073fe', fontSize: '20px' }}
+            />
           </Card>
         </Col>
-
-        <Col xs={24} lg={12}>
-          <Card title="Riwayat Perbandingan" style={{ height: '100%' }}>
-            <List
-              dataSource={documents}
-              renderItem={(item) => (
-                <List.Item
-                  actions={[
-                    <Button
-                      key={`download-${item.id}`}
-                      type="link"
-                      size="small"
-                      icon={<DownloadOutlined />}
-                      onClick={() =>
-                        message.success(`Downloading ${item.fileName}`)
-                      }
-                    >
-                      Download
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    avatar={
-                      <FilePdfOutlined
-                        style={{ fontSize: 24, color: '#1890ff' }}
-                      />
-                    }
-                    title={item.fileName}
-                    description={
-                      <div>
-                        <Text type="secondary">{item.fileType}</Text>
-                        <br />
-                        <Text type="secondary">Upload: {item.uploadDate}</Text>
-                        <br />
-                        {item.comparisonStatus === 'completed' &&
-                          item.similarityScore && (
-                            <div style={{ marginTop: 8 }}>
-                              <Text>Similarity Score:</Text>
-                              <Progress
-                                percent={item.similarityScore}
-                                size="small"
-                                status={
-                                  item.similarityScore > 90
-                                    ? 'success'
-                                    : 'normal'
-                                }
-                              />
-                            </div>
-                          )}
-                        {item.comparisonStatus === 'pending' && (
-                          <Tag color="processing">Processing...</Tag>
-                        )}
-                      </div>
-                    }
-                  />
-                </List.Item>
-              )}
+        <Col xs={24} sm={6} md={4}>
+          <Card>
+            <Statistic
+              title="Ready"
+              value={summary.ready}
+              prefix={<SyncOutlined style={{ color: '#52c41a' }} />}
+              valueStyle={{ color: '#52c41a', fontSize: '20px' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6} md={4}>
+          <Card>
+            <Statistic
+              title="In Progress"
+              value={summary.in_progress}
+              prefix={<TagsOutlined style={{ color: '#faad14' }} />}
+              valueStyle={{ color: '#faad14', fontSize: '20px' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6} md={4}>
+          <Card>
+            <Statistic
+              title="Completed"
+              value={summary.completed}
+              prefix={<CheckCircleOutlined style={{ color: '#722ed1' }} />}
+              valueStyle={{ color: '#722ed1', fontSize: '20px' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6} md={4}>
+          <Card>
+            <Statistic
+              title="Released Success"
+              value={summary.released_success}
+              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+              valueStyle={{ color: '#52c41a', fontSize: '20px' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6} md={4}>
+          <Card>
+            <Statistic
+              title="Need Repeat"
+              value={summary.released_repeat}
+              prefix={<ExperimentOutlined style={{ color: '#fa8c16' }} />}
+              valueStyle={{ color: '#fa8c16', fontSize: '20px' }}
             />
           </Card>
         </Col>
       </Row>
-    </div>
-  );
 
-  return (
-    <PageContainer
-      title="Comparison Module"
-      content="Modul perbandingan untuk quality check dan analisis dokumen"
-    >
-      <Card>
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={[
-            {
-              key: 'quality',
-              label: (
-                <span>
-                  <CheckCircleOutlined />
-                  Product Quality Check
-                </span>
-              ),
-              children: renderQualityCheck(),
-            },
-            {
-              key: 'document',
-              label: (
-                <span>
-                  <FilePdfOutlined />
-                  Document Comparison
-                </span>
-              ),
-              children: renderDocumentComparison(),
-            },
-          ]}
-        />
-      </Card>
+      {/* Main Table */}
+      <ProTable<ComparisonRecord>
+        actionRef={actionRef}
+        rowKey="id"
+        search={{
+          labelWidth: 'auto',
+          searchText: 'Cari',
+          resetText: 'Reset',
+        }}
+        columns={columns}
+        dataSource={mockComparisonData}
+        pagination={{
+          pageSize: 10,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total, range) =>
+            `${range[0]}-${range[1]} dari ${total} records`,
+        }}
+        dateFormatter="string"
+        headerTitle="Daftar Komparasi Sampel"
+        toolBarRender={() => [
+          <Button key="refresh" onClick={() => actionRef.current?.reload()}>
+            Refresh
+          </Button>,
+          <Button key="export" type="default">
+            Export Excel
+          </Button>,
+          <Button key="report" type="primary">
+            Generate Report
+          </Button>,
+        ]}
+        scroll={{ x: 'max-content' }}
+        size="small"
+        options={{
+          setting: {
+            listsHeight: 400,
+          },
+        }}
+      />
+
+      {/* Product QC Modal */}
+      <ProductQCModal
+        visible={productQCVisible}
+        onClose={() => {
+          setProductQCVisible(false);
+          setSelectedRecord(null);
+        }}
+        sampleData={selectedRecord}
+        onSubmit={handleProductQCSubmit}
+      />
+
+      {/* Average COQ Modal */}
+      <AverageCOQModal
+        visible={averageCOQVisible}
+        onClose={() => {
+          setAverageCOQVisible(false);
+          setSelectedRecord(null);
+        }}
+        sampleData={selectedRecord}
+        onSubmit={handleAverageCOQSubmit}
+      />
+
+      {/* Comparison Test Modal */}
+      <ComparisonTestModal
+        visible={comparisonTestVisible}
+        onClose={() => {
+          setComparisonTestVisible(false);
+          setSelectedRecord(null);
+        }}
+        sampleData={selectedRecord}
+      />
+
+      {/* Detail Modal */}
+      <DetailModal
+        visible={detailModalVisible}
+        onClose={() => {
+          setDetailModalVisible(false);
+          setSelectedRecord(null);
+        }}
+        sampleData={selectedRecord}
+        onRelease={handleRelease}
+      />
     </PageContainer>
   );
 };
