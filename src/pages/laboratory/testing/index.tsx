@@ -289,7 +289,7 @@ const LaboratoryTesting: React.FC = () => {
       case 'pending':
         return 'warning';
       case 'shipped':
-        return 'processing';
+        return 'default';
       case 'proses':
         return 'processing';
       default:
@@ -337,9 +337,9 @@ const LaboratoryTesting: React.FC = () => {
 
   const getProgressColor = (percentage: number) => {
     if (percentage >= 90) return '#9fe400';
-    if (percentage >= 70) return '#faad14';
-    if (percentage >= 50) return '#1890ff';
-    return '#fd0017';
+    if (percentage >= 70) return '#1890ff';
+    if (percentage >= 40) return '#faad14';
+    return '#808080';
   };
 
   // Filter data based on active tab
@@ -658,7 +658,7 @@ const LaboratoryTesting: React.FC = () => {
       render: (_, record) => {
         const getActionButtons = () => {
           switch (record.testing_status) {
-            case 'received':
+            case 'pending':
               return [
                 <Button
                   key="confirm"
@@ -684,20 +684,8 @@ const LaboratoryTesting: React.FC = () => {
                   Menunggu Pengujian
                 </Button>,
               ];
-            case 'testing':
-              return [
-                <Button
-                  key="process"
-                  type="link"
-                  size="small"
-                  icon={<EditOutlined />}
-                  onClick={() => handleLabAction(record, 'process_test')}
-                  style={{ color: '#1890ff' }}
-                >
-                  Proses Pengujian
-                </Button>,
-              ];
-            case 'waiting_equipment':
+
+            case 'proses':
               return [
                 <Button
                   key="input"
@@ -708,19 +696,6 @@ const LaboratoryTesting: React.FC = () => {
                   style={{ color: '#722ed1' }}
                 >
                   Input Hasil Pengujian
-                </Button>,
-              ];
-            default:
-              return [
-                <Button
-                  key="complete"
-                  type="link"
-                  size="small"
-                  icon={<EditOutlined />}
-                  onClick={() => handleLabAction(record, 'complete_test')}
-                  style={{ color: '#fd0017' }}
-                >
-                  Selesai Pengujian
                 </Button>,
               ];
           }
@@ -764,6 +739,27 @@ const LaboratoryTesting: React.FC = () => {
 
   const mockData: TestingRecord[] = [
     {
+      id: '4',
+      sample_id: 'SMPL-20250806-005',
+      order_number: 'SO-20250806-005',
+      sample_type: 'Gasoline',
+      vessel_name: 'MT. Navigator',
+      tank_number: 'T.405',
+      received_date: '2025-08-06',
+      testing_status: 'shipped',
+      lab_technician: 'Dr. Siti Rahayu',
+      equipment_used: '',
+      test_parameters: ['octane_rating', 'density', 'vapor_pressure'],
+      test_results: {},
+      progress_percentage: 20,
+      priority: 'normal',
+      estimated_completion: '2025-08-08 14:00',
+      quality_notes:
+        'Sample shipped to external laboratory for specialized testing',
+      created_at: '2025-08-06 13:00:00',
+      updated_at: '2025-08-06 16:00:00',
+    },
+    {
       id: '1',
       sample_id: 'SMPL-20250806-001',
       order_number: 'SO-20250806-001',
@@ -780,7 +776,30 @@ const LaboratoryTesting: React.FC = () => {
         viscosity: { value: 1.5, unit: 'cSt', status: 'pass' },
         density: { value: 800, unit: 'kg/m³', status: 'pass' },
       },
-      progress_percentage: 50,
+      progress_percentage: 40,
+      priority: 'urgent',
+      estimated_completion: '2025-08-06 18:00',
+      created_at: '2025-08-06 10:00:00',
+      updated_at: '2025-08-06 14:30:00',
+    },
+    {
+      id: '1',
+      sample_id: 'SMPL-20250806-001',
+      order_number: 'SO-20250806-001',
+      sample_type: 'JET A-1',
+      vessel_name: 'MT. Commodore One',
+      tank_number: 'T.107',
+      received_date: '2025-08-06',
+      testing_status: 'pending',
+      lab_technician: 'Dr. Ahmad Laboratorium',
+      equipment_used: 'Viscometer Alat A',
+      test_parameters: ['water_content', 'viscosity', 'density', 'flash_point'],
+      test_results: {
+        water_content: { value: 25, unit: 'ppm', status: 'pass' },
+        viscosity: { value: 1.5, unit: 'cSt', status: 'pass' },
+        density: { value: 800, unit: 'kg/m³', status: 'pass' },
+      },
+      progress_percentage: 60,
       priority: 'urgent',
       estimated_completion: '2025-08-06 18:00',
       created_at: '2025-08-06 10:00:00',
@@ -822,33 +841,12 @@ const LaboratoryTesting: React.FC = () => {
         flash_point: { value: 42, unit: '°C', status: 'pass' },
         density: { value: 820, unit: 'kg/m³', status: 'pass' },
       },
-      progress_percentage: 100,
+      progress_percentage: 90,
       priority: 'normal',
       estimated_completion: '2025-08-05 16:00',
       actual_completion: '2025-08-05 15:30',
       created_at: '2025-08-05 09:00:00',
       updated_at: '2025-08-05 15:30:00',
-    },
-    {
-      id: '4',
-      sample_id: 'SMPL-20250806-005',
-      order_number: 'SO-20250806-005',
-      sample_type: 'Gasoline',
-      vessel_name: 'MT. Navigator',
-      tank_number: 'T.405',
-      received_date: '2025-08-06',
-      testing_status: 'shipped',
-      lab_technician: 'Dr. Siti Rahayu',
-      equipment_used: '',
-      test_parameters: ['octane_rating', 'density', 'vapor_pressure'],
-      test_results: {},
-      progress_percentage: 25,
-      priority: 'normal',
-      estimated_completion: '2025-08-08 14:00',
-      quality_notes:
-        'Sample shipped to external laboratory for specialized testing',
-      created_at: '2025-08-06 13:00:00',
-      updated_at: '2025-08-06 16:00:00',
     },
   ];
 
