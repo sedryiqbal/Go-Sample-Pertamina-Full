@@ -692,38 +692,6 @@ const Comparison: React.FC = () => {
                 COQ
               </Button>
             </Tooltip>
-
-            <Tooltip title="Lab Tester">
-              <Button
-                type={
-                  record.lab_tester_status === 'completed'
-                    ? 'default'
-                    : 'primary'
-                }
-                size="small"
-                icon={<FileDoneOutlined />}
-                onClick={() => handleLabTester(record)}
-                style={{
-                  flex: 1,
-                  fontSize: '11px',
-                  height: 28,
-                  backgroundColor:
-                    record.lab_tester_status === 'completed'
-                      ? '#f0f0f0'
-                      : '#fa8c16',
-                  borderColor:
-                    record.lab_tester_status === 'completed'
-                      ? '#d9d9d9'
-                      : '#fa8c16',
-                  color:
-                    record.lab_tester_status === 'completed'
-                      ? '#8c8c8c'
-                      : '#fff',
-                }}
-              >
-                Lab
-              </Button>
-            </Tooltip>
           </div>
 
           {/* Generate Comparison / View Results Button */}
