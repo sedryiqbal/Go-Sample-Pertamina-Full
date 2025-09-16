@@ -53,25 +53,20 @@ export default {
   // Go Sample specific menus
   'menu.management': 'Management',
   'menu.management.users': 'User Management',
-  'menu.management.ships': 'Ship Management',
-  'menu.management.laboratories': 'Laboratory Management',
   'menu.management.roles': 'Role Management',
 
   'menu.sample': 'Sample',
   'menu.sample.estimation': 'Sample Estimation',
   'menu.sample.order': 'Sample Order',
 
+  'menu.ships': 'Ship Management',
+
   'menu.shipping': 'Shipping',
 
   'menu.estimate-scheduling-sample': 'Estimate Scheduling Sample',
 
-  'menu.request-order': 'Request Order',
-
   'menu.laboratory': 'Laboratory',
-  'menu.laboratory.testing': 'Testing',
-  'menu.laboratory.testing-detail': 'Testing Detail',
-  'menu.laboratory.analysis': 'Result Analysis',
-  'menu.laboratory.verification': 'Verification',
+  'menu.testing-detail': 'Testing Detail',
 
   'menu.comparison': 'Comparison',
   'menu.comparison.quality-check': 'Product Quality Check',
