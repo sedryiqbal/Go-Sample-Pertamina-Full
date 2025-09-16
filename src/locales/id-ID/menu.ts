@@ -54,25 +54,20 @@ export default {
   // Go Sample specific menus
   'menu.management': 'Manajemen',
   'menu.management.users': 'Manajemen User',
-  'menu.management.ships': 'Manajemen Kapal',
-  'menu.management.laboratories': 'Manajemen Laboratorium',
   'menu.management.roles': 'Manajemen Role',
 
   'menu.sample': 'Sample',
   'menu.sample.estimation': 'Estimasi Sample',
   'menu.sample.order': 'Sample Order',
 
+  'menu.ships': 'Manajemen Kapal',
+
   'menu.shipping': 'Shipping',
 
   'menu.estimate-scheduling-sample': 'Estimate Scheduling Sample',
 
-  'menu.request-order': 'Request Order',
-
   'menu.laboratory': 'Laboratorium',
-  'menu.laboratory.testing': 'Pengujian',
-  'menu.laboratory.testing-detail': 'Detail Pengujian',
-  'menu.laboratory.analysis': 'Analisa Hasil',
-  'menu.laboratory.verification': 'Verifikasi',
+  'menu.testing-detail': 'Detail Pengujian',
 
   'menu.comparison': 'Komparasi',
   'menu.comparison.quality-check': 'Product Quality Check',

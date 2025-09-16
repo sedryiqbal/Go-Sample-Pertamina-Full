@@ -1,6 +1,17 @@
 ﻿/**
  * @name Umi route configuration
- * @description Only supports configuration for path, component, routes, redirect, wrappers, name, and icon.
+ * @description Only supports configuration for path,   {
+    path: '/laboratory/testing',
+    name: 'laboratory',
+    icon: 'experiment',
+    component: './laboratory/testing',
+  },
+  {
+    path: '/laboratory/testing/detail/:id',
+    name: 'testing-detail',
+    component: './laboratory/testing/detail',
+    hideInMenu: true,
+  },redirect, wrappers, name, and icon.
  * @param path  The path only supports two types of placeholders: dynamic parameters in the form of :id, and the * wildcard, which can only appear at the end of the route string.
  * @param component The React component path to render when the location matches the path. Can be an absolute or relative path. If relative, it will be resolved from src/pages.
  * @param routes Configure sub-routes, usually used when you need to add a layout component for multiple paths.
@@ -45,24 +56,18 @@ export default [
         component: './management/users',
       },
       {
-        name: 'ships',
-        icon: 'car',
-        path: '/management/ships',
-        component: './management/ships',
-      },
-      {
-        name: 'laboratories',
-        icon: 'experiment',
-        path: '/management/laboratories',
-        component: './management/laboratories',
-      },
-      {
         name: 'roles',
         icon: 'safety',
         path: '/management/roles',
         component: './management/roles',
       },
     ],
+  },
+  {
+    path: '/ships',
+    name: 'ships',
+    icon: 'RocketOutlined',
+    component: './ships',
   },
   {
     path: '/sample',
@@ -83,6 +88,7 @@ export default [
       },
     ],
   },
+
   {
     path: '/shipping',
     name: 'Shipping',
@@ -99,32 +105,13 @@ export default [
     path: '/laboratory',
     name: 'laboratory',
     icon: 'experiment',
-    routes: [
-      {
-        name: 'Sample Testing',
-        icon: 'interaction',
-        path: '/laboratory/testing',
-        component: './laboratory/testing',
-      },
-      {
-        path: '/laboratory/testing/detail/:id',
-        name: 'testing-detail',
-        component: './laboratory/testing/detail',
-        hideInMenu: true,
-      },
-    ],
+    component: './laboratory/testing',
   },
   {
     path: '/comparison',
     name: 'comparison',
     icon: 'diff',
     component: './comparison',
-  },
-  {
-    path: '/request-order',
-    name: 'request-order',
-    icon: 'form',
-    component: './request-order',
   },
   {
     path: '/monitoring',
