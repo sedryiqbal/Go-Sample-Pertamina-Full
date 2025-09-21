@@ -1,0 +1,150 @@
+export interface TestParameter {
+  name: string;
+  key: string;
+  unit: string;
+  standard: string;
+  min: number;
+  max: number;
+  method: string;
+}
+
+export const TEST_PARAMETERS: TestParameter[] = [
+  {
+    name: 'Distillation',
+    key: 'distillation',
+    unit: '%vol',
+    standard: 'ASTM D86-17',
+    min: 0,
+    max: 100,
+    method: 'ASTM D86-17',
+  },
+  {
+    name: 'IBP',
+    key: 'ibp',
+    unit: '°C',
+    standard: 'ASTM D86-17',
+    min: 100,
+    max: 200,
+    method: 'ASTM D86-17',
+  },
+  {
+    name: '10%',
+    key: 'ten_percent',
+    unit: '°C',
+    standard: '',
+    min: 120,
+    max: 180,
+    method: 'ASTM D86-17',
+  },
+  {
+    name: '50%',
+    key: 'fifty_percent',
+    unit: '°C',
+    standard: '',
+    min: 150,
+    max: 220,
+    method: 'ASTM D86-17',
+  },
+  {
+    name: '90%',
+    key: 'ninety_percent',
+    unit: '°C',
+    standard: '',
+    min: 180,
+    max: 250,
+    method: 'ASTM D86-17',
+  },
+  {
+    name: 'FBP',
+    key: 'fbp',
+    unit: '°C',
+    standard: '',
+    min: 200,
+    max: 300,
+    method: 'ASTM D86-17',
+  },
+  {
+    name: 'Residue',
+    key: 'residue',
+    unit: '%vol',
+    standard: '',
+    min: 0,
+    max: 5,
+    method: 'ASTM D86-17',
+  },
+  {
+    name: 'Loss',
+    key: 'loss',
+    unit: '%vol',
+    standard: '',
+    min: 0,
+    max: 2,
+    method: 'ASTM D86-17',
+  },
+  {
+    name: 'Flash Point Abel',
+    key: 'flash_point_abel',
+    unit: '°C',
+    standard: 'BS EN ISO 13736:2008',
+    min: 38,
+    max: 100,
+    method: 'BS EN ISO 13736:2008',
+  },
+  {
+    name: 'Density at 15°C',
+    key: 'density_15c',
+    unit: 'kg/m³',
+    standard: 'ASTM D4052-22',
+    min: 775,
+    max: 840,
+    method: 'ASTM D4052-22',
+  },
+  {
+    name: 'Freezing Point',
+    key: 'freezing_point',
+    unit: '°C',
+    standard: 'ASTM D2386-19',
+    min: -50,
+    max: -40,
+    method: 'ASTM D2386-19',
+  },
+  {
+    name: 'FSII-P.A with SDA',
+    key: 'fsii_pa_sda',
+    unit: 'mg/kg',
+    standard: 'ASTM D5006-22',
+    min: 0,
+    max: 200,
+    method: 'ASTM D5006-22',
+  },
+  {
+    name: 'Copper Strip Corrosion (2h/100°C)',
+    key: 'copper_strip_corrosion',
+    unit: 'class',
+    standard: 'ASTM D130-19',
+    min: 1,
+    max: 4,
+    method: 'ASTM D130-19',
+  },
+  {
+    name: 'Existent Gum (unwashed)',
+    key: 'existent_gum',
+    unit: 'mg/100ml',
+    standard: 'ASTM D381-22',
+    min: 0,
+    max: 7,
+    method: 'ASTM D381-22',
+  },
+];
+
+export const TESTING_STATUS_OPTIONS = [
+  { label: 'Received', value: 'received' },
+  { label: 'Registered', value: 'registered' },
+  { label: 'Testing', value: 'testing' },
+  { label: 'Waiting Equipment', value: 'waiting_equipment' },
+  { label: 'Completed', value: 'completed' },
+  { label: 'Failed', value: 'failed' },
+  { label: 'Pending', value: 'pending' },
+  { label: 'Shipped', value: 'shipped' },
+  { label: 'Proses', value: 'proses' },
+];
