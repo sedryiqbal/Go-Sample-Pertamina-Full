@@ -3,7 +3,6 @@ import {
   CloseCircleOutlined,
   ExperimentOutlined,
   EyeOutlined,
-  FileDoneOutlined,
   FileTextOutlined,
   SettingOutlined,
   SyncOutlined,
@@ -16,13 +15,22 @@ import {
   type ProColumns,
   ProTable,
 } from '@ant-design/pro-components';
-import { Button, Card, Col, message, Row, Statistic, Tag, Tooltip } from 'antd';
+import {
+  Badge,
+  Button,
+  Card,
+  Col,
+  message,
+  Row,
+  Statistic,
+  Tag,
+  Tooltip,
+} from 'antd';
 import dayjs from 'dayjs';
 import { useRef, useState } from 'react';
 import AverageCOQModal from '../../components/AverageCOQModal';
 import ComparisonTestModal from '../../components/ComparisonTestModal';
 import DetailModal from '../../components/DetailModal';
-import ProductQCModal from '../../components/ProductQCModal';
 
 // Interface untuk data comparison records
 interface ComparisonRecord {
@@ -38,6 +46,7 @@ interface ComparisonRecord {
   tank_value_status: 'not_started' | 'completed';
   lab_tester_status: 'not_started' | 'completed';
   comparison_test_status: 'not_started' | 'completed';
+  test_category: 'Short Test' | 'IBS' | 'CoA' | 'Soak Test';
   priority: 'normal' | 'urgent';
   created_at: string;
   updated_at: string;
@@ -51,7 +60,7 @@ interface ComparisonRecord {
 
 const Comparison: React.FC = () => {
   const actionRef = useRef<ActionType>(null);
-  const [productQCVisible, setProductQCVisible] = useState(false);
+  // Product QC action moved to Ship Management page
   const [averageCOQVisible, setAverageCOQVisible] = useState(false);
   const [comparisonTestVisible, setComparisonTestVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
@@ -74,6 +83,7 @@ const Comparison: React.FC = () => {
       tank_value_status: 'not_started',
       lab_tester_status: 'not_started',
       comparison_test_status: 'not_started',
+      test_category: 'Short Test',
       priority: 'urgent',
       created_at: '2025-09-06 10:00:00',
       updated_at: '2025-09-06 15:30:00',
@@ -91,6 +101,7 @@ const Comparison: React.FC = () => {
       tank_value_status: 'completed',
       lab_tester_status: 'completed',
       comparison_test_status: 'not_started',
+      test_category: 'IBS',
       priority: 'normal',
       created_at: '2025-09-06 11:00:00',
       updated_at: '2025-09-06 16:00:00',
@@ -111,6 +122,7 @@ const Comparison: React.FC = () => {
       tank_value_status: 'completed',
       lab_tester_status: 'completed',
       comparison_test_status: 'completed',
+      test_category: 'CoA',
       priority: 'normal',
       created_at: '2025-09-05 09:00:00',
       updated_at: '2025-09-05 17:45:00',
@@ -135,6 +147,7 @@ const Comparison: React.FC = () => {
       tank_value_status: 'completed',
       lab_tester_status: 'completed',
       comparison_test_status: 'completed',
+      test_category: 'Soak Test',
       priority: 'normal',
       created_at: '2025-09-04 08:00:00',
       updated_at: '2025-09-04 13:20:00',
@@ -156,6 +169,7 @@ const Comparison: React.FC = () => {
       tank_value_status: 'completed',
       lab_tester_status: 'completed',
       comparison_test_status: 'completed',
+      test_category: 'Short Test',
       priority: 'urgent',
       created_at: '2025-09-07 08:30:00',
       updated_at: '2025-09-07 15:20:00',
@@ -167,18 +181,7 @@ const Comparison: React.FC = () => {
   ];
 
   // Handler functions
-  const handleProductQC = (record: ComparisonRecord) => {
-    setSelectedRecord(record);
-    setProductQCVisible(true);
-  };
-
-  const handleProductQCSubmit = (data: any) => {
-    console.log('Product QC Data submitted:', data);
-    // Here you would normally save to backend
-    // Update the record status to completed
-    message.success('Product QC completed successfully!');
-    actionRef.current?.reload();
-  };
+  // Product QC handlers removed (moved to Ship Management)
 
   const handleInputTankValue = (record: ComparisonRecord) => {
     setSelectedRecord(record);
@@ -221,14 +224,13 @@ const Comparison: React.FC = () => {
   };
 
   const handleGenerateComparison = (record: ComparisonRecord) => {
-    // Check if all three prerequisites are completed
+    // Check if prerequisites are completed (Product QC moved to Ship Management)
     if (
-      record.product_qc_status !== 'completed' ||
       record.tank_value_status !== 'completed' ||
       record.lab_tester_status !== 'completed'
     ) {
       message.warning(
-        'Product QC, Average COQ, dan Lab Tester harus diselesaikan terlebih dahulu sebelum generate comparison',
+        'Average COQ dan Lab Tester harus diselesaikan terlebih dahulu sebelum generate comparison',
       );
       return;
     }
@@ -346,6 +348,22 @@ const Comparison: React.FC = () => {
     }
   };
 
+  const getTestCategoryStatus = (
+    category: ComparisonRecord['test_category'],
+  ) => {
+    switch (category) {
+      case 'Short Test':
+        return 'processing' as const;
+      case 'IBS':
+        return 'warning' as const;
+      case 'CoA':
+        return 'success' as const;
+      case 'Soak Test':
+      default:
+        return 'default' as const;
+    }
+  };
+
   const getTaskStatusIcon = (status: string) => {
     return status === 'completed' ? (
       <CheckCircleOutlined style={{ color: '#52c41a' }} />
@@ -355,7 +373,6 @@ const Comparison: React.FC = () => {
   };
 
   const getWorkflowStatusIcon = (record: ComparisonRecord) => {
-    const qcCompleted = record.product_qc_status === 'completed';
     const coqCompleted = record.tank_value_status === 'completed';
     const labTesterCompleted = record.lab_tester_status === 'completed';
     const comparisonCompleted = record.comparison_test_status === 'completed';
@@ -364,7 +381,7 @@ const Comparison: React.FC = () => {
       return (
         <CheckCircleOutlined style={{ color: '#722ed1', fontSize: '16px' }} />
       );
-    } else if (qcCompleted && coqCompleted && labTesterCompleted) {
+    } else if (coqCompleted && labTesterCompleted) {
       return (
         <ThunderboltOutlined style={{ color: '#fa8c16', fontSize: '16px' }} />
       );
@@ -374,14 +391,13 @@ const Comparison: React.FC = () => {
   };
 
   const getWorkflowStatusText = (record: ComparisonRecord) => {
-    const qcCompleted = record.product_qc_status === 'completed';
     const coqCompleted = record.tank_value_status === 'completed';
     const labTesterCompleted = record.lab_tester_status === 'completed';
     const comparisonCompleted = record.comparison_test_status === 'completed';
 
     if (comparisonCompleted) {
       return { text: 'Results Available', color: '#722ed1' };
-    } else if (qcCompleted && coqCompleted && labTesterCompleted) {
+    } else if (coqCompleted && labTesterCompleted) {
       return { text: 'Ready to Generate', color: '#fa8c16' };
     } else {
       return { text: 'Pending Prerequisites', color: '#8c8c8c' };
@@ -490,7 +506,7 @@ const Comparison: React.FC = () => {
             borderRadius: 6,
           }}
         >
-          {record.priority.toUpperCase()}
+          {record.priority}
         </Tag>
       ),
       filters: [
@@ -499,17 +515,29 @@ const Comparison: React.FC = () => {
       ],
     },
     {
+      title: 'Test Category',
+      dataIndex: 'test_category',
+      key: 'test_category',
+      width: 140,
+      render: (_, record) => (
+        <Badge
+          status={getTestCategoryStatus(record.test_category)}
+          text={record.test_category}
+        />
+      ),
+      filters: [
+        { text: 'Short Test', value: 'Short Test' },
+        { text: 'IBS', value: 'IBS' },
+        { text: 'CoA', value: 'CoA' },
+        { text: 'Soak Test', value: 'Soak Test' },
+      ],
+    },
+    {
       title: 'Task Status',
       key: 'task_status',
-      width: 180,
+      width: 160,
       render: (_, record) => (
         <div>
-          <div
-            style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}
-          >
-            {getTaskStatusIcon(record.product_qc_status)}
-            <span style={{ marginLeft: 8, fontSize: '12px' }}>Product QC</span>
-          </div>
           <div
             style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}
           >
@@ -554,8 +582,8 @@ const Comparison: React.FC = () => {
               <div style={{ fontSize: '10px', color: '#8c8c8c' }}>
                 {record.comparison_test_status === 'completed'
                   ? 'Click View Results'
-                  : record.product_qc_status === 'completed' &&
-                      record.tank_value_status === 'completed'
+                  : record.tank_value_status === 'completed' &&
+                      record.lab_tester_status === 'completed'
                     ? 'Click Generate'
                     : 'Complete tasks first'}
               </div>
@@ -630,37 +658,7 @@ const Comparison: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {/* Primary Action Buttons */}
           <div style={{ display: 'flex', gap: 4 }}>
-            <Tooltip title="Product QC">
-              <Button
-                type={
-                  record.product_qc_status === 'completed'
-                    ? 'default'
-                    : 'primary'
-                }
-                size="small"
-                icon={<FileDoneOutlined />}
-                onClick={() => handleProductQC(record)}
-                style={{
-                  flex: 1,
-                  fontSize: '11px',
-                  height: 28,
-                  backgroundColor:
-                    record.product_qc_status === 'completed'
-                      ? '#f0f0f0'
-                      : '#1890ff',
-                  borderColor:
-                    record.product_qc_status === 'completed'
-                      ? '#d9d9d9'
-                      : '#1890ff',
-                  color:
-                    record.product_qc_status === 'completed'
-                      ? '#8c8c8c'
-                      : '#fff',
-                }}
-              >
-                QC
-              </Button>
-            </Tooltip>
+            {/* Product QC action moved to Ship Management */}
             <Tooltip title="Average COQ">
               <Button
                 type={
@@ -716,10 +714,9 @@ const Comparison: React.FC = () => {
           ) : (
             <Tooltip
               title={
-                record.product_qc_status !== 'completed' ||
                 record.tank_value_status !== 'completed' ||
                 record.lab_tester_status !== 'completed'
-                  ? 'Selesaikan Product QC, Average COQ, dan Lab Tester terlebih dahulu'
+                  ? 'Selesaikan Average COQ dan Lab Tester terlebih dahulu'
                   : 'Generate hasil komparasi otomatis'
               }
             >
@@ -729,7 +726,6 @@ const Comparison: React.FC = () => {
                 icon={<ThunderboltOutlined />}
                 onClick={() => handleGenerateComparison(record)}
                 disabled={
-                  record.product_qc_status !== 'completed' ||
                   record.tank_value_status !== 'completed' ||
                   record.lab_tester_status !== 'completed'
                 }
@@ -737,19 +733,16 @@ const Comparison: React.FC = () => {
                   fontSize: '11px',
                   height: 28,
                   backgroundColor:
-                    record.product_qc_status !== 'completed' ||
                     record.tank_value_status !== 'completed' ||
                     record.lab_tester_status !== 'completed'
                       ? '#f0f0f0'
                       : '#fa8c16',
                   borderColor:
-                    record.product_qc_status !== 'completed' ||
                     record.tank_value_status !== 'completed' ||
                     record.lab_tester_status !== 'completed'
                       ? '#d9d9d9'
                       : '#fa8c16',
                   color:
-                    record.product_qc_status !== 'completed' ||
                     record.tank_value_status !== 'completed' ||
                     record.lab_tester_status !== 'completed'
                       ? '#8c8c8c'
@@ -890,16 +883,7 @@ const Comparison: React.FC = () => {
         }}
       />
 
-      {/* Product QC Modal */}
-      <ProductQCModal
-        visible={productQCVisible}
-        onClose={() => {
-          setProductQCVisible(false);
-          setSelectedRecord(null);
-        }}
-        sampleData={selectedRecord}
-        onSubmit={handleProductQCSubmit}
-      />
+      {/* Product QC moved to Ship Management */}
 
       {/* Average COQ Modal */}
       <AverageCOQModal

@@ -428,10 +428,13 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
     try {
       const formValues = await form.validateFields();
 
-      const productQCData: ProductQCData = {
+      const productQCData: ProductQCData & {
+        calculatedResults?: typeof calculatedResults;
+      } = {
         ...formValues,
         port_data: portData,
         starboard_data: starboardData,
+        calculatedResults,
       };
 
       onSubmit(productQCData);

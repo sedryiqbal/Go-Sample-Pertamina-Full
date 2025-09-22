@@ -70,6 +70,12 @@ export default [
     component: './ships',
   },
   {
+    path: '/stadis',
+    name: 'stadis',
+    icon: 'BgColorsOutlined',
+    component: './stadis',
+  },
+  {
     path: '/sample',
     name: 'Sample',
     icon: 'database',

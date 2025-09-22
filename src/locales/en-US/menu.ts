@@ -60,7 +60,7 @@ export default {
   'menu.sample.order': 'Sample Order',
 
   'menu.ships': 'Ship Management',
-
+  'menu.stadis': 'Stadis Management',
   'menu.shipping': 'Shipping',
 
   'menu.estimate-scheduling-sample': 'Estimate Scheduling Sample',

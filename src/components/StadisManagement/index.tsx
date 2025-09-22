@@ -8,6 +8,7 @@ import {
   Card,
   Drawer,
   Form,
+  Input,
   InputNumber,
   message,
   Space,
@@ -121,6 +122,21 @@ const StadisManagement: React.FC<StadisManagementProps> = ({
           last_updated: new Date().toISOString(),
           status: getStockStatus(values.current_stock),
         };
+
+        // Create audit log entry for this change
+        const auditEntry: AuditLog = {
+          id: Date.now().toString(),
+          action: 'Stock Update',
+          previous_stock: stadisData.current_stock,
+          new_stock: values.current_stock,
+          user: 'Current User', // This should come from authentication context
+          timestamp: new Date().toISOString(),
+          notes: values.notes,
+        };
+
+        // In a real app, you would save the audit log to backend
+        console.log('Audit Log:', auditEntry);
+
         onUpdate(updatedData);
         message.success('Stock stadis berhasil diperbarui');
         onClose();
@@ -194,7 +210,7 @@ const StadisManagement: React.FC<StadisManagementProps> = ({
         <Statistic
           title=""
           value={currentStock}
-          suffix={`/ ${stadisData.max_capacity} unit`}
+          suffix={`/ ${stadisData.max_capacity} pail`}
           valueStyle={{
             fontSize: '32px',
             fontWeight: 'bold',
@@ -262,7 +278,7 @@ const StadisManagement: React.FC<StadisManagementProps> = ({
               Batas Min
             </div>
             <div style={{ fontSize: '14px', fontWeight: '500', color: '#333' }}>
-              {stadisData.min_threshold} unit
+              {stadisData.min_threshold} pail
             </div>
           </div>
         </div>
@@ -290,7 +306,7 @@ const StadisManagement: React.FC<StadisManagementProps> = ({
                 type: 'number',
                 min: 0,
                 max: stadisData.max_capacity,
-                message: `Stock harus antara 0 - ${stadisData.max_capacity}`,
+                message: `Stock harus antara 0 - ${stadisData.max_capacity} pail`,
               },
             ]}
           >
@@ -305,7 +321,23 @@ const StadisManagement: React.FC<StadisManagementProps> = ({
                 padding: '8px 12px',
                 textAlign: 'center',
               }}
-              placeholder={`Masukkan jumlah stock (0 - ${stadisData.max_capacity})`}
+              placeholder={`Masukkan jumlah stock (0 - ${stadisData.max_capacity} pail)`}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="notes"
+            label="Catatan Perubahan"
+            rules={[
+              { required: true, message: 'Catatan perubahan wajib diisi' },
+            ]}
+          >
+            <Input.TextArea
+              rows={3}
+              placeholder="Masukkan catatan untuk perubahan stock ini (alasan, sumber, dll.)"
+              style={{
+                fontSize: '14px',
+              }}
             />
           </Form.Item>
 
@@ -332,7 +364,7 @@ const StadisManagement: React.FC<StadisManagementProps> = ({
                 </div>
                 <div style={{ marginTop: '2px', fontSize: '12px' }}>
                   Stock berada di bawah batas minimum (
-                  {stadisData.min_threshold} unit)
+                  {stadisData.min_threshold} pail)
                 </div>
               </div>
             </div>
@@ -358,7 +390,7 @@ const StadisManagement: React.FC<StadisManagementProps> = ({
                 <div style={{ fontWeight: '500' }}>Informasi Kapasitas</div>
                 <div style={{ marginTop: '2px', fontSize: '12px' }}>
                   Stock mendekati kapasitas maksimal ({stadisData.max_capacity}{' '}
-                  unit)
+                  pail)
                 </div>
               </div>
             </div>

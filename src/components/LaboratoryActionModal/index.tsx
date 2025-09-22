@@ -61,6 +61,7 @@ interface LaboratoryActionModalProps {
   actionType: ActionType;
   record?: TestingRecord;
   onSubmit: (actionType: ActionType, data: any) => void;
+  onSave?: (actionType: ActionType, data: any) => void;
 }
 
 const useStyles = createStyles(({ token }) => {
@@ -94,11 +95,13 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
   actionType,
   record,
   onSubmit,
+  onSave,
 }) => {
   const { styles } = useStyles();
   const [form] = Form.useForm();
   const [isUrgent, setIsUrgent] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<string>();
+  const [isSaving, setIsSaving] = useState(false);
 
   // Equipment options with availability status
   const equipmentOptions = [
@@ -363,6 +366,37 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
     }
   };
 
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      // Get form values without validation (allow empty fields for save)
+      const values = form.getFieldsValue();
+
+      // Format data for saving
+      const formattedData = {
+        ...values,
+        sample_id: record?.sample_id,
+        timestamp: dayjs().toISOString(),
+        actionType,
+        is_temporary: true, // Flag untuk data sementara
+      };
+
+      // Special formatting for test results
+      if (actionType === 'input_result' && values.test_results_detailed) {
+        formattedData.test_results = values.test_results_detailed;
+      }
+
+      if (onSave) {
+        await onSave(actionType, formattedData);
+        message.success('Data berhasil disimpan sementara');
+      }
+    } catch (error: any) {
+      message.error('Gagal menyimpan data');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSubmit = async (values: any) => {
     try {
       // Format data based on action type
@@ -371,6 +405,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
         sample_id: record?.sample_id,
         timestamp: dayjs().toISOString(),
         actionType,
+        is_temporary: false, // Flag untuk data final
       };
 
       // Special formatting for different action types
@@ -446,7 +481,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
         type: 'warning' as const,
         message: 'Input Hasil Pengujian',
         description:
-          'Pastikan semua parameter telah diuji sesuai dengan standar yang berlaku. Data akan divalidasi secara otomatis.',
+          'Gunakan tombol "Save" untuk menyimpan data sementara (meskipun belum lengkap), atau "Konfirmasi & Lanjutkan" untuk menyelesaikan dan melanjutkan ke tahap selanjutnya. Pastikan semua parameter telah diuji sesuai dengan standar yang berlaku sebelum konfirmasi.',
       },
       complete_test: {
         type: 'success' as const,
@@ -487,12 +522,27 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
       extra={
         <Space>
           <Button onClick={onClose}>Batal</Button>
+          {actionType === 'input_result' && onSave && (
+            <Button
+              onClick={handleSave}
+              loading={isSaving}
+              style={{
+                backgroundColor: '#52c41a',
+                borderColor: '#52c41a',
+                color: 'white',
+              }}
+            >
+              Save
+            </Button>
+          )}
           <Button
             type="primary"
             onClick={() => form.submit()}
             style={{ backgroundColor: config.color, borderColor: config.color }}
           >
-            Konfirmasi
+            {actionType === 'input_result'
+              ? 'Konfirmasi & Lanjutkan'
+              : 'Konfirmasi'}
           </Button>
         </Space>
       }
@@ -613,22 +663,6 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
           </Form.Item>
         )}
 
-        {/* Priority Notes for Confirm Sample */}
-        {config.fields.includes('priority_notes') && (
-          <Form.Item
-            name="priority_notes"
-            label="Catatan Prioritas & Kondisi Sampel"
-            tooltip="Dokumentasikan kondisi fisik sampel dan tingkat prioritas"
-          >
-            <TextArea
-              rows={2}
-              placeholder="Contoh: Sampel dalam kondisi baik, prioritas normal, tidak ada kontaminasi visual"
-              showCount
-              maxLength={200}
-            />
-          </Form.Item>
-        )}
-
         {/* Estimated Completion for Waiting Test */}
         {config.fields.includes('estimated_completion') && (
           <Row gutter={16}>
@@ -656,115 +690,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
-              <Form.Item
-                name="urgency"
-                label="Pengujian Mendesak"
-                valuePropName="checked"
-                tooltip="Centang jika pengujian memerlukan prioritas tinggi"
-              >
-                <Switch
-                  checkedChildren="Urgent"
-                  unCheckedChildren="Normal"
-                  onChange={setIsUrgent}
-                />
-              </Form.Item>
-            </Col>
           </Row>
-        )}
-
-        {/* Estimasi Durasi Pengujian */}
-        {(config.fields.includes('estimated_completion') ||
-          config.fields.includes('equipment_needed')) && (
-          <Form.Item
-            name="estimated_duration"
-            label="Estimasi Durasi Pengujian"
-            tooltip="Perkiraan berapa lama pengujian akan berlangsung (dalam jam)"
-          >
-            <Row gutter={8}>
-              <Col span={18}>
-                <Input
-                  type="number"
-                  min={1}
-                  max={72}
-                  placeholder="Masukkan estimasi durasi"
-                  addonAfter="jam"
-                />
-              </Col>
-              <Col span={6}>
-                <Button
-                  icon={<CalculatorOutlined />}
-                  onClick={() => {
-                    // Auto calculate based on selected test parameters
-                    const baseHours = testParameters.length * 0.5; // 30 minutes per parameter
-                    const complexityFactor = isUrgent ? 0.8 : 1.2; // Urgent = faster, normal = more thorough
-                    const estimatedHours = Math.ceil(
-                      baseHours * complexityFactor,
-                    );
-                    form.setFieldsValue({ estimated_duration: estimatedHours });
-                    message.info(`Estimasi otomatis: ${estimatedHours} jam`);
-                  }}
-                  title="Auto calculate"
-                >
-                  Auto
-                </Button>
-              </Col>
-            </Row>
-          </Form.Item>
-        )}
-
-        {/* Equipment Selection */}
-        {config.fields.includes('equipment_needed') && (
-          <Form.Item
-            name="equipment_needed"
-            label="Equipment yang Diperlukan"
-            rules={[
-              {
-                required: true,
-                message: 'Equipment wajib dipilih',
-              },
-            ]}
-            tooltip="Pilih equipment berdasarkan jenis pengujian yang akan dilakukan"
-          >
-            <Select
-              placeholder="Pilih equipment untuk pengujian"
-              onChange={setSelectedEquipment}
-              optionRender={(option) => (
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <span>{option.label}</span>
-                  <Tag
-                    color={
-                      equipmentOptions.find((eq) => eq.value === option.value)
-                        ?.available
-                        ? 'green'
-                        : 'red'
-                    }
-                  >
-                    {equipmentOptions.find((eq) => eq.value === option.value)
-                      ?.available
-                      ? 'Tersedia'
-                      : 'Tidak Tersedia'}
-                  </Tag>
-                </div>
-              )}
-            >
-              {equipmentOptions.map((equipment) => (
-                <Select.Option
-                  key={equipment.value}
-                  value={equipment.value}
-                  disabled={!equipment.available}
-                >
-                  {equipment.label}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
         )}
 
         {/* Technician Notes */}
@@ -859,12 +785,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
                   <Form.Item
                     name={['test_results_detailed', param.key, 'value']}
                     style={{ margin: 0 }}
-                    rules={[
-                      {
-                        required: true,
-                        message: `${param.name} wajib diisi`,
-                      },
-                    ]}
+                    rules={[]}
                   >
                     <InputNumber
                       min={param.min}
