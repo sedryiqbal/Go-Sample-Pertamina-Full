@@ -632,56 +632,6 @@ const Monitoring: React.FC = () => {
           fullScreen: true,
         }}
       />
-
-      {/* Real-time Status Updates */}
-      <Card
-        title="Live Status Updates"
-        size="small"
-        extra={
-          <Tag color="success">
-            <SyncOutlined spin /> Live
-          </Tag>
-        }
-      >
-        <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-          {mockData
-            .sort(
-              (a, b) =>
-                dayjs(b.last_update).unix() - dayjs(a.last_update).unix(),
-            )
-            .slice(0, 5)
-            .map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  padding: '8px 0',
-                  borderBottom: '1px solid #f0f0f0',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div>
-                  <span style={{ fontWeight: 500 }}>
-                    {item.tracking_number}
-                  </span>
-                  <span style={{ margin: '0 8px', color: '#666' }}>•</span>
-                  <Badge
-                    status={getStatusColor(item.current_status)}
-                    text={getStatusLabel(item.current_status)}
-                  />
-                  <span style={{ margin: '0 8px', color: '#666' }}>•</span>
-                  <span style={{ fontSize: '12px', color: '#666' }}>
-                    {item.current_location}
-                  </span>
-                </div>
-                <span style={{ fontSize: '12px', color: '#666' }}>
-                  {dayjs(item.last_update).format('HH:mm')}
-                </span>
-              </div>
-            ))}
-        </div>
-      </Card>
     </PageContainer>
   );
 };

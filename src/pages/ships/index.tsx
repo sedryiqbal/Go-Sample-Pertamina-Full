@@ -4,6 +4,8 @@ import {
   DeleteOutlined,
   EditOutlined,
   EnvironmentOutlined,
+  FileDoneOutlined,
+  FileTextOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
@@ -27,6 +29,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
+import ProductQCModal from '../../components/ProductQCModal';
 
 interface ShipRecord {
   id: string;
@@ -54,6 +57,9 @@ interface ShipRecord {
 
 const Ships: React.FC = () => {
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [qcModalVisible, setQcModalVisible] = useState(false);
+  const [qcShip, setQcShip] = useState<ShipRecord | null>(null);
+  const [qcDataByShip, setQcDataByShip] = useState<Record<string, any>>({});
   const [editingRecord, setEditingRecord] = useState<ShipRecord | undefined>();
   const actionRef = useRef<ActionType>(null);
   const [form] = Form.useForm();
@@ -106,6 +112,174 @@ const Ships: React.FC = () => {
         : null,
     });
     setDrawerVisible(true);
+  };
+
+  const handleOpenQC = (record: ShipRecord) => {
+    setQcShip(record);
+    setQcModalVisible(true);
+  };
+
+  const handleSubmitQC = (data: any) => {
+    if (!qcShip) return;
+    setQcDataByShip((prev) => ({ ...prev, [qcShip.id]: data }));
+    message.success('Product QC untuk kapal berhasil disimpan');
+    setQcModalVisible(false);
+    setQcShip(null);
+  };
+
+  const openQCPdfWindow = (ship: ShipRecord, data: any) => {
+    const win = window.open('', '_blank');
+    if (!win) {
+      message.error('Popup diblokir. Izinkan popup untuk generate PDF.');
+      return;
+    }
+
+    const style = `
+      <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, Segoe UI, Roboto, Arial; color: #262626; margin: 24px; }
+        .header { display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid #e8e8e8; padding-bottom:12px; margin-bottom:16px; }
+        .title { font-size:18px; font-weight:700; color:#111; }
+        .meta { font-size:12px; color:#666; }
+        .section { margin-top:16px; }
+        .section h3 { margin:0 0 8px 0; font-size:14px; color:#111; }
+        table { width:100%; border-collapse: collapse; font-size:12px; }
+        th, td { border:1px solid #e8e8e8; padding:6px 8px; text-align:center; }
+        th { background:#fafafa; font-weight:600; }
+        .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .card { border:1px solid #e8e8e8; border-radius:8px; padding:12px; }
+        .muted { color:#666; }
+        .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        @media print {.noprint{ display:none; }}
+      </style>
+    `;
+
+    const formatNumber = (v: any, d = 3) =>
+      (v ?? '-') === '-'
+        ? '-'
+        : Number(v).toLocaleString(undefined, { maximumFractionDigits: d });
+
+    const rows = (records: any[]) =>
+      records
+        .map(
+          (r, i) => `
+          <tr>
+            <td><b>${i + 1}</b></td>
+            <td>${r.free_water || '-'}</td>
+            <td>${r.suspended_water || '-'}</td>
+            <td>${formatNumber(r.electrical_conductivity, 0)}</td>
+            <td>${formatNumber(r.temperature_observed, 1)}</td>
+            <td>${formatNumber(r.density_observed, 4)}</td>
+            <td>${formatNumber(r.density_15c, 4)}</td>
+            <td>${formatNumber(r.volume_liters, 3)}</td>
+            <td>${formatNumber(r.dens_15c_x_volume, 3)}</td>
+          </tr>
+        `,
+        )
+        .join('');
+
+    const html = `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Product QC - ${ship.vessel_name}</title>
+          ${style}
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="title">PRODUCT QUALITY CHECK – BEFORE DISCHARGE</div>
+              <div class="meta">Kapal: <b>${ship.vessel_name} (${ship.vessel_code})</b> &nbsp;•&nbsp; Muatan: <b>${ship.cargo_type}</b></div>
+              <div class="meta">Kedatangan: ${ship.arrival_date || '-'} &nbsp;•&nbsp; Lokasi: ${ship.berth_location}</div>
+            </div>
+            <div class="muted">Generated at ${new Date().toLocaleString()}</div>
+          </div>
+
+          <div class="section grid">
+            <div class="card">
+              <h3>Informasi Tanker</h3>
+              <table>
+                <tr><th style="text-align:left;">Name of Tanker</th><td style="text-align:left;">${data.name_of_tanker}</td></tr>
+                <tr><th style="text-align:left;">Arrival Date</th><td style="text-align:left;">${data.arrival_date}</td></tr>
+                <tr><th style="text-align:left;">Quantity in Batch</th><td style="text-align:left;">${formatNumber(data.quantity_in_batch, 0)} L</td></tr>
+                <tr><th style="text-align:left;">Voyage No.</th><td style="text-align:left;">${data.voyage_no}</td></tr>
+                <tr><th style="text-align:left;">RCoQ No.</th><td style="text-align:left;">${data.rcoq_no}</td></tr>
+                <tr><th style="text-align:left;">RCoQ Date</th><td style="text-align:left;">${data.rcoq_date}</td></tr>
+                <tr><th style="text-align:left;">Refinery/Terminal</th><td style="text-align:left;">${data.refinery_terminal}</td></tr>
+                <tr><th style="text-align:left;">Grade of Product</th><td style="text-align:left;">${data.grade_of_product}</td></tr>
+              </table>
+            </div>
+            <div class="card">
+              <h3>Ringkasan Perhitungan</h3>
+              <table>
+                <tr><th style="text-align:left;">Total (Dens@15°C × Volume)</th><td style="text-align:left;" class="kbd">${formatNumber(data.__calc?.total_volume_dens_15c ?? '-', 3)}</td></tr>
+                <tr><th style="text-align:left;">Total Volume</th><td style="text-align:left;" class="kbd">${formatNumber(data.__calc?.total_volume ?? '-', 3)} L</td></tr>
+                <tr><th style="text-align:left;">Expected Density</th><td style="text-align:left;" class="kbd">${formatNumber(data.__calc?.expected_density ?? '-', 1)} kg/m³</td></tr>
+                <tr><th style="text-align:left;">Refinery Certificate</th><td style="text-align:left;" class="kbd">${formatNumber(data.__calc?.refinery_certificate_density ?? '-', 0)} kg/m³</td></tr>
+                <tr><th style="text-align:left;">Difference (Max 3)</th><td style="text-align:left;" class="kbd">${formatNumber(data.__calc?.density_difference ?? '-', 1)} kg/m³</td></tr>
+              </table>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>Port Compartment</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Free Water</th>
+                  <th>Suspended Water</th>
+                  <th>EC (µS/m)</th>
+                  <th>Temp (°C)</th>
+                  <th>Density Obs</th>
+                  <th>Density @15°C</th>
+                  <th>Volume (L)</th>
+                  <th>D15 × V</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows(data.port_data || [])}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="section" style="page-break-inside: avoid;">
+            <h3>Starboard Compartment</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Free Water</th>
+                  <th>Suspended Water</th>
+                  <th>EC (µS/m)</th>
+                  <th>Temp (°C)</th>
+                  <th>Density Obs</th>
+                  <th>Density @15°C</th>
+                  <th>Volume (L)</th>
+                  <th>D15 × V</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows(data.starboard_data || [])}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="section noprint" style="text-align:right; margin-top:16px;">
+            <button onclick="window.print()" style="padding:8px 12px; border:1px solid #d9d9d9; background:#fafafa; border-radius:6px; cursor:pointer;">Print / Save as PDF</button>
+          </div>
+        </body>
+      </html>
+    `;
+
+    // attach simple calc summary if available
+    if (!data.__calc && data.calculatedResults) {
+      data.__calc = data.calculatedResults;
+    }
+
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
   };
 
   const handleDelete = (record: ShipRecord) => {
@@ -225,6 +399,20 @@ const Ships: React.FC = () => {
       ),
     },
     {
+      title: 'Product QC',
+      key: 'qc_status',
+      width: 130,
+      render: (_, record) => {
+        const hasQC = !!qcDataByShip[record.id];
+        return (
+          <Badge
+            status={hasQC ? 'success' : 'default'}
+            text={hasQC ? 'QC Done' : 'Not Yet'}
+          />
+        );
+      },
+    },
+    {
       title: 'Tipe Kapal',
       dataIndex: 'vessel_type',
       key: 'vessel_type',
@@ -316,28 +504,69 @@ const Ships: React.FC = () => {
     {
       title: 'Aksi',
       key: 'actions',
-      width: 120,
-      render: (_, record) => (
-        <Space>
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
+      width: 320,
+      render: (_, record) => {
+        const hasQC = !!qcDataByShip[record.id];
+        return (
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
           >
-            Edit
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-          >
-            Hapus
-          </Button>
-        </Space>
-      ),
+            <Space size={4}>
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => handleEdit(record)}
+              >
+                Edit
+              </Button>
+              <Button
+                type="link"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => handleDelete(record)}
+              >
+                Hapus
+              </Button>
+            </Space>
+            <Space size={4}>
+              <Button
+                size="small"
+                type={hasQC ? 'default' : 'primary'}
+                icon={<FileDoneOutlined />}
+                onClick={() => handleOpenQC(record)}
+                style={{ borderRadius: 16 }}
+              >
+                Product QC
+              </Button>
+              <Button
+                size="small"
+                icon={<FileTextOutlined />}
+                disabled={!hasQC}
+                onClick={() => {
+                  const data = qcDataByShip[record.id];
+                  if (!data) {
+                    message.warning(
+                      'Silakan simpan Product QC terlebih dahulu',
+                    );
+                    return;
+                  }
+                  openQCPdfWindow(record, data);
+                }}
+                style={{ borderRadius: 16 }}
+              >
+                PDF
+              </Button>
+            </Space>
+          </div>
+        );
+      },
     },
   ];
 
@@ -717,6 +946,22 @@ const Ships: React.FC = () => {
           </Form.Item>
         </Form>
       </Drawer>
+      <ProductQCModal
+        visible={qcModalVisible}
+        onClose={() => {
+          setQcModalVisible(false);
+          setQcShip(null);
+        }}
+        sampleData={
+          qcShip
+            ? {
+                vessel_name: qcShip.vessel_name,
+                sample_type: qcShip.cargo_type,
+              }
+            : undefined
+        }
+        onSubmit={handleSubmitQC}
+      />
     </PageContainer>
   );
 };
