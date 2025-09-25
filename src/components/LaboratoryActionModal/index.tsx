@@ -145,8 +145,8 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
   // Test result parameters with expected values - Updated to match the image
   const testParameters = [
     {
-      name: 'Distillation',
-      key: 'distillation',
+      name: 'Colour Saybolt',
+      key: 'colour_saybolt',
       unit: '%vol',
       standard: 'ASTM D86-17',
       min: 0,
@@ -154,7 +154,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
       method: 'ASTM D86-17',
     },
     {
-      name: 'IBP',
+      name: 'Distillation IBP',
       key: 'ibp',
       unit: '°C',
       standard: 'ASTM D86-17',
@@ -163,7 +163,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
       method: 'ASTM D86-17',
     },
     {
-      name: '10%',
+      name: 'Distillation 10%',
       key: 'ten_percent',
       unit: '°C',
       standard: '',
@@ -172,7 +172,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
       method: 'ASTM D86-17',
     },
     {
-      name: '50%',
+      name: 'Distillation 50%',
       key: 'fifty_percent',
       unit: '°C',
       standard: '',
@@ -181,7 +181,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
       method: 'ASTM D86-17',
     },
     {
-      name: '90%',
+      name: 'Distillation 90%',
       key: 'ninety_percent',
       unit: '°C',
       standard: '',
@@ -190,7 +190,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
       method: 'ASTM D86-17',
     },
     {
-      name: 'FBP',
+      name: 'Distillation Endpoint',
       key: 'fbp',
       unit: '°C',
       standard: '',
@@ -199,7 +199,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
       method: 'ASTM D86-17',
     },
     {
-      name: 'Residue',
+      name: 'Distillation Residue',
       key: 'residue',
       unit: '%vol',
       standard: '',
@@ -208,7 +208,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
       method: 'ASTM D86-17',
     },
     {
-      name: 'Loss',
+      name: 'Distillation Loss',
       key: 'loss',
       unit: '%vol',
       standard: '',

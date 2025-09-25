@@ -945,7 +945,7 @@ const SampleOrder: React.FC = () => {
                 rules={[{ required: true, message: 'Nomor NPC wajib diisi' }]}
                 tooltip="Nomor NPC (Notification of Product Control)"
               >
-                <Input placeholder="NPC/SO/2025/001" />
+                <Input placeholder="227/NPC/SKH/2025" />
               </Form.Item>
             </Col>
           </Row>
