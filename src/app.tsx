@@ -12,6 +12,7 @@ import {
   Question,
   SelectLang,
 } from '@/components';
+import { API_BASE_URL } from '@/config/api';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 import '@ant-design/v5-patch-for-react-19';
@@ -157,6 +158,6 @@ export const layout: RunTimeLayoutConfig = ({
  * @doc https://umijs.org/docs/max/request#配置
  */
 export const request: RequestConfig = {
-  // baseURL: 'https://proapi.azurewebsites.net',
+  baseURL: API_BASE_URL,
   ...errorConfig,
 };

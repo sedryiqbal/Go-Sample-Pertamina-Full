@@ -16,6 +16,20 @@ or
 yarn
 ```
 
+## API Configuration
+
+Set the backend endpoint through environment variables so different environments can point to their respective servers without touching the code.
+
+1. Copy `.env.example` to `.env.local` (or create the file directly) and set `API_BASE_URL`.
+2. The default fallback points to `http://103.197.191.216:5247`, matching the current staging server.
+3. Umi picks up the value at build time and wires it into the global request client declared in `src/app.tsx`.
+
+Example:
+
+```bash
+API_BASE_URL=http://103.197.191.216:5247
+```
+
 ## Provided Scripts
 
 Ant Design Pro provides some useful script to help you quick start and build with web project, code style check and test.
