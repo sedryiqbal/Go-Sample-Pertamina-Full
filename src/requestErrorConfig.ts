@@ -1,6 +1,8 @@
 ﻿import type { RequestOptions } from '@@/plugin-request/request';
 import type { RequestConfig } from '@umijs/max';
+import { history } from '@umijs/max';
 import { message, notification } from 'antd';
+import { buildAuthHeader, clearAuthToken } from '@/utils/auth';
 
 // 错误处理方案： 错误类型
 enum ErrorShowType {
@@ -72,7 +74,16 @@ export const errorConfig: RequestConfig = {
       } else if (error.response) {
         // Axios 的错误
         // 请求成功发出且服务器也响应了状态码，但状态代码超出了 2xx 的范围
-        message.error(`Response status:${error.response.status}`);
+        if (error.response.status === 401) {
+          clearAuthToken();
+          const { pathname } = history.location;
+          if (pathname !== '/login') {
+            history.replace('/login');
+          }
+          message.error('Sesi login berakhir, silakan masuk kembali.');
+          return;
+        }
+        // message.error(`Response status:${error.response.status}`);
       } else if (error.request) {
         // 请求已经成功发起，但没有收到响应
         // \`error.request\` 在浏览器中是 XMLHttpRequest 的实例，
@@ -89,8 +100,14 @@ export const errorConfig: RequestConfig = {
   requestInterceptors: [
     (config: RequestOptions) => {
       // 拦截请求配置，进行个性化处理。
-      const url = config?.url?.concat('?token=123');
-      return { ...config, url };
+      const headers = {
+        ...(config?.headers || {}),
+        ...buildAuthHeader(),
+      };
+      return {
+        ...config,
+        headers,
+      };
     },
   ],
 
@@ -99,6 +116,14 @@ export const errorConfig: RequestConfig = {
     (response) => {
       // 拦截响应数据，进行个性化处理
       const { data } = response as unknown as ResponseStructure;
+      const status = (response as unknown as { status?: number })?.status;
+      if (status === 401) {
+        clearAuthToken();
+        const { pathname } = history.location;
+        if (pathname !== '/login') {
+          history.replace('/login');
+        }
+      }
 
       if (data?.success === false) {
         message.error('请求失败！');

@@ -23,20 +23,15 @@
  */
 export default [
   {
-    path: '/user',
+    path: '/login',
     layout: false,
-    routes: [
-      {
-        path: '/user/login',
-        layout: false,
-        name: 'login',
-        component: './user/login',
-      },
-      {
-        path: '/user',
-        redirect: '/user/login',
-      },
-    ],
+    name: 'login',
+    component: './login',
+  },
+  {
+    path: '/user/login',
+    layout: false,
+    redirect: '/login',
   },
   {
     path: '/dashboard',

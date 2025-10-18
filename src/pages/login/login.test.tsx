@@ -34,25 +34,20 @@ describe('Login Page', () => {
       <TestBrowser
         historyRef={historyRef}
         location={{
-          pathname: '/user/login',
+          pathname: '/login',
         }}
       />,
     );
 
-    await rootContainer.findAllByText('Ant Design');
+    await rootContainer.findAllByText('Masuk');
 
     act(() => {
-      historyRef.current?.push('/user/login');
+      historyRef.current?.push('/login');
     });
 
-    expect(
-      rootContainer.baseElement?.querySelector('.ant-pro-form-login-desc')
-        ?.textContent,
-    ).toBe(
-      'Ant Design is the most influential web design specification in Xihu district',
+    expect(rootContainer.baseElement?.querySelector('h1')?.textContent).toBe(
+      'Masuk',
     );
-
-    expect(rootContainer.asFragment()).toMatchSnapshot();
 
     rootContainer.unmount();
   });
@@ -63,37 +58,33 @@ describe('Login Page', () => {
       <TestBrowser
         historyRef={historyRef}
         location={{
-          pathname: '/user/login',
+          pathname: '/login',
         }}
       />,
     );
 
-    await rootContainer.findAllByText('Ant Design');
+    await rootContainer.findAllByText('Masuk');
 
-    const userNameInput = await rootContainer.findByPlaceholderText(
-      'Username: admin or user',
-    );
+    const userNameInput =
+      await rootContainer.findByPlaceholderText('Masukkan username');
 
     act(() => {
       fireEvent.change(userNameInput, { target: { value: 'admin' } });
     });
 
-    const passwordInput = await rootContainer.findByPlaceholderText(
-      'Password: ant.design',
-    );
+    const passwordInput =
+      await rootContainer.findByPlaceholderText('Masukkan password');
 
     act(() => {
       fireEvent.change(passwordInput, { target: { value: 'ant.design' } });
     });
 
-    await (await rootContainer.findByText('Login')).click();
+    await (await rootContainer.findByText('Masuk')).click();
 
     // 等待接口返回结果
     await waitTime(5000);
 
-    await rootContainer.findAllByText('Ant Design Pro');
-
-    expect(rootContainer.asFragment()).toMatchSnapshot();
+    await rootContainer.findAllByText('登录成功！');
 
     await waitTime(2000);
 

@@ -157,6 +157,37 @@ export default {
     });
     access = 'guest';
   },
+  'POST /api/auth/login': async (req: Request, res: Response) => {
+    const { password, username } = req.body;
+    await waitTime(1000);
+
+    const validCredentials =
+      (username === 'admin' && password === 'ant.design') ||
+      (username === 'aby.sample' && password === 'password123') ||
+      (username === 'user' && password === 'ant.design');
+
+    if (validCredentials) {
+      access = username === 'user' ? 'user' : 'admin';
+      res.send({
+        success: true,
+        data: {
+          token: 'mock-token',
+          user: {
+            name: username,
+            access,
+            email: `${username}@example.com`,
+          },
+        },
+      });
+      return;
+    }
+
+    access = 'guest';
+    res.status(401).send({
+      success: false,
+      message: 'Invalid username or password',
+    });
+  },
   'POST /api/login/outLogin': (_req: Request, res: Response) => {
     access = '';
     res.send({ data: {}, success: true });

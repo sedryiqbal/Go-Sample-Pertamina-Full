@@ -5,7 +5,9 @@ import { Alert, App, Button, Carousel, Checkbox, Form, Input } from 'antd';
 import { createStyles } from 'antd-style';
 import React, { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import Settings from '../../../../config/defaultSettings';
+import { login as loginRequest } from '@/services/ant-design-pro/api';
+import { setAuthToken } from '@/utils/auth';
+import Settings from '../../../config/defaultSettings';
 
 const useStyles = createStyles(({ token }) => ({
   container: {
@@ -330,7 +332,7 @@ const LoginMessage: React.FC<{
 };
 
 const Login: React.FC = () => {
-  const [userLoginState, setUserLoginState] = useState<API.LoginResult>({});
+  const [loginError, setLoginError] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
   const { initialState, setInitialState } = useModel('@@initialState');
@@ -350,39 +352,100 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (_values: API.LoginParams) => {
+  const handleSubmit = async (values: API.LoginParams) => {
     setSubmitting(true);
+    setLoginError('');
     try {
-      // const msg = await login({ ...values, type: 'account' });
-      const msg = {
-        status: 'ok',
-      };
-      if (msg.status === 'ok') {
-        const defaultLoginSuccessMessage = intl.formatMessage({
+      const { username, password } = values;
+      if (!username || !password) {
+        message.error('Username dan password wajib diisi.');
+        return;
+      }
+
+      const response = await loginRequest({
+        username: username.trim(),
+        password,
+      });
+
+      const { status: responseStatus, data: responseData } =
+        (response as {
+          status?: boolean;
+          data?: {
+            message?: string;
+            items?: {
+              token?: string;
+              user?: API.CurrentUser;
+            };
+          };
+        }) || {};
+
+      if (responseStatus === false) {
+        throw new Error(responseData?.message || 'Login gagal.');
+      }
+
+      const items = responseData?.items || (responseData as any);
+
+      const token =
+        items?.token ??
+        response?.token ??
+        response?.accessToken ??
+        response?.data?.token ??
+        response?.data?.accessToken;
+
+      if (!token) {
+        throw new Error('Token tidak ditemukan pada response login.');
+      }
+
+      setAuthToken(token);
+      setLoginError('');
+
+      const responseUser =
+        items?.user ??
+        (response?.data && response?.data.user) ??
+        response?.user ??
+        response?.profile;
+
+      if (responseUser) {
+        flushSync(() => {
+          setInitialState((s) => ({
+            ...s,
+            currentUser: responseUser,
+          }));
+        });
+      } else {
+        await fetchUserInfo();
+      }
+
+      const loginMessage =
+        responseData?.message ||
+        intl.formatMessage({
           id: 'pages.login.success',
           defaultMessage: '登录成功！',
         });
-        message.success(defaultLoginSuccessMessage);
-        await fetchUserInfo();
-        const urlParams = new URL(window.location.href).searchParams;
-        window.location.href = urlParams.get('redirect') || '/';
-        return;
-      }
-      console.log(msg);
-      setUserLoginState(msg);
-    } catch (error) {
+      message.success(loginMessage);
+      const urlParams = new URL(window.location.href).searchParams;
+      window.location.href = urlParams.get('redirect') || '/';
+      return;
+    } catch (error: any) {
       const defaultLoginFailureMessage = intl.formatMessage({
         id: 'pages.login.failure',
-        defaultMessage: '登录失败，请重试！',
+        defaultMessage: 'Login gagal, silakan coba lagi.',
       });
-      console.log(error);
-      message.error(defaultLoginFailureMessage);
+      const apiMessage =
+        error?.response?.data?.data?.message ??
+        error?.response?.data?.message ??
+        error?.message;
+      if (apiMessage) {
+        message.error(apiMessage);
+        setLoginError(apiMessage);
+      } else {
+        message.error(defaultLoginFailureMessage);
+        setLoginError(defaultLoginFailureMessage);
+      }
     } finally {
       setSubmitting(false);
     }
   };
-
-  const { status } = userLoginState;
 
   return (
     <div className={styles.container}>
@@ -411,14 +474,7 @@ const Login: React.FC = () => {
         <div className={styles.loginForm}>
           <h1 className={styles.loginTitle}>Masuk</h1>
 
-          {status === 'error' && (
-            <LoginMessage
-              content={intl.formatMessage({
-                id: 'pages.login.accountLogin.errorMessage',
-                defaultMessage: 'Username atau password salah',
-              })}
-            />
-          )}
+          {loginError && <LoginMessage content={loginError} />}
 
           <Form
             form={form}

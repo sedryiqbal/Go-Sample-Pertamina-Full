@@ -297,7 +297,7 @@ const Register: FC = () => {
             >
               <span>注册</span>
             </Button>
-            <Link to="/user/login">
+            <Link to="/login">
               <span>使用已有账户登录</span>
             </Link>
           </div>

@@ -336,6 +336,17 @@ module.exports = {
     pageSize: 20,
     current: 1,
   },
+  'POST /api/auth/login': {
+    success: true,
+    data: {
+      token: 'mock-token',
+      user: {
+        name: 'admin',
+        access: 'admin',
+        email: 'admin@example.com',
+      },
+    },
+  },
   'POST /api/login/outLogin': { data: {}, success: true },
   'POST /api/login/account': {
     status: 'ok',

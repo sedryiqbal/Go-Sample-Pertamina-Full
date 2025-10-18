@@ -13,13 +13,14 @@ import {
   SelectLang,
 } from '@/components';
 import { API_BASE_URL } from '@/config/api';
+import { clearAuthToken, hasAuthToken } from '@/utils/auth';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 import '@ant-design/v5-patch-for-react-19';
 
 // const isDev = process.env.NODE_ENV === 'development' || process.env.CI;
 const isDev = false;
-const loginPath = '/user/login';
+const loginPath = '/login';
 
 /**
  * @see https://umijs.org/docs/api/runtime-config#getinitialstate
@@ -31,6 +32,9 @@ export async function getInitialState(): Promise<{
   fetchUserInfo?: () => Promise<API.CurrentUser | undefined>;
 }> {
   const fetchUserInfo = async () => {
+    if (!hasAuthToken()) {
+      return undefined;
+    }
     try {
       // const msg = await queryCurrentUser({
       //   skipErrorHandler: true,
@@ -41,17 +45,28 @@ export async function getInitialState(): Promise<{
         email: 'john.doe@example.com',
       };
     } catch (_error) {
+      clearAuthToken();
       history.push(loginPath);
     }
     return undefined;
   };
   // 如果不是登录页面，执行
   const { location } = history;
-  if (
-    ![loginPath, '/user/register', '/user/register-result'].includes(
-      location.pathname,
-    )
-  ) {
+  const noAuthRequiredPaths = [
+    loginPath,
+    '/user/login',
+    '/user/register',
+    '/user/register-result',
+  ];
+
+  if (!noAuthRequiredPaths.includes(location.pathname)) {
+    if (!hasAuthToken()) {
+      history.push(loginPath);
+      return {
+        fetchUserInfo,
+        settings: defaultSettings as Partial<LayoutSettings>,
+      };
+    }
     const currentUser = await fetchUserInfo();
     return {
       fetchUserInfo,
@@ -90,9 +105,17 @@ export const layout: RunTimeLayoutConfig = ({
     footerRender: () => <Footer />,
     onPageChange: () => {
       const { location } = history;
-      // 如果没有登录，重定向到 login
-      if (!initialState?.currentUser && location.pathname !== loginPath) {
+      const isLoginRoute = [loginPath, '/user/login'].includes(
+        location.pathname,
+      );
+      if (!hasAuthToken() && !isLoginRoute) {
         history.push(loginPath);
+        return;
+      }
+
+      // 如果没有登录，重定向到 login
+      if (!initialState?.currentUser && !isLoginRoute) {
+        initialState?.fetchUserInfo?.();
       }
     },
     bgLayoutImgList: [
