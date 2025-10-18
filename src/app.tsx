@@ -13,6 +13,7 @@ import {
   SelectLang,
 } from '@/components';
 import { API_BASE_URL } from '@/config/api';
+import { fetchProfile } from '@/services/auth/api';
 import { clearAuthToken, hasAuthToken } from '@/utils/auth';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
@@ -36,17 +37,30 @@ export async function getInitialState(): Promise<{
       return undefined;
     }
     try {
-      // const msg = await queryCurrentUser({
-      //   skipErrorHandler: true,
-      // });
+      const profile = await fetchProfile();
+      if (!profile) {
+        return undefined;
+      }
       return {
-        name: 'John Doe',
-        avatar: 'https://example.com/avatar.jpg',
-        email: 'john.doe@example.com',
+        name: profile.name,
+        email: profile.email,
+        userid: profile.id,
+        username: profile.username,
+        access: profile.superAdmin ? 'admin' : profile.roleName,
+        roleName: profile.roleName,
+        unitName: profile.unitName,
+        superAdmin: profile.superAdmin,
+      } as API.CurrentUser & {
+        roleName?: string;
+        unitName?: string;
+        superAdmin?: boolean;
+        username?: string;
       };
     } catch (_error) {
       clearAuthToken();
-      history.push(loginPath);
+      if (history.location.pathname !== loginPath) {
+        history.push(loginPath);
+      }
     }
     return undefined;
   };

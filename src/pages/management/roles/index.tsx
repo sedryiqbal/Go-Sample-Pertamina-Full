@@ -23,19 +23,19 @@ import type {
   Role,
   UpdateRoleRequest,
 } from '@/services/roles/typings';
-import { mockAvailableModules, mockRoles } from '../../../../mock/roles.mock';
+import { mockAvailableModules } from '../../../../mock/roles.mock';
 import RoleForm from './components/RoleForm';
 import RoleTable from './components/RoleTable';
 
 const { Title, Text } = Typography;
 
 const RoleManagement: React.FC = () => {
-  const [roles, setRoles] = useState<Role[]>(mockRoles);
-  const [loading, setLoading] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Role | undefined>();
   const [viewingRecord, setViewingRecord] = useState<Role | undefined>();
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const actionRef = useRef<ActionType>();
   const [form] = Form.useForm();
 
@@ -84,23 +84,8 @@ const RoleManagement: React.FC = () => {
       okType: 'danger',
       cancelText: 'Batal',
       onOk: async () => {
-        try {
-          setLoading(true);
-          // In real app, call API
-          // await deleteRole(record.id);
-
-          // Update local state for demo
-          setRoles((prevRoles) =>
-            prevRoles.filter((role) => role.id !== record.id),
-          );
-
-          message.success(`Role ${record.name} berhasil dihapus`);
-          actionRef.current?.reload();
-        } catch (_error) {
-          message.error('Gagal menghapus role');
-        } finally {
-          setLoading(false);
-        }
+        message.info('Integrasi hapus role akan tersedia di versi berikutnya.');
+        actionRef.current?.reload();
       },
     });
   };
@@ -109,52 +94,15 @@ const RoleManagement: React.FC = () => {
     values: CreateRoleRequest | UpdateRoleRequest,
   ) => {
     try {
-      setLoading(true);
-
-      if (editingRecord) {
-        // Update role
-        // In real app: await updateRole(editingRecord.id, values);
-
-        const updatedRole: Role = {
-          ...editingRecord,
-          ...values,
-          updatedAt: new Date().toISOString(),
-        };
-
-        setRoles((prevRoles) =>
-          prevRoles.map((role) =>
-            role.id === editingRecord.id ? updatedRole : role,
-          ),
-        );
-
-        message.success('Role berhasil diperbarui');
-      } else {
-        // Create new role
-        // In real app: await createRole(values);
-
-        const newRole: Role = {
-          id: `role-${Date.now()}`,
-          ...values,
-          unitId: 'ce587291-31a8-488d-9fd0-140749d2137b',
-          unitName: 'SHAFTI',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          userCount: 0,
-        };
-
-        setRoles((prevRoles) => [newRole, ...prevRoles]);
-        message.success('Role berhasil ditambahkan');
-      }
-
+      setFormSubmitting(true);
+      message.info('Integrasi simpan role akan tersedia di versi mendatang.');
       setDrawerVisible(false);
       form.resetFields();
       actionRef.current?.reload();
     } catch (_error) {
-      message.error(
-        editingRecord ? 'Gagal memperbarui role' : 'Gagal menambahkan role',
-      );
+      message.error('Terjadi kesalahan saat memproses role');
     } finally {
-      setLoading(false);
+      setFormSubmitting(false);
     }
   };
 
@@ -163,14 +111,10 @@ const RoleManagement: React.FC = () => {
   };
 
   const handleRefresh = () => {
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setRoles([...mockRoles]);
-      setLoading(false);
-      message.success('Data berhasil di-refresh');
-      actionRef.current?.reload();
-    }, 1000);
+    setRefreshing(true);
+    actionRef.current?.reload?.();
+    setTimeout(() => setRefreshing(false), 600);
+    message.success('Data role berhasil diperbarui');
   };
 
   const getModuleInfo = (permissionKey: string) => {
@@ -189,7 +133,7 @@ const RoleManagement: React.FC = () => {
           key="refresh"
           icon={<ReloadOutlined />}
           onClick={handleRefresh}
-          loading={loading}
+          loading={refreshing}
         >
           Refresh
         </Button>,
@@ -206,8 +150,6 @@ const RoleManagement: React.FC = () => {
     >
       <Card>
         <RoleTable
-          dataSource={roles}
-          loading={loading}
           actionRef={actionRef}
           onEdit={handleEdit}
           onDelete={handleDelete}
@@ -229,7 +171,7 @@ const RoleManagement: React.FC = () => {
             <Button onClick={() => setDrawerVisible(false)}>Batal</Button>
             <Button
               type="primary"
-              loading={loading}
+              loading={formSubmitting}
               onClick={() => form.submit()}
               style={{ backgroundColor: '#fd0017', borderColor: '#fd0017' }}
             >
@@ -327,45 +269,90 @@ const RoleManagement: React.FC = () => {
 
             <div style={{ marginTop: 24 }}>
               <Title level={5}>
-                Permissions ({viewingRecord.permissions.length})
+                Permissions ({viewingRecord.permissionsDetail?.length ?? 0})
               </Title>
-              {viewingRecord.permissions.length === 0 ? (
+              {(viewingRecord.permissionsDetail?.length ?? 0) === 0 ? (
                 <Text type="secondary">
                   Tidak ada permission yang diberikan
                 </Text>
               ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {viewingRecord.permissions.map((permission) => {
-                    const moduleInfo = getModuleInfo(permission);
-                    return (
-                      <Card
-                        key={permission}
-                        size="small"
-                        style={{
-                          minWidth: '200px',
-                          margin: '4px',
-                          border: '1px solid #fd0017',
-                          backgroundColor: '#fff2f0',
-                        }}
-                      >
-                        <Space>
-                          <span style={{ fontSize: '16px' }}>
-                            {moduleInfo?.icon || '📁'}
-                          </span>
-                          <div>
-                            <Text strong style={{ fontSize: '14px' }}>
-                              {moduleInfo?.name || permission}
-                            </Text>
-                            <br />
-                            <Text type="secondary" style={{ fontSize: '12px' }}>
-                              {moduleInfo?.description ||
-                                'Modul tidak ditemukan'}
-                            </Text>
-                          </div>
-                        </Space>
-                      </Card>
-                    );
-                  })}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                  {viewingRecord.permissionsDetail?.map(
+                    ({ module, actions }) => {
+                      const moduleInfo = getModuleInfo(module);
+                      return (
+                        <Card
+                          key={module}
+                          size="small"
+                          style={{
+                            minWidth: '220px',
+                            border: '1px solid #fd0017',
+                            backgroundColor: '#fff7f5',
+                          }}
+                        >
+                          <Space direction="vertical" size={8}>
+                            <Space>
+                              <span style={{ fontSize: '18px' }}>
+                                {moduleInfo?.icon || '📁'}
+                              </span>
+                              <div>
+                                <Text strong style={{ fontSize: '14px' }}>
+                                  {moduleInfo?.name ||
+                                    module
+                                      .replace(/[_-]/g, ' ')
+                                      .replace(/\b\w/g, (char) =>
+                                        char.toUpperCase(),
+                                      )}
+                                </Text>
+                                <br />
+                                <Text
+                                  type="secondary"
+                                  style={{ fontSize: '12px' }}
+                                >
+                                  {moduleInfo?.description ||
+                                    'Deskripsi modul belum tersedia'}
+                                </Text>
+                              </div>
+                            </Space>
+                            <div>
+                              <Text
+                                type="secondary"
+                                style={{ fontSize: '12px' }}
+                              >
+                                Aksi yang diizinkan:
+                              </Text>
+                              <div
+                                style={{
+                                  marginTop: 4,
+                                  display: 'flex',
+                                  flexWrap: 'wrap',
+                                  gap: 4,
+                                }}
+                              >
+                                {actions.length > 0 ? (
+                                  actions.map((action) => (
+                                    <Tag
+                                      key={action}
+                                      color="blue"
+                                      style={{ marginInlineEnd: 0 }}
+                                    >
+                                      {action
+                                        .replace(/[_-]/g, ' ')
+                                        .replace(/\b\w/g, (char) =>
+                                          char.toUpperCase(),
+                                        )}
+                                    </Tag>
+                                  ))
+                                ) : (
+                                  <Tag color="default">Tidak ada</Tag>
+                                )}
+                              </div>
+                            </div>
+                          </Space>
+                        </Card>
+                      );
+                    },
+                  )}
                 </div>
               )}
             </div>

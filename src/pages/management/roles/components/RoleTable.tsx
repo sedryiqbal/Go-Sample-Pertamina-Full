@@ -6,16 +6,15 @@ import {
 } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
-import { Badge, Button, Space, Tag, Tooltip, Typography } from 'antd';
-import React from 'react';
+import { Badge, Button, message, Space, Tag, Tooltip, Typography } from 'antd';
+import React, { useCallback, useMemo } from 'react';
+import { searchRoles } from '@/services/roles/api';
 import type { Role } from '@/services/roles/typings';
 import { mockAvailableModules } from '../../../../../mock/roles.mock';
 
 const { Text } = Typography;
 
 interface RoleTableProps {
-  dataSource: Role[];
-  loading?: boolean;
   actionRef?: React.MutableRefObject<ActionType | undefined>;
   onEdit?: (record: Role) => void;
   onDelete?: (record: Role) => void;
@@ -23,16 +22,39 @@ interface RoleTableProps {
 }
 
 const RoleTable: React.FC<RoleTableProps> = ({
-  dataSource,
-  loading = false,
   actionRef,
   onEdit,
   onDelete,
   onView,
 }) => {
-  const getModuleInfo = (permissionKey: string) => {
-    return mockAvailableModules.find((module) => module.key === permissionKey);
-  };
+  const moduleMetaMap = useMemo(() => {
+    const map = new Map<string, (typeof mockAvailableModules)[number]>();
+    mockAvailableModules.forEach((module) => {
+      map.set(module.key, module);
+    });
+    return map;
+  }, []);
+
+  const formatModuleLabel = useCallback(
+    (key: string) => {
+      const meta = moduleMetaMap.get(key);
+      if (meta) {
+        return meta.name;
+      }
+      return key
+        .replace(/[_-]/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+    },
+    [moduleMetaMap],
+  );
+
+  const formatActionLabel = useCallback(
+    (action: string) =>
+      action
+        .replace(/[_-]/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase()),
+    [],
+  );
 
   const getUserCountColor = (count: number) => {
     if (count === 0) return 'default';
@@ -47,7 +69,14 @@ const RoleTable: React.FC<RoleTableProps> = ({
       dataIndex: 'name',
       key: 'name',
       fixed: 'left',
-      width: 200,
+      width: 220,
+      fieldProps: {
+        placeholder: 'Cari berdasarkan nama role',
+      },
+      search: {
+        transform: (value: string) => ({ name: value }),
+      },
+      sorter: (a, b) => a.name.localeCompare(b.name),
       render: (_, record) => (
         <Space>
           <div
@@ -77,43 +106,70 @@ const RoleTable: React.FC<RoleTableProps> = ({
           </div>
         </Space>
       ),
-      sorter: (a, b) => a.name.localeCompare(b.name),
     },
     {
       title: 'Permissions',
       dataIndex: 'permissions',
       key: 'permissions',
-      width: 300,
+      width: 360,
+      hideInSearch: true,
       render: (_, record) => {
-        if (record.permissions.length === 0) {
+        const details = record.permissionsDetail ?? [];
+        if (details.length === 0) {
           return <Badge status="default" text="Tidak ada permission" />;
         }
 
         const visibleCount = 3;
-        const visiblePermissions = record.permissions.slice(0, visibleCount);
-        const remainingCount = record.permissions.length - visibleCount;
+        const visiblePermissions = details.slice(0, visibleCount);
+        const remainingCount = details.length - visibleCount;
 
         return (
-          <Space wrap size={[4, 4]}>
-            {visiblePermissions.map((permission) => {
-              const moduleInfo = getModuleInfo(permission);
+          <Space wrap size={[6, 6]}>
+            {visiblePermissions.map(({ module, actions }) => {
+              const moduleMeta = moduleMetaMap.get(module);
+              const moduleLabel = moduleMeta?.name || formatModuleLabel(module);
+              const formattedActions =
+                actions && actions.length > 0
+                  ? actions
+                      .map((action) => formatActionLabel(action))
+                      .join(', ')
+                  : 'Tidak ada aksi';
+
               return (
                 <Tooltip
-                  key={permission}
-                  title={moduleInfo?.description || permission}
+                  key={module}
+                  title={
+                    <div>
+                      {moduleMeta?.description && (
+                        <div style={{ marginBottom: 4 }}>
+                          {moduleMeta.description}
+                        </div>
+                      )}
+                      <div>
+                        <strong>Aksi:</strong> {formattedActions}
+                      </div>
+                    </div>
+                  }
                 >
-                  <Tag style={{ margin: '2px', fontSize: '11px' }} color="blue">
-                    {moduleInfo?.icon} {moduleInfo?.name || permission}
+                  <Tag
+                    color="blue"
+                    style={{
+                      margin: 0,
+                      fontSize: '11px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <span>{moduleMeta?.icon || '📁'}</span>
+                    <span>{moduleLabel}</span>
                   </Tag>
                 </Tooltip>
               );
             })}
             {remainingCount > 0 && (
               <Tooltip title={`${remainingCount} permission lainnya`}>
-                <Tag
-                  style={{ margin: '2px', fontSize: '11px' }}
-                  color="default"
-                >
+                <Tag color="default" style={{ fontSize: '11px', margin: 0 }}>
                   +{remainingCount}
                 </Tag>
               </Tooltip>
@@ -121,19 +177,15 @@ const RoleTable: React.FC<RoleTableProps> = ({
           </Space>
         );
       },
-      filterMode: 'tree',
-      filters: mockAvailableModules.map((module) => ({
-        text: `${module.icon} ${module.name}`,
-        value: module.key,
-      })),
-      onFilter: (value, record) => record.permissions.includes(value as string),
     },
     {
       title: 'Pengguna',
       dataIndex: 'userCount',
       key: 'userCount',
-      width: 120,
+      width: 140,
       align: 'center',
+      hideInSearch: true,
+      sorter: (a, b) => a.userCount - b.userCount,
       render: (_, record) => (
         <Space direction="vertical" size={2} style={{ textAlign: 'center' }}>
           <UserOutlined style={{ fontSize: '16px', color: '#fd0017' }} />
@@ -149,28 +201,14 @@ const RoleTable: React.FC<RoleTableProps> = ({
           />
         </Space>
       ),
-      sorter: (a, b) => a.userCount - b.userCount,
     },
     {
       title: 'Dibuat',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 120,
+      width: 150,
       valueType: 'dateTime',
-      render: (_, record) => {
-        const date = new Date(record.createdAt);
-        return (
-          <div style={{ fontSize: '12px' }}>
-            <div>{date.toLocaleDateString('id-ID')}</div>
-            <Text type="secondary" style={{ fontSize: '11px' }}>
-              {date.toLocaleTimeString('id-ID', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Text>
-          </div>
-        );
-      },
+      hideInSearch: true,
       sorter: (a, b) =>
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     },
@@ -178,12 +216,14 @@ const RoleTable: React.FC<RoleTableProps> = ({
       title: 'Diperbarui',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
-      width: 120,
+      width: 150,
       valueType: 'dateTime',
+      hideInSearch: true,
+      sorter: (a, b) =>
+        new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
       render: (_, record) => {
         const date = new Date(record.updatedAt);
-        const isRecent = Date.now() - date.getTime() < 24 * 60 * 60 * 1000; // 24 hours
-
+        const isRecent = Date.now() - date.getTime() < 24 * 60 * 60 * 1000;
         return (
           <div style={{ fontSize: '12px' }}>
             <div style={{ color: isRecent ? '#52c41a' : undefined }}>
@@ -201,14 +241,13 @@ const RoleTable: React.FC<RoleTableProps> = ({
           </div>
         );
       },
-      sorter: (a, b) =>
-        new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
     },
     {
       title: 'Aksi',
       key: 'actions',
       width: 160,
       fixed: 'right',
+      hideInSearch: true,
       render: (_, record) => (
         <Space size="small">
           {onView && (
@@ -253,8 +292,6 @@ const RoleTable: React.FC<RoleTableProps> = ({
       actionRef={actionRef}
       rowKey="id"
       columns={columns}
-      dataSource={dataSource}
-      loading={loading}
       pagination={{
         pageSize: 10,
         showSizeChanger: true,
@@ -265,6 +302,31 @@ const RoleTable: React.FC<RoleTableProps> = ({
       search={{
         labelWidth: 'auto',
         defaultCollapsed: false,
+      }}
+      request={async (params) => {
+        const { current = 1, pageSize = 10, name } = params;
+        try {
+          const result = await searchRoles({
+            page: current,
+            pageSize,
+            name,
+          });
+
+          return {
+            data: result.list,
+            total: result.total,
+            success: true,
+          };
+        } catch (error: any) {
+          message.error(
+            error?.message || 'Terjadi kesalahan saat memuat data role',
+          );
+          return {
+            data: [],
+            total: 0,
+            success: false,
+          };
+        }
       }}
       dateFormatter="string"
       headerTitle="Daftar Role"
