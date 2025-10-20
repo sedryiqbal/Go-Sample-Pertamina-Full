@@ -7,6 +7,15 @@ export interface SearchUsersParams {
   pageSize?: number;
 }
 
+export interface CreateUserPayload {
+  username: string;
+  name: string;
+  email: string;
+  password: string;
+  roleId: string;
+  superAdmin?: boolean;
+}
+
 export interface UserListItem {
   id: string;
   username: string;
@@ -33,6 +42,16 @@ export interface SearchUsersResponse {
       pageSize: number;
       totalPages: number;
     };
+  };
+}
+
+export interface CreateUserResponse {
+  status?: boolean;
+  code?: number;
+  message?: string;
+  data?: {
+    message?: string;
+    user?: UserListItem;
   };
 }
 

@@ -1,5 +1,7 @@
 import { request } from '@umijs/max';
 import type {
+  CreateUserPayload,
+  CreateUserResponse,
   RoleListItem,
   RolesResponse,
   SearchUsersParams,
@@ -7,6 +9,7 @@ import type {
 } from './typings';
 
 const USERS_SEARCH_ENDPOINT = '/api/users/search';
+const USERS_ENDPOINT = '/api/users';
 const ROLES_ENDPOINT = '/api/roles';
 
 const mapSearchParams = (params: SearchUsersParams) => ({
@@ -24,6 +27,39 @@ export const searchUsers = async (
   return request<SearchUsersResponse>(USERS_SEARCH_ENDPOINT, {
     method: 'GET',
     params: mapSearchParams(params),
+  });
+};
+
+export const createUser = async (
+  payload: CreateUserPayload,
+): Promise<CreateUserResponse> => {
+  return request<CreateUserResponse>(USERS_ENDPOINT, {
+    method: 'POST',
+    data: payload,
+  });
+};
+
+export const updateUser = async (
+  userId: string,
+  payload: CreateUserPayload,
+): Promise<CreateUserResponse> => {
+  if (!userId) {
+    throw new Error('User ID is required');
+  }
+
+  return request<CreateUserResponse>(`${USERS_ENDPOINT}/${userId}`, {
+    method: 'PUT',
+    data: payload,
+  });
+};
+
+export const deleteUser = async (userId: string): Promise<void> => {
+  if (!userId) {
+    throw new Error('User ID is required');
+  }
+
+  await request<void>(`${USERS_ENDPOINT}/${userId}`, {
+    method: 'DELETE',
   });
 };
 
