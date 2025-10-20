@@ -34,6 +34,35 @@ export const createShip = async (payload: CreateShipPayload): Promise<Ship> => {
   return unwrapResponse<Ship>(response);
 };
 
+export const updateShip = async (
+  shipId: string,
+  payload: CreateShipPayload,
+): Promise<Ship> => {
+  if (!shipId) {
+    throw new Error('Ship ID is required');
+  }
+
+  const response = await request<ShipApiEnvelope<Ship> | Ship>(
+    `${SHIPS_ENDPOINT}/${shipId}`,
+    {
+      method: 'PUT',
+      data: payload,
+    },
+  );
+
+  return unwrapResponse<Ship>(response);
+};
+
+export const deleteShip = async (shipId: string): Promise<void> => {
+  if (!shipId) {
+    throw new Error('Ship ID is required');
+  }
+
+  await request<void>(`${SHIPS_ENDPOINT}/${shipId}`, {
+    method: 'DELETE',
+  });
+};
+
 export const fetchShips = async (
   params?: ShipListQuery,
 ): Promise<ShipListEnvelope> => {

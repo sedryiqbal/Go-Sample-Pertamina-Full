@@ -2,9 +2,7 @@ import type { Ship } from '@/services/ships/typings';
 
 export const SHIP_TYPE_OPTIONS = [
   { label: 'Import', value: 'Import' },
-  { label: 'Export', value: 'Export' },
   { label: 'Local', value: 'Local' },
-  { label: 'Domestic', value: 'Domestic' },
 ];
 
 export const SHIP_TYPE_COLOR_MAP: Record<string, string> = {

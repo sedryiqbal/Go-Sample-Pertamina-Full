@@ -1,6 +1,11 @@
 import { message } from 'antd';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { createShip as createShipApi, fetchShips } from '@/services/ships/api';
+import {
+  createShip as createShipApi,
+  deleteShip as deleteShipApi,
+  fetchShips,
+  updateShip as updateShipApi,
+} from '@/services/ships/api';
 import type { Ship, ShipListQuery } from '@/services/ships/typings';
 import type { ShipFormValues } from '../types';
 import { deriveShipSummary, toCreateShipPayload } from '../utils';
@@ -31,6 +36,8 @@ export const useShipManagement = () => {
   const [ships, setShips] = useState<Ship[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const lastQueryRef = useRef<ShipListQuery>({ page: 1, pageSize: 10 });
 
   const loadShips = useCallback(async (query?: ShipListQuery) => {
@@ -95,15 +102,71 @@ export const useShipManagement = () => {
     }
   }, []);
 
+  const handleUpdate = useCallback(
+    async (shipId: string, values: ShipFormValues) => {
+      try {
+        setUpdating(true);
+        const payload = toCreateShipPayload(values);
+        const updatedShip = await updateShipApi(shipId, payload);
+        message.success('Data kapal berhasil diperbarui');
+        setShips((prev) =>
+          prev.map((ship) =>
+            ship.id === updatedShip.id ? { ...ship, ...updatedShip } : ship,
+          ),
+        );
+        return updatedShip;
+      } catch (error) {
+        const description = extractErrorMessage(
+          error,
+          'Gagal memperbarui data kapal',
+        );
+        message.error(description);
+        throw error;
+      } finally {
+        setUpdating(false);
+      }
+    },
+    [setShips],
+  );
+
   const summary = useMemo(() => deriveShipSummary(ships), [ships]);
+
+  const handleDelete = useCallback(
+    async (shipId: string) => {
+      if (!shipId) {
+        throw new Error('ID kapal wajib diisi');
+      }
+
+      try {
+        setDeleting(true);
+        await deleteShipApi(shipId);
+        setShips((prev) => prev.filter((ship) => ship.id !== shipId));
+        message.success('Data kapal berhasil dihapus');
+      } catch (error) {
+        const description = extractErrorMessage(
+          error,
+          'Gagal menghapus data kapal',
+        );
+        message.error(description);
+        throw error;
+      } finally {
+        setDeleting(false);
+      }
+    },
+    [setShips],
+  );
 
   return {
     ships,
     loading,
     creating,
+    updating,
+    deleting,
     summary,
     loadShips,
     createShip: handleCreate,
+    updateShip: handleUpdate,
+    deleteShip: handleDelete,
     setShips,
   };
 };

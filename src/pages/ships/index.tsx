@@ -38,7 +38,7 @@ import {
 } from './constants';
 import { useShipManagement } from './hooks/useShipManagement';
 import type { ShipFormValues, ShipTableRecord } from './types';
-import { formatDateTime, safeText, toCreateShipPayload } from './utils';
+import { formatDateTime, safeText } from './utils';
 
 const getShipTypeColor = (type: string) =>
   SHIP_TYPE_COLOR_MAP[type] || 'default';
@@ -69,8 +69,18 @@ const Ships: React.FC = () => {
   const [form] = Form.useForm<ShipFormValues>();
   const actionRef = useRef<ActionType | null>(null);
 
-  const { summary, loading, creating, createShip, setShips, loadShips } =
-    useShipManagement();
+  const {
+    summary,
+    loading,
+    creating,
+    updating,
+    deleting,
+    createShip,
+    updateShip,
+    deleteShip,
+    setShips,
+    loadShips,
+  } = useShipManagement();
 
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [editingShip, setEditingShip] = useState<ShipTableRecord | null>(null);
@@ -163,13 +173,17 @@ const Ships: React.FC = () => {
         okText: 'Hapus',
         okType: 'danger',
         cancelText: 'Batal',
-        onOk: () => {
-          setShips((prev) => prev.filter((ship) => ship.id !== record.id));
-          message.success(`Data kapal ${record.name} berhasil dihapus`);
+        onOk: async () => {
+          try {
+            await deleteShip(record.id);
+            actionRef.current?.reload();
+          } catch (_error) {
+            // Error notification already ditangani oleh hook.
+          }
         },
       });
     },
-    [setShips],
+    [deleteShip],
   );
 
   const handleOpenQC = useCallback((record: ShipTableRecord) => {
@@ -396,14 +410,13 @@ const Ships: React.FC = () => {
   const handleSubmit = useCallback(
     async (values: ShipFormValues) => {
       if (editingShip) {
-        const payload = toCreateShipPayload(values);
-        setShips((prev) =>
-          prev.map((ship) =>
-            ship.id === editingShip.id ? { ...ship, ...payload } : ship,
-          ),
-        );
-        message.success('Data kapal berhasil diperbarui');
-        handleDrawerClose();
+        try {
+          await updateShip(editingShip.id, values);
+          handleDrawerClose();
+          actionRef.current?.reload();
+        } catch (_error) {
+          // Error notification already ditangani oleh hook.
+        }
         return;
       }
 
@@ -417,7 +430,7 @@ const Ships: React.FC = () => {
         // Error notification already ditangani oleh hook.
       }
     },
-    [createShip, editingShip, handleDrawerClose, setShips],
+    [createShip, editingShip, handleDrawerClose, setShips, updateShip],
   );
 
   const columns = useMemo<ProColumns<ShipTableRecord>[]>(
@@ -587,6 +600,7 @@ const Ships: React.FC = () => {
                 size="small"
                 danger
                 icon={<DeleteOutlined />}
+                disabled={deleting}
                 onClick={() => handleDelete(record)}
               >
                 Hapus
@@ -723,7 +737,7 @@ const Ships: React.FC = () => {
       <ShipFormDrawer
         form={form}
         open={drawerVisible}
-        submitting={creating && !editingShip}
+        submitting={editingShip ? updating : creating}
         title={editingShip ? 'Edit Data Kapal' : 'Tambah Data Kapal Baru'}
         onClose={handleDrawerClose}
         onSubmit={handleSubmit}
