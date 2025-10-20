@@ -8,13 +8,11 @@ import {
 import {
   Button,
   Card,
-  Col,
   Form,
   Input,
   InputNumber,
   Modal,
   message,
-  Row,
   Select,
   Space,
   Table,
@@ -23,18 +21,23 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
 
+interface CoqDetail {
+  coq_no: string;
+  issuance_date: string;
+}
+
 interface ProductQCData {
   // Header Information
   name_of_tanker: string;
   arrival_date: string;
   quantity_in_batch: number;
-  voyage_no: string;
-  rcoq_no: string;
-  rcoq_date: string;
   refinery_terminal: string;
   grade_of_product: string;
+  coq_details: CoqDetail[];
+  port_note: string;
+  starboard_note: string;
 
-  // Port & Starboard Data (6 records each)
+  // Port & Starboard Data (8 records each)
   port_data: PortStarboardRecord[];
   starboard_data: PortStarboardRecord[];
 }
@@ -47,6 +50,8 @@ interface PortStarboardRecord {
   temperature_observed: number | null;
   density_observed: number | null;
   density_15c: number | null; // Calculated
+  batch_density_15c: number | null;
+  diff: number | null; // Calculated
   volume_liters: number | null;
   dens_15c_x_volume: number | null; // Calculated
 }
@@ -67,6 +72,8 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
   const [form] = Form.useForm();
   const [portData, setPortData] = useState<PortStarboardRecord[]>([]);
   const [starboardData, setStarboardData] = useState<PortStarboardRecord[]>([]);
+  const [portNote, setPortNote] = useState('');
+  const [starboardNote, setStarboardNote] = useState('');
   const [calculatedResults, setCalculatedResults] = useState({
     total_volume_dens_15c: 0,
     total_volume: 0,
@@ -78,8 +85,9 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
   // Initialize empty records for Port and Starboard
   useEffect(() => {
     if (visible) {
+      form.resetFields();
       const initializeRecords = (): PortStarboardRecord[] =>
-        Array.from({ length: 6 }, (_, index) => ({
+        Array.from({ length: 8 }, (_, index) => ({
           id: index + 1,
           free_water: '',
           suspended_water: '',
@@ -87,22 +95,36 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
           temperature_observed: null,
           density_observed: null,
           density_15c: null,
+          batch_density_15c: null,
+          diff: null,
           volume_liters: null,
           dens_15c_x_volume: null,
         }));
 
       setPortData(initializeRecords());
       setStarboardData(initializeRecords());
+      setPortNote(sampleData?.port_note || '');
+      setStarboardNote(sampleData?.starboard_note || '');
 
-      // Set default form values if sample data exists
-      if (sampleData) {
-        form.setFieldsValue({
-          name_of_tanker: `MT. ${sampleData.vessel_name}`,
-          grade_of_product: sampleData.sample_type,
-          arrival_date: dayjs().format('DD MMM YYYY'),
-          rcoq_date: dayjs().format('DD MMM YYYY'),
-        });
-      }
+      const coqDetails: CoqDetail[] = Array.from({ length: 4 }, (_, idx) => ({
+        coq_no: sampleData?.coq_details?.[idx]?.coq_no || '',
+        issuance_date:
+          sampleData?.coq_details?.[idx]?.issuance_date ||
+          (idx === 0 ? dayjs().format('DD MMM YYYY') : ''),
+      }));
+
+      const defaultValues: Partial<ProductQCData> = {
+        arrival_date: sampleData?.arrival_date || dayjs().format('DD MMM YYYY'),
+        grade_of_product: sampleData?.sample_type ?? undefined,
+        name_of_tanker: sampleData?.vessel_name
+          ? `MT. ${sampleData.vessel_name}`
+          : undefined,
+        refinery_terminal: sampleData?.refinery_terminal ?? undefined,
+        quantity_in_batch: sampleData?.quantity_in_batch ?? undefined,
+        coq_details: coqDetails,
+      };
+
+      form.setFieldsValue(defaultValues);
     }
   }, [visible, sampleData, form]);
 
@@ -184,6 +206,20 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
     ) {
       record.dens_15c_x_volume =
         Math.round(record.density_15c * record.volume_liters * 1000) / 1000;
+    } else if (field === 'density_15c' || field === 'volume_liters') {
+      record.dens_15c_x_volume = null;
+    }
+
+    if (
+      (field === 'batch_density_15c' || field === 'density_15c') &&
+      record.batch_density_15c !== null &&
+      record.density_15c !== null
+    ) {
+      record.diff =
+        Math.round((record.batch_density_15c - record.density_15c) * 1000) /
+        1000;
+    } else if (field === 'batch_density_15c' || field === 'density_15c') {
+      record.diff = null;
     }
 
     updateData[index] = record;
@@ -383,39 +419,39 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
       ),
     },
     {
-      title: 'Volume (Liters)',
-      key: 'volume_liters',
-      width: 120,
+      title: 'Batch Density @15 °C',
+      key: 'batch_density_15c',
+      width: 140,
       render: (_, record, index) => (
         <InputNumber
           size="small"
-          value={record.volume_liters}
+          value={record.batch_density_15c}
           onChange={(value) =>
-            updateRecord(type, index, 'volume_liters', value)
+            updateRecord(type, index, 'batch_density_15c', value)
           }
-          placeholder="Enter volume"
+          placeholder="Enter batch density"
           style={{ width: '100%' }}
-          precision={3}
-          formatter={(value) =>
-            `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-          }
+          precision={4}
         />
       ),
     },
     {
-      title: 'Dens @15°C x Volume (Liters)',
-      key: 'dens_15c_x_volume',
+      title: 'Diff (Max 0,003 kg/cm3)',
+      key: 'diff',
       width: 160,
       render: (_, record) => (
         <div
           style={{
             textAlign: 'center',
             fontWeight: 500,
-            color: record.dens_15c_x_volume ? '#52c41a' : '#d9d9d9',
+            color:
+              record.diff !== null && record.diff !== undefined
+                ? '#52c41a'
+                : '#d9d9d9',
           }}
         >
-          {record.dens_15c_x_volume
-            ? record.dens_15c_x_volume.toLocaleString(undefined, {
+          {record.diff !== null && record.diff !== undefined
+            ? record.diff.toLocaleString(undefined, {
                 maximumFractionDigits: 3,
               })
             : '-'}
@@ -428,12 +464,20 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
     try {
       const formValues = await form.validateFields();
 
+      const coqDetails: CoqDetail[] = Array.from({ length: 4 }, (_, idx) => ({
+        coq_no: formValues?.coq_details?.[idx]?.coq_no || '',
+        issuance_date: formValues?.coq_details?.[idx]?.issuance_date || '',
+      }));
+
       const productQCData: ProductQCData & {
         calculatedResults?: typeof calculatedResults;
       } = {
         ...formValues,
+        coq_details: coqDetails,
         port_data: portData,
         starboard_data: starboardData,
+        port_note: portNote,
+        starboard_note: starboardNote,
         calculatedResults,
       };
 
@@ -483,88 +527,219 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
           bodyStyle={{ padding: '16px' }}
         >
           <Form form={form} layout="vertical">
-            <Row gutter={16}>
-              <Col span={6}>
-                <Form.Item
-                  name="name_of_tanker"
-                  label="Name of Tanker"
-                  rules={[{ required: true }]}
-                >
-                  <Input placeholder="MT. PACIFIC ERA" />
-                </Form.Item>
-              </Col>
-              <Col span={6}>
-                <Form.Item
-                  name="arrival_date"
-                  label="Arrival Date"
-                  rules={[{ required: true }]}
-                >
-                  <Input placeholder="03 May 2025" />
-                </Form.Item>
-              </Col>
-              <Col span={6}>
-                <Form.Item
-                  name="quantity_in_batch"
-                  label="Quantity in Batch"
-                  rules={[{ required: true }]}
-                >
-                  <InputNumber
-                    placeholder="1987425"
-                    style={{ width: '100%' }}
-                    formatter={(value) =>
-                      `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                    }
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={6}>
-                <Form.Item
-                  name="voyage_no"
-                  label="Voyage No."
-                  rules={[{ required: true }]}
-                >
-                  <Input placeholder="25600" />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={6}>
-                <Form.Item
-                  name="rcoq_no"
-                  label="RCoQ No."
-                  rules={[{ required: true }]}
-                >
-                  <Input placeholder="JET A-1/112/2024" />
-                </Form.Item>
-              </Col>
-              <Col span={6}>
-                <Form.Item
-                  name="rcoq_date"
-                  label="RCoQ Date"
-                  rules={[{ required: true }]}
-                >
-                  <Input placeholder="29 April 2025" />
-                </Form.Item>
-              </Col>
-              <Col span={6}>
-                <Form.Item
-                  name="refinery_terminal"
-                  label="Refinery/Terminal"
-                  rules={[{ required: true }]}
-                >
-                  <Input placeholder="Tanjung Bin, Malaysia" />
-                </Form.Item>
-              </Col>
-              <Col span={6}>
-                <Form.Item
-                  name="grade_of_product"
-                  label="Grade of Product"
-                  rules={[{ required: true }]}
-                >
-                  <Input placeholder="Jet A-1" />
-                </Form.Item>
-              </Col>
-            </Row>
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                fontSize: '13px',
+                border: '1px solid #0f7c0f',
+              }}
+            >
+              <tbody>
+                <tr>
+                  <td
+                    colSpan={9}
+                    style={{
+                      padding: '12px 16px',
+                      border: '1px solid #0f7c0f',
+                      fontWeight: 700,
+                      fontSize: '14px',
+                      textTransform: 'uppercase',
+                      color: '#0f5132',
+                      background: '#f1f8f0',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    PRODUCT QUALITY CHECK COMPARTEMENT TANKER BEFORE DISCHARGE
+                  </td>
+                </tr>
+                {[
+                  {
+                    key: 'name_of_tanker',
+                    label: 'Name of Tanker',
+                    render: () => <Input placeholder="MT. PACIFIC ERA" />,
+                    name: 'name_of_tanker' as const,
+                    rules: [{ required: true }],
+                  },
+                  {
+                    key: 'arrival_date',
+                    label: 'Arrival Date',
+                    render: () => <Input placeholder="14 Oktober 2025" />,
+                    name: 'arrival_date' as const,
+                    rules: [{ required: true }],
+                  },
+                  {
+                    key: 'quantity_in_batch',
+                    label: 'Quantity in Batch',
+                    render: () => (
+                      <InputNumber
+                        placeholder="11,390,489"
+                        style={{ width: '100%' }}
+                        formatter={(value) =>
+                          `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                        }
+                        min={0}
+                      />
+                    ),
+                    name: 'quantity_in_batch' as const,
+                    rules: [{ required: true }],
+                    after: (
+                      <span
+                        style={{
+                          fontSize: '12px',
+                          color: '#0f5132',
+                          fontWeight: 600,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Ltr Observed
+                      </span>
+                    ),
+                  },
+                  {
+                    key: 'refinery_terminal',
+                    label: 'Refinery / Terminal',
+                    render: () => <Input placeholder="Cilacap" />,
+                    name: 'refinery_terminal' as const,
+                    rules: [{ required: true }],
+                  },
+                  {
+                    key: 'grade_of_product',
+                    label: 'Grade of Product',
+                    render: () => <Input placeholder="Jet A-1" />,
+                    name: 'grade_of_product' as const,
+                    rules: [{ required: true }],
+                  },
+                ].map((row, index) => (
+                  <tr key={row.key}>
+                    <td
+                      style={{
+                        border: '1px solid #0f7c0f',
+                        padding: '8px 12px',
+                        fontWeight: 600,
+                        background: '#ffffff',
+                        minWidth: '170px',
+                      }}
+                    >
+                      {row.label}
+                    </td>
+                    <td
+                      style={{
+                        border: '1px solid #0f7c0f',
+                        padding: '8px 6px',
+                        textAlign: 'center',
+                        fontWeight: 600,
+                      }}
+                    >
+                      :
+                    </td>
+                    <td
+                      style={{
+                        border: '1px solid #0f7c0f',
+                        padding: '6px 12px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: row.after ? 8 : 0,
+                        }}
+                      >
+                        <Form.Item
+                          name={row.name}
+                          rules={row.rules}
+                          style={{ marginBottom: 0, flex: 1 }}
+                        >
+                          {row.render()}
+                        </Form.Item>
+                        {row.after}
+                      </div>
+                    </td>
+                    {index < 4 ? (
+                      <>
+                        <td
+                          style={{
+                            border: '1px solid #0f7c0f',
+                            padding: '8px 12px',
+                            fontWeight: 600,
+                            minWidth: '140px',
+                          }}
+                        >
+                          {`CoQ (${index + 1}) No.`}
+                        </td>
+                        <td
+                          style={{
+                            border: '1px solid #0f7c0f',
+                            padding: '8px 6px',
+                            textAlign: 'center',
+                            fontWeight: 600,
+                          }}
+                        >
+                          :
+                        </td>
+                        <td
+                          style={{
+                            border: '1px solid #0f7c0f',
+                            padding: '6px 12px',
+                            minWidth: '200px',
+                          }}
+                        >
+                          <Form.Item
+                            name={['coq_details', index, 'coq_no']}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Input placeholder="COQ-0221/KPI47210/2021-S2" />
+                          </Form.Item>
+                        </td>
+                        <td
+                          style={{
+                            border: '1px solid #0f7c0f',
+                            padding: '8px 12px',
+                            fontWeight: 600,
+                            minWidth: '140px',
+                          }}
+                        >
+                          Issuance Date
+                        </td>
+                        <td
+                          style={{
+                            border: '1px solid #0f7c0f',
+                            padding: '8px 6px',
+                            textAlign: 'center',
+                            fontWeight: 600,
+                          }}
+                        >
+                          :
+                        </td>
+                        <td
+                          style={{
+                            border: '1px solid #0f7c0f',
+                            padding: '6px 12px',
+                            minWidth: '180px',
+                          }}
+                        >
+                          <Form.Item
+                            name={['coq_details', index, 'issuance_date']}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Input placeholder="12 Oktober 2021" />
+                          </Form.Item>
+                        </td>
+                      </>
+                    ) : (
+                      <td
+                        style={{
+                          border: '1px solid #0f7c0f',
+                          padding: '8px 12px',
+                        }}
+                        colSpan={6}
+                      />
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </Form>
         </Card>
 
@@ -584,6 +759,15 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
             scroll={{ x: 1200 }}
             rowKey="id"
           />
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>Catatan Port</div>
+            <Input.TextArea
+              value={portNote}
+              onChange={(event) => setPortNote(event.target.value)}
+              rows={3}
+              placeholder="Tambahkan catatan untuk port compartment"
+            />
+          </div>
         </Card>
 
         {/* Starboard Data Table */}
@@ -602,254 +786,20 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
             scroll={{ x: 1200 }}
             rowKey="id"
           />
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>
+              Catatan Starboard
+            </div>
+            <Input.TextArea
+              value={starboardNote}
+              onChange={(event) => setStarboardNote(event.target.value)}
+              rows={3}
+              placeholder="Tambahkan catatan untuk starboard compartment"
+            />
+          </div>
         </Card>
 
         {/* Calculation Results */}
-        <Card
-          title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <InfoCircleOutlined
-                style={{ color: '#722ed1', fontSize: '16px' }}
-              />
-              <span style={{ fontWeight: 600, color: '#262626' }}>
-                Calculation Results
-              </span>
-            </div>
-          }
-          size="small"
-          style={{
-            marginTop: 16,
-            borderRadius: 12,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            border: '1px solid #e8e8e8',
-            overflow: 'hidden',
-          }}
-          headStyle={{
-            background: 'linear-gradient(135deg, #f6f8ff 0%, #f0f2ff 100%)',
-            borderBottom: '1px solid #e8e8e8',
-            padding: '12px 20px',
-          }}
-          bodyStyle={{ padding: '20px' }}
-        >
-          {/* Volume Calculations */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 20,
-              marginBottom: 24,
-            }}
-          >
-            <div
-              style={{
-                background: '#fafbfc',
-                padding: '16px',
-                borderRadius: 8,
-                border: '1px solid #e8e8e8',
-              }}
-            >
-              <div
-                style={{ fontSize: '12px', color: '#8c8c8c', marginBottom: 4 }}
-              >
-                Total Volume × Density @15°C
-              </div>
-              <div
-                style={{
-                  fontSize: '20px',
-                  fontWeight: 600,
-                  color: '#1890ff',
-                  fontFamily: 'Monaco, monospace',
-                }}
-              >
-                {calculatedResults.total_volume_dens_15c.toFixed(3)}
-              </div>
-            </div>
-
-            <div
-              style={{
-                background: '#fafbfc',
-                padding: '16px',
-                borderRadius: 8,
-                border: '1px solid #e8e8e8',
-              }}
-            >
-              <div
-                style={{ fontSize: '12px', color: '#8c8c8c', marginBottom: 4 }}
-              >
-                Total Volume (Liters)
-              </div>
-              <div
-                style={{
-                  fontSize: '20px',
-                  fontWeight: 600,
-                  color: '#52c41a',
-                  fontFamily: 'Monaco, monospace',
-                }}
-              >
-                {calculatedResults.total_volume.toFixed(3)}
-              </div>
-            </div>
-          </div>
-
-          {/* Density Comparison */}
-          <div
-            style={{
-              background: '#f8f9fa',
-              padding: '20px',
-              borderRadius: 8,
-              border: '1px solid #dee2e6',
-            }}
-          >
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr 1fr',
-                gap: 20,
-                alignItems: 'end',
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    fontSize: '12px',
-                    color: '#6c757d',
-                    marginBottom: 8,
-                  }}
-                >
-                  Expected Density (kg/m³)
-                </div>
-                <div
-                  style={{
-                    fontSize: '24px',
-                    fontWeight: 700,
-                    color: '#495057',
-                    fontFamily: 'Monaco, monospace',
-                  }}
-                >
-                  {calculatedResults.expected_density.toFixed(1)}
-                </div>
-                <div
-                  style={{ fontSize: '10px', color: '#adb5bd', marginTop: 2 }}
-                >
-                  (Volume×Dens÷Volume×1000)
-                </div>
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    fontSize: '12px',
-                    color: '#6c757d',
-                    marginBottom: 8,
-                  }}
-                >
-                  Refinery Certificate
-                </div>
-                <InputNumber
-                  value={calculatedResults.refinery_certificate_density}
-                  onChange={(value) => {
-                    const newValue = value || 627;
-                    setCalculatedResults((prev) => {
-                      const newDifference = Math.abs(
-                        prev.expected_density - newValue,
-                      );
-                      return {
-                        ...prev,
-                        refinery_certificate_density: newValue,
-                        density_difference: Math.round(newDifference * 10) / 10,
-                      };
-                    });
-                  }}
-                  style={{
-                    width: '100%',
-                    fontSize: '16px',
-                    fontWeight: 600,
-                  }}
-                  size="large"
-                  precision={0}
-                  min={0}
-                />
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    fontSize: '12px',
-                    color: '#6c757d',
-                    marginBottom: 8,
-                  }}
-                >
-                  Difference (Max 3 kg/m³)
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: '24px',
-                      fontWeight: 700,
-                      color:
-                        calculatedResults.density_difference <= 3
-                          ? '#28a745'
-                          : '#dc3545',
-                      fontFamily: 'Monaco, monospace',
-                    }}
-                  >
-                    {calculatedResults.density_difference.toFixed(1)}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '18px',
-                      color:
-                        calculatedResults.density_difference <= 3
-                          ? '#28a745'
-                          : '#dc3545',
-                    }}
-                  >
-                    {calculatedResults.density_difference <= 3 ? '✓' : '⚠️'}
-                  </div>
-                </div>
-                <div
-                  style={{
-                    fontSize: '10px',
-                    color:
-                      calculatedResults.density_difference <= 3
-                        ? '#28a745'
-                        : '#dc3545',
-                    marginTop: 2,
-                    fontWeight: 500,
-                  }}
-                >
-                  {calculatedResults.density_difference <= 3
-                    ? 'ACCEPTABLE'
-                    : 'EXCEEDS LIMIT'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Formula Info */}
-          <div
-            style={{
-              marginTop: 16,
-              padding: '12px 16px',
-              background: '#f0f6ff',
-              borderRadius: 6,
-              border: '1px solid #bae7ff',
-            }}
-          >
-            <div
-              style={{ fontSize: '11px', color: '#0958d9', lineHeight: 1.5 }}
-            >
-              <strong>Formula:</strong> Difference = |Expected Density -
-              Refinery Certificate| ≤ 3 kg/m³ for acceptance
-            </div>
-          </div>
-        </Card>
       </div>
     </Modal>
   );
