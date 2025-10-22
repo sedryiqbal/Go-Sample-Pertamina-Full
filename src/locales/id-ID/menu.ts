@@ -76,4 +76,5 @@ export default {
   'menu.monitoring': 'Monitoring',
   'menu.monitoring-detail': 'Detail Monitoring',
   'menu.reports': 'Laporan',
+  'menu.change-password': 'Ubah Password',
 };

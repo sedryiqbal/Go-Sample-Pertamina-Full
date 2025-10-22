@@ -34,6 +34,12 @@ export default [
     redirect: '/login',
   },
   {
+    path: '/account/change-password',
+    name: 'change-password',
+    component: './account/change-password',
+    hideInMenu: true,
+  },
+  {
     path: '/dashboard',
     name: 'dashboard',
     icon: 'dashboard',

@@ -74,4 +74,5 @@ export default {
 
   'menu.monitoring': 'Monitoring',
   'menu.reports': 'Reports',
+  'menu.change-password': 'Change Password',
 };

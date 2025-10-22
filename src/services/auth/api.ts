@@ -55,3 +55,41 @@ export const fetchProfile = async (): Promise<ProfileItems | undefined> => {
     username: profileData.email,
   };
 };
+
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export interface ChangePasswordResponse {
+  code: string;
+  status: boolean;
+  message: string;
+  data?: boolean;
+  timestamp?: string;
+  [key: string]: any;
+}
+
+export const changePassword = async (
+  payload: ChangePasswordPayload,
+  options?: { [key: string]: any },
+) => {
+  const response = await request<ChangePasswordResponse>(
+    '/api/Auth/change-password',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      data: payload,
+      ...(options || {}),
+    },
+  );
+
+  if (!response?.status) {
+    throw new Error(response?.message || 'Gagal mengganti password.');
+  }
+
+  return response;
+};

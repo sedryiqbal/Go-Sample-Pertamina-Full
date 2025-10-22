@@ -1,4 +1,5 @@
 import {
+  KeyOutlined,
   LogoutOutlined,
   SettingOutlined,
   UserOutlined,
@@ -104,6 +105,10 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({
       loginOut();
       return;
     }
+    if (key === 'change-password') {
+      history.push('/account/change-password');
+      return;
+    }
     history.push(`/account/${key}`);
   };
 
@@ -147,6 +152,11 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({
           },
         ]
       : []),
+    {
+      key: 'change-password',
+      icon: <KeyOutlined />,
+      label: 'Ubah Password',
+    },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
