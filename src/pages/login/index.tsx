@@ -356,41 +356,29 @@ const Login: React.FC = () => {
     setSubmitting(true);
     setLoginError('');
     try {
-      const { username, password } = values;
-      if (!username || !password) {
-        message.error('Username dan password wajib diisi.');
+      const email = values?.email?.trim();
+      const { password } = values;
+
+      if (!email || !password) {
+        message.error('Email dan password wajib diisi.');
         return;
       }
 
-      const response = await loginRequest({
-        username: username.trim(),
-        password,
-      });
+      const response = await loginRequest(
+        {
+          email,
+          password,
+        },
+        {
+          skipErrorHandler: true,
+        },
+      );
 
-      const { status: responseStatus, data: responseData } =
-        (response as {
-          status?: boolean;
-          data?: {
-            message?: string;
-            items?: {
-              token?: string;
-              user?: API.CurrentUser;
-            };
-          };
-        }) || {};
-
-      if (responseStatus === false) {
-        throw new Error(responseData?.message || 'Login gagal.');
+      if (!response?.status) {
+        throw new Error(response?.message || 'Login gagal.');
       }
 
-      const items = responseData?.items || (responseData as any);
-
-      const token =
-        items?.token ??
-        response?.token ??
-        response?.accessToken ??
-        response?.data?.token ??
-        response?.data?.accessToken;
+      const token = response?.data?.token;
 
       if (!token) {
         throw new Error('Token tidak ditemukan pada response login.');
@@ -399,17 +387,28 @@ const Login: React.FC = () => {
       setAuthToken(token);
       setLoginError('');
 
-      const responseUser =
-        items?.user ??
-        (response?.data && response?.data.user) ??
-        response?.user ??
-        response?.profile;
+      const responseUser = response?.data?.user;
 
       if (responseUser) {
+        const normalizedUser = {
+          name: responseUser.nama || responseUser.name,
+          email: responseUser.email,
+          userid: responseUser.id ? String(responseUser.id) : undefined,
+          access: responseUser.isSuperadmin ? 'admin' : responseUser.roleName,
+          roleName: responseUser.roleName,
+          superAdmin: responseUser.isSuperadmin,
+          phone: responseUser.phone,
+          status: responseUser.status,
+        } as API.CurrentUser & {
+          roleName?: string;
+          superAdmin?: boolean;
+          status?: string;
+        };
+
         flushSync(() => {
           setInitialState((s) => ({
             ...s,
-            currentUser: responseUser,
+            currentUser: normalizedUser,
           }));
         });
       } else {
@@ -417,7 +416,7 @@ const Login: React.FC = () => {
       }
 
       const loginMessage =
-        responseData?.message ||
+        response?.message ||
         intl.formatMessage({
           id: 'pages.login.success',
           defaultMessage: '登录成功！',
@@ -486,23 +485,28 @@ const Login: React.FC = () => {
             }}
           >
             <Form.Item
-              name="username"
+              name="email"
               label={
                 <span style={{ fontSize: '13px', fontWeight: '500' }}>
-                  Username
+                  Email
                 </span>
               }
               rules={[
                 {
                   required: true,
-                  message: 'Silakan masukkan username!',
+                  message: 'Silakan masukkan email!',
+                },
+                {
+                  type: 'email',
+                  message: 'Format email tidak valid!',
                 },
               ]}
             >
               <Input
                 prefix={<UserOutlined style={{ color: '#999' }} />}
                 className={styles.formInput}
-                placeholder="Masukkan username"
+                placeholder="Masukkan email"
+                type="email"
               />
             </Form.Item>
 

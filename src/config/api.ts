@@ -1,4 +1,5 @@
-const FALLBACK_API_BASE_URL = 'http://103.197.191.216:5247';
+// const FALLBACK_API_BASE_URL = 'http://103.197.191.216:5247';
+const FALLBACK_API_BASE_URL = 'http://103.197.191.216:5000';
 const GO_SAMPLE_PREFIX = '/api/go-sample';
 
 const normalizeBaseUrl = (value?: string) => {

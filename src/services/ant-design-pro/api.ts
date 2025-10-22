@@ -2,6 +2,33 @@
 /* eslint-disable */
 import { request } from '@umijs/max';
 
+export interface LoginResponseUser {
+  id?: number | string;
+  nama?: string;
+  name?: string;
+  email?: string;
+  roleName?: string;
+  isSuperadmin?: boolean;
+  phone?: string;
+  status?: string;
+  [key: string]: any;
+}
+
+export interface LoginResponse {
+  code: string;
+  status: boolean;
+  message: string;
+  data?: {
+    token: string;
+    refreshToken?: string;
+    expiresAt?: string;
+    user?: LoginResponseUser;
+    [key: string]: any;
+  };
+  timestamp?: string;
+  [key: string]: any;
+}
+
 /** 获取当前的用户 GET /api/currentUser */
 export async function currentUser(options?: { [key: string]: any }) {
   return {
@@ -66,21 +93,36 @@ export async function currentUser(options?: { [key: string]: any }) {
   // });
 }
 
-/** 退出登录接口 POST /api/login/outLogin */
+export interface LogoutResponse {
+  code: string;
+  status: boolean;
+  message: string;
+  data?: {
+    message?: string;
+    [key: string]: any;
+  };
+  timestamp?: string;
+  [key: string]: any;
+}
+
+/** 退出登录接口 POST /api/Auth/logout */
 export async function outLogin(options?: { [key: string]: any }) {
-  return { data: {}, success: true }
-  // return request<Record<string, any>>('/api/login/outLogin', {
-  //   method: 'POST',
-  //   ...(options || {}),
-  // });
+  return request<LogoutResponse>('/api/Auth/logout', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: {},
+    ...(options || {}),
+  });
 }
 
 /** 登录接口 POST /api/auth/login */
 export async function login(
-  body: Pick<API.LoginParams, 'username' | 'password'>,
+  body: Pick<API.LoginParams, 'email' | 'password'>,
   options?: { [key: string]: any },
 ) {
-  return request<Record<string, any>>('/api/auth/login', {
+  return request<LoginResponse>('/api/auth/login', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
