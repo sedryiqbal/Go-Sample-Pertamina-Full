@@ -7,18 +7,113 @@ import {
   Form,
   Input,
   InputNumber,
+  message,
   Row,
   Select,
   Space,
 } from 'antd';
 import type { FC } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  SHIP_CARGO_TYPE_OPTIONS,
-  SHIP_PORT_OPTIONS,
-  SHIP_STATUS_OPTIONS,
-  SHIP_TYPE_OPTIONS,
-} from '../constants';
+  fetchDockReferences,
+  fetchShipCargoTypes,
+  fetchShipTypesReference,
+} from '@/services/ships/api';
+import type {
+  DockReference,
+  ShipCargoTypeReference,
+  ShipTypeReference,
+} from '@/services/ships/typings';
+import { SHIP_STATUS_OPTIONS } from '../constants';
 import type { ShipFormValues } from '../types';
+
+type SelectOption = { label: string; value: number };
+
+const dedupeOptions = (options: SelectOption[]): SelectOption[] => {
+  const seen = new Set<string>();
+
+  return options.filter((option) => {
+    const key = option.value?.toString().trim();
+    if (!key) {
+      return false;
+    }
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+};
+
+const normalizeName = (name?: string | null) => {
+  if (typeof name !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = name.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const mapShipTypeOptions = (records: ShipTypeReference[]): SelectOption[] =>
+  dedupeOptions(
+    records
+      .map((record) => {
+        const name = normalizeName(record.name);
+        const fallback = record.id ? `Ship Type #${record.id}` : undefined;
+        const label = name ?? fallback;
+        if (!label || record.id === undefined || record.id === null) {
+          return undefined;
+        }
+
+        return {
+          label,
+          value: record.id,
+        };
+      })
+      .filter(Boolean) as SelectOption[],
+  );
+
+const mapCargoTypeOptions = (
+  records: ShipCargoTypeReference[],
+): SelectOption[] =>
+  dedupeOptions(
+    records
+      .map((record) => {
+        const name = normalizeName(record.name);
+        const fallback = record.id ? `Cargo Type #${record.id}` : undefined;
+        const label = name ?? fallback;
+        if (!label || record.id === undefined || record.id === null) {
+          return undefined;
+        }
+
+        return {
+          label,
+          value: record.id,
+        };
+      })
+      .filter(Boolean) as SelectOption[],
+  );
+
+const mapDockOptions = (records: DockReference[]): SelectOption[] =>
+  dedupeOptions(
+    records
+      .map((record) => {
+        const name = normalizeName(record.name);
+        const fallback = record.id ? `Dock #${record.id}` : undefined;
+        const label = name ?? fallback;
+        if (!label || record.id === undefined || record.id === null) {
+          return undefined;
+        }
+
+        return {
+          label,
+          value: record.id,
+        };
+      })
+      .filter(Boolean) as SelectOption[],
+  );
 
 interface ShipFormDrawerProps {
   form: FormInstance<ShipFormValues>;
@@ -42,6 +137,83 @@ const ShipFormDrawer: FC<ShipFormDrawerProps> = ({
   onClose,
   onSubmit,
 }) => {
+  const [shipTypeOptions, setShipTypeOptions] = useState<SelectOption[]>([]);
+  const [cargoTypeOptions, setCargoTypeOptions] = useState<SelectOption[]>([]);
+  const [dockOptions, setDockOptions] = useState<SelectOption[]>([]);
+  const [optionsLoading, setOptionsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    let isActive = true;
+    const loadReferences = async () => {
+      setOptionsLoading(true);
+      try {
+        const [typesResult, cargoResult, docksResult] =
+          await Promise.allSettled([
+            fetchShipTypesReference(),
+            fetchShipCargoTypes(),
+            fetchDockReferences(),
+          ]);
+
+        const failedResources: string[] = [];
+
+        if (typesResult.status === 'fulfilled' && isActive) {
+          const options = mapShipTypeOptions(typesResult.value);
+          if (options.length > 0) {
+            setShipTypeOptions(options);
+          }
+        } else if (typesResult.status === 'rejected') {
+          failedResources.push('tipe kapal');
+        }
+
+        if (cargoResult.status === 'fulfilled' && isActive) {
+          const options = mapCargoTypeOptions(cargoResult.value);
+          if (options.length > 0) {
+            setCargoTypeOptions(options);
+          }
+        } else if (cargoResult.status === 'rejected') {
+          failedResources.push('jenis muatan');
+        }
+
+        if (docksResult.status === 'fulfilled' && isActive) {
+          const options = mapDockOptions(docksResult.value);
+          if (options.length > 0) {
+            setDockOptions(options);
+          }
+        } else if (docksResult.status === 'rejected') {
+          failedResources.push('lokasi dermaga');
+        }
+
+        if (failedResources.length > 0 && isActive) {
+          message.error(
+            `Gagal memuat data ${failedResources.join(
+              ', ',
+            )}. Silakan coba muat ulang.`,
+          );
+        }
+      } catch (_error) {
+        if (isActive) {
+          message.error(
+            'Gagal memuat data referensi kapal. Silakan coba muat ulang.',
+          );
+        }
+      } finally {
+        if (isActive) {
+          setOptionsLoading(false);
+        }
+      }
+    };
+
+    loadReferences();
+
+    return () => {
+      isActive = false;
+    };
+  }, [open]);
+
   const handleFinish = async (values: ShipFormValues) => {
     await onSubmit(values);
   };
@@ -97,23 +269,34 @@ const ShipFormDrawer: FC<ShipFormDrawerProps> = ({
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
-              name="type"
+              name="typeShipId"
               label="Tipe Kapal"
               rules={[{ required: true, message: 'Tipe kapal wajib dipilih' }]}
             >
               <Select
                 placeholder="Pilih tipe kapal"
-                options={SHIP_TYPE_OPTIONS}
+                options={shipTypeOptions}
+                loading={optionsLoading}
+                showSearch
+                optionFilterProp="label"
               />
             </Form.Item>
           </Col>
           <Col span={12}>
             <Form.Item
-              name="flag"
-              label="Bendera"
-              rules={[{ required: true, message: 'Bendera wajib diisi' }]}
+              name="typeLoadId"
+              label="Jenis Muatan"
+              rules={[
+                { required: true, message: 'Jenis muatan wajib dipilih' },
+              ]}
             >
-              <Input placeholder="Singapore" />
+              <Select
+                placeholder="Pilih jenis muatan"
+                options={cargoTypeOptions}
+                showSearch
+                optionFilterProp="label"
+                loading={optionsLoading}
+              />
             </Form.Item>
           </Col>
         </Row>
@@ -142,14 +325,62 @@ const ShipFormDrawer: FC<ShipFormDrawerProps> = ({
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
+              name="dockId"
+              label="Lokasi Dermaga"
+              rules={[
+                { required: true, message: 'Lokasi dermaga wajib dipilih' },
+              ]}
+            >
+              <Select
+                placeholder="Pilih lokasi dermaga"
+                options={dockOptions}
+                showSearch
+                optionFilterProp="label"
+                loading={optionsLoading}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="flag"
+              label="Bendera"
+              rules={[{ required: true, message: 'Bendera wajib diisi' }]}
+            >
+              <Input placeholder="Singapore" />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={16}>
+          <Col span={6}>
+            <Form.Item
+              name="maximalTanki"
+              label="Maksimal Tanki"
+              rules={[
+                {
+                  type: 'number',
+                  min: 0,
+                  message: 'Maksimal tanki tidak boleh negatif',
+                },
+              ]}
+            >
+              <InputNumber
+                placeholder="12"
+                style={{ width: '100%' }}
+                controls={false}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item
               name="capacity"
-              label="Kapasitas (KL)"
+              label="Kapasitas (MT)"
               rules={[
                 { message: 'Kapasitas wajib diisi', type: 'number' },
                 {
                   type: 'number',
                   min: 1,
-                  message: 'Kapasitas minimal 1 KL',
+                  message: 'Kapasitas minimal 1 MT',
                 },
               ]}
             >
@@ -160,19 +391,15 @@ const ShipFormDrawer: FC<ShipFormDrawerProps> = ({
               />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col span={10}>
             <Form.Item
-              name="cargoType"
-              label="Jenis Muatan"
-              rules={[
-                { required: true, message: 'Jenis muatan wajib dipilih' },
-              ]}
+              name="status"
+              label="Status"
+              rules={[{ required: true, message: 'Status wajib dipilih' }]}
             >
               <Select
-                placeholder="Pilih jenis muatan"
-                options={SHIP_CARGO_TYPE_OPTIONS}
-                showSearch
-                optionFilterProp="label"
+                placeholder="Pilih status"
+                options={SHIP_STATUS_OPTIONS}
               />
             </Form.Item>
           </Col>
@@ -203,37 +430,6 @@ const ShipFormDrawer: FC<ShipFormDrawerProps> = ({
                 showTime
                 style={{ width: '100%' }}
                 placeholder="Pilih waktu selesai operasi"
-              />
-            </Form.Item>
-          </Col>
-        </Row>
-
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              name="portLocation"
-              label="Lokasi Pelabuhan"
-              rules={[
-                { required: true, message: 'Lokasi pelabuhan wajib dipilih' },
-              ]}
-            >
-              <Select
-                placeholder="Pilih lokasi pelabuhan"
-                options={SHIP_PORT_OPTIONS}
-                showSearch
-                optionFilterProp="label"
-              />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name="status"
-              label="Status"
-              rules={[{ required: true, message: 'Status wajib dipilih' }]}
-            >
-              <Select
-                placeholder="Pilih status"
-                options={SHIP_STATUS_OPTIONS}
               />
             </Form.Item>
           </Col>

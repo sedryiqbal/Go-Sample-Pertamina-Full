@@ -57,14 +57,6 @@ const normalizeTextParam = (value: unknown): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
-const normalizeSelectParam = (value: unknown): string | undefined => {
-  if (Array.isArray(value) && value.length > 0) {
-    return normalizeTextParam(value[0]);
-  }
-
-  return normalizeTextParam(value);
-};
-
 const Ships: React.FC = () => {
   const [form] = Form.useForm<ShipFormValues>();
   const actionRef = useRef<ActionType | null>(null);
@@ -90,40 +82,61 @@ const Ships: React.FC = () => {
   const [detailVisible, setDetailVisible] = useState(false);
   const [detailShip, setDetailShip] = useState<ShipTableRecord | null>(null);
 
+  const handleFormApiError = useCallback(
+    (error: unknown) => {
+      if (!error || typeof error !== 'object') {
+        return;
+      }
+
+      const source = error as {
+        fieldErrors?: Record<string, unknown>;
+        message?: string;
+      };
+      if (source.fieldErrors && typeof source.fieldErrors === 'object') {
+        const fieldEntries = Object.entries(source.fieldErrors);
+        form.setFields(
+          fieldEntries.map(([name, value]) => {
+            const messages = Array.isArray(value)
+              ? value.map((item) => String(item))
+              : [String(value)];
+            return {
+              name,
+              errors: messages,
+            };
+          }),
+        );
+
+        const allMessages = fieldEntries
+          .flatMap(([, value]) =>
+            Array.isArray(value)
+              ? value.map((item) => String(item))
+              : [String(value)],
+          )
+          .filter((item) => item && item.trim().length > 0);
+        const uniqueMessages = Array.from(new Set(allMessages));
+        if (uniqueMessages.length > 0) {
+          message.error(uniqueMessages.join(', '));
+        } else if (source.message && source.message.trim()) {
+          message.error(source.message);
+        }
+        return;
+      }
+
+      if (source.message && source.message.trim()) {
+        message.error(source.message);
+      }
+    },
+    [form],
+  );
+
   const handleTableRequest = useCallback(
     async (params: Record<string, any>) => {
-      const {
-        current = 1,
-        pageSize = 10,
-        name,
-        type,
-        status,
-        arrivalDateRange,
-      } = params ?? {};
-
-      let arrivalDateFrom: string | undefined;
-      let arrivalDateTo: string | undefined;
-
-      if (Array.isArray(arrivalDateRange) && arrivalDateRange.length === 2) {
-        const [from, to] = arrivalDateRange;
-        const start = dayjs(from);
-        const end = dayjs(to);
-        if (start.isValid()) {
-          arrivalDateFrom = start.startOf('day').toISOString();
-        }
-        if (end.isValid()) {
-          arrivalDateTo = end.endOf('day').toISOString();
-        }
-      }
+      const { current = 1, pageSize = 10, search } = params ?? {};
 
       return loadShips({
         page: Number(current) || 1,
         pageSize: Number(pageSize) || 10,
-        name: normalizeTextParam(name),
-        type: normalizeSelectParam(type),
-        status: normalizeSelectParam(status),
-        arrivalDateFrom,
-        arrivalDateTo,
+        search: normalizeTextParam(search),
       });
     },
     [loadShips],
@@ -141,17 +154,18 @@ const Ships: React.FC = () => {
       form.setFieldsValue({
         name: record.name ?? '',
         code: record.code ?? undefined,
-        type: record.type ?? undefined,
+        typeShipId: record.typeShipId ?? undefined,
         flag: record.flag ?? undefined,
         company: record.company ?? undefined,
         captainName: record.captainName ?? undefined,
         capacity: record.capacity ?? undefined,
-        cargoType: record.cargoType ?? undefined,
+        maximalTanki: record.maximalTanki ?? undefined,
+        typeLoadId: record.typeLoadId ?? undefined,
         arrivalDate: record.arrivalDate ? dayjs(record.arrivalDate) : undefined,
         operationCompletionTime: record.operationCompletionTime
           ? dayjs(record.operationCompletionTime)
           : undefined,
-        portLocation: record.portLocation ?? undefined,
+        dockId: record.dockId ?? undefined,
         status: record.status ?? undefined,
         contactPerson: record.contactPerson ?? undefined,
         phone: record.phone ?? undefined,
@@ -414,8 +428,8 @@ const Ships: React.FC = () => {
           await updateShip(editingShip.id, values);
           handleDrawerClose();
           actionRef.current?.reload();
-        } catch (_error) {
-          // Error notification already ditangani oleh hook.
+        } catch (error) {
+          handleFormApiError(error);
         }
         return;
       }
@@ -426,11 +440,18 @@ const Ships: React.FC = () => {
         handleDrawerClose();
         actionRef.current?.setPageInfo?.({ current: 1 });
         actionRef.current?.reload();
-      } catch (_error) {
-        // Error notification already ditangani oleh hook.
+      } catch (error) {
+        handleFormApiError(error);
       }
     },
-    [createShip, editingShip, handleDrawerClose, setShips, updateShip],
+    [
+      createShip,
+      editingShip,
+      handleDrawerClose,
+      handleFormApiError,
+      setShips,
+      updateShip,
+    ],
   );
 
   const columns = useMemo<ProColumns<ShipTableRecord>[]>(
@@ -441,6 +462,7 @@ const Ships: React.FC = () => {
         key: 'name',
         width: 240,
         fixed: 'left',
+        hideInSearch: true,
         render: (_, record) => (
           <Space>
             <CarOutlined style={{ color: '#fd0017' }} />
@@ -452,9 +474,10 @@ const Ships: React.FC = () => {
         ),
       },
       {
-        title: 'Rentang Kedatangan',
-        dataIndex: 'arrivalDateRange',
-        valueType: 'dateRange',
+        title: 'Pencarian',
+        dataIndex: 'search',
+        key: 'search',
+        valueType: 'text',
         hideInTable: true,
       },
       {
@@ -463,6 +486,7 @@ const Ships: React.FC = () => {
         key: 'type',
         valueType: 'select',
         width: 140,
+        hideInSearch: true,
         fieldProps: {
           options: SHIP_TYPE_OPTIONS,
           allowClear: true,
@@ -524,7 +548,7 @@ const Ships: React.FC = () => {
           ),
       },
       {
-        title: 'Lokasi Pelabuhan',
+        title: 'Lokasi Dermaga',
         dataIndex: 'portLocation',
         key: 'portLocation',
         hideInSearch: true,
@@ -542,6 +566,7 @@ const Ships: React.FC = () => {
         key: 'status',
         valueType: 'select',
         width: 160,
+        hideInSearch: true,
         fieldProps: {
           options: SHIP_STATUS_OPTIONS,
           allowClear: true,
