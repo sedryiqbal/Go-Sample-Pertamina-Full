@@ -32,6 +32,79 @@ const extractErrorMessage = (error: unknown, fallback: string) => {
   return (messageCandidate as string) ?? fallback;
 };
 
+const FIELD_ERROR_MAP: Record<string, string> = {
+  KodeKapal: 'code',
+  NamaKapal: 'name',
+  Status: 'status',
+  TypeLoadId: 'typeLoadId',
+  TypeShipId: 'typeShipId',
+  Bendera: 'flag',
+  Perusahaan: 'company',
+  NamaKapten: 'captainName',
+  KapasitasMT: 'capacity',
+  MaximalTanki: 'maximalTanki',
+  TanggalKedatangan: 'arrivalDate',
+  WaktuSelesaiOperasi: 'operationCompletionTime',
+  DockId: 'dockId',
+  ContactPerson: 'contactPerson',
+  Telepon: 'phone',
+  Email: 'email',
+  PelabuhanAsal: 'originPort',
+  PelabuhanTujuan: 'destinationPort',
+  Catatan: 'notes',
+};
+
+type ShipValidationError = Error & {
+  fieldErrors?: Record<string, string[]>;
+  status?: number;
+  raw?: unknown;
+};
+
+const extractValidationError = (error: unknown): ShipValidationError | null => {
+  if (!error || typeof error !== 'object') {
+    return null;
+  }
+
+  const source = error as Record<string, any>;
+  const response = source?.response;
+  const data = response?.data;
+  const errors = data?.errors;
+
+  if (!errors || typeof errors !== 'object') {
+    return null;
+  }
+
+  const mappedErrors: Record<string, string[]> = {};
+  Object.entries(errors).forEach(([key, value]) => {
+    const targetKey =
+      FIELD_ERROR_MAP[key] ??
+      (key.length > 0 ? key.charAt(0).toLowerCase() + key.slice(1) : key);
+
+    const messages: string[] = Array.isArray(value)
+      ? (value as unknown[]).map((item) => String(item))
+      : [String(value)];
+
+    if (!mappedErrors[targetKey]) {
+      mappedErrors[targetKey] = [];
+    }
+    mappedErrors[targetKey].push(...messages);
+  });
+
+  const allMessages = Object.values(mappedErrors).flat();
+  const messageText =
+    (typeof data?.title === 'string' && data.title.trim()) ||
+    allMessages.join(', ') ||
+    'Validasi data gagal';
+
+  const validationError: ShipValidationError = new Error(messageText);
+  validationError.fieldErrors = mappedErrors;
+  validationError.status =
+    typeof data?.status === 'number' ? data.status : undefined;
+  validationError.raw = data;
+
+  return validationError;
+};
+
 export const useShipManagement = () => {
   const [ships, setShips] = useState<Ship[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,8 +132,8 @@ export const useShipManagement = () => {
     setLoading(true);
     try {
       const response = await fetchShips(mergedQuery);
-      const items = response?.items?.data ?? [];
-      const totalCount = response?.items?.totalCount ?? items.length;
+      const items = response?.data ?? [];
+      const totalCount = response?.pagination?.totalData ?? items.length;
 
       setShips(items);
 
@@ -91,6 +164,10 @@ export const useShipManagement = () => {
       message.success('Data kapal berhasil ditambahkan');
       return createdShip;
     } catch (error) {
+      const validationError = extractValidationError(error);
+      if (validationError) {
+        throw validationError;
+      }
       const description = extractErrorMessage(
         error,
         'Gagal menyimpan data kapal',
@@ -116,6 +193,10 @@ export const useShipManagement = () => {
         );
         return updatedShip;
       } catch (error) {
+        const validationError = extractValidationError(error);
+        if (validationError) {
+          throw validationError;
+        }
         const description = extractErrorMessage(
           error,
           'Gagal memperbarui data kapal',

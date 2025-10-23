@@ -108,7 +108,7 @@ const ShipDetailModal: FC<ShipDetailModalProps> = ({ open, onClose, ship }) => {
           label={
             <Space size={4}>
               <EnvironmentOutlined />
-              <span>Pelabuhan</span>
+              <span>Lokasi Dermaga</span>
             </Space>
           }
         >
@@ -117,8 +117,11 @@ const ShipDetailModal: FC<ShipDetailModalProps> = ({ open, onClose, ship }) => {
         <Descriptions.Item label="Bendera">
           {safeText(ship.flag)}
         </Descriptions.Item>
-        <Descriptions.Item label="Kapasitas (KL)">
+        <Descriptions.Item label="Kapasitas (MT)">
           {formatNumber(ship.capacity)}
+        </Descriptions.Item>
+        <Descriptions.Item label="Maksimal Tanki">
+          {formatNumber(ship.maximalTanki)}
         </Descriptions.Item>
         <Descriptions.Item label="Perusahaan">
           {safeText(ship.company)}

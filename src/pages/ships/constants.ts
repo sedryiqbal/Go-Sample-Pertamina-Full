@@ -13,6 +13,8 @@ export const SHIP_TYPE_COLOR_MAP: Record<string, string> = {
 };
 
 export const SHIP_STATUS_OPTIONS = [
+  { label: 'Active', value: 'active' },
+  { label: 'Inactive', value: 'inactive' },
   { label: 'Scheduled', value: 'Scheduled' },
   { label: 'In Transit', value: 'InTransit' },
   { label: 'Arrived', value: 'Arrived' },
@@ -34,6 +36,8 @@ export const SHIP_STATUS_BADGE_COLOR: Record<
   string,
   'success' | 'processing' | 'default' | 'warning' | 'error'
 > = {
+  active: 'success',
+  inactive: 'default',
   Scheduled: 'processing',
   InTransit: 'processing',
   Arrived: 'success',

@@ -2,12 +2,15 @@ export interface Ship {
   id: string;
   name: string;
   code: string | null;
-  type: string;
+  type: string | null;
+  typeShipId?: number | null;
+  typeShipName?: string | null;
   flag: string | null;
   company: string | null;
   captainName: string | null;
   capacity: number | null;
   cargoType: string | null;
+  typeLoadId?: number | null;
   arrivalDate: string | null;
   operationCompletionTime?: string | null;
   portLocation: string | null;
@@ -20,6 +23,9 @@ export interface Ship {
   notes?: string | null;
   unitId?: string | null;
   unitName?: string | null;
+  dockId?: number | null;
+  dockName?: string | null;
+  maximalTanki?: number | null;
   sampleCount?: number;
   isActive?: boolean;
   canAddSamples?: boolean;
@@ -31,34 +37,31 @@ export interface Ship {
 }
 
 export interface CreateShipPayload {
-  name: string;
-  code: string;
-  type: string;
-  flag: string;
-  company: string;
-  captainName: string;
-  capacity: number;
-  cargoType: string;
-  arrivalDate: string;
-  operationCompletionTime?: string;
-  portLocation: string;
+  kodeKapal: string;
+  namaKapal: string;
   status: string;
+  typeLoadId: number;
+  typeShipId: number;
+  bendera: string;
+  perusahaan: string;
+  namaKapten: string;
+  kapasitasMT: number;
+  maximalTanki?: number;
+  tanggalKedatangan: string;
+  waktuSelesaiOperasi?: string;
+  dockId: number;
   contactPerson: string;
-  phone: string;
+  telepon: string;
   email: string;
-  originPort: string;
-  destinationPort: string;
-  notes?: string;
+  pelabuhanAsal: string;
+  pelabuhanTujuan: string;
+  catatan?: string;
 }
 
 export interface ShipListQuery {
   page?: number;
   pageSize?: number;
-  name?: string;
-  status?: string;
-  type?: string;
-  arrivalDateFrom?: string;
-  arrivalDateTo?: string;
+  search?: string;
 }
 
 export interface ShipApiEnvelope<T> {
@@ -66,20 +69,47 @@ export interface ShipApiEnvelope<T> {
   success?: boolean;
   message?: string;
   data?: T;
+  meta?: unknown;
   [key: string]: unknown;
 }
 
-export interface ShipListItems {
-  data: Ship[];
-  totalCount: number;
-  page?: number;
-  pageSize?: number;
-  totalPages?: number;
-  hasPreviousPage?: boolean;
-  hasNextPage?: boolean;
+export interface ShipListPagination {
+  page: number;
+  perPage: number;
+  totalData: number;
+  totalPage: number;
 }
 
 export interface ShipListEnvelope {
+  data: Ship[];
+  pagination: ShipListPagination;
   message?: string;
-  items?: ShipListItems;
+  status?: boolean;
+}
+
+export interface ShipTypeReference {
+  id: number;
+  name: string;
+  description?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ShipCargoTypeReference {
+  id: number;
+  name: string;
+  description?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface DockReference {
+  id: number;
+  name: string;
+  description?: string | null;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
 }

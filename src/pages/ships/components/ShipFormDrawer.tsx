@@ -352,7 +352,7 @@ const ShipFormDrawer: FC<ShipFormDrawerProps> = ({
         </Row>
 
         <Row gutter={16}>
-          <Col span={6}>
+          <Col span={8}>
             <Form.Item
               name="maximalTanki"
               label="Maksimal Tanki"
@@ -391,7 +391,7 @@ const ShipFormDrawer: FC<ShipFormDrawerProps> = ({
               />
             </Form.Item>
           </Col>
-          <Col span={10}>
+          <Col span={8}>
             <Form.Item
               name="status"
               label="Status"
@@ -436,7 +436,7 @@ const ShipFormDrawer: FC<ShipFormDrawerProps> = ({
         </Row>
 
         <Row gutter={16}>
-          <Col span={12}>
+          <Col span={8}>
             <Form.Item
               name="contactPerson"
               label="Contact Person"
@@ -447,7 +447,7 @@ const ShipFormDrawer: FC<ShipFormDrawerProps> = ({
               <Input placeholder="John Smith" />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col span={8}>
             <Form.Item
               name="phone"
               label="Nomor Telepon"
@@ -456,10 +456,7 @@ const ShipFormDrawer: FC<ShipFormDrawerProps> = ({
               <Input placeholder="+65-98765432" />
             </Form.Item>
           </Col>
-        </Row>
-
-        <Row gutter={16}>
-          <Col span={12}>
+          <Col span={8}>
             <Form.Item
               name="email"
               label="Email"
@@ -471,6 +468,9 @@ const ShipFormDrawer: FC<ShipFormDrawerProps> = ({
               <Input placeholder="contact@company.com" />
             </Form.Item>
           </Col>
+        </Row>
+
+        <Row gutter={16}>
           <Col span={12}>
             <Form.Item
               name="originPort"
@@ -482,9 +482,6 @@ const ShipFormDrawer: FC<ShipFormDrawerProps> = ({
               <Input placeholder="Singapore" />
             </Form.Item>
           </Col>
-        </Row>
-
-        <Row gutter={16}>
           <Col span={12}>
             <Form.Item
               name="destinationPort"
@@ -496,7 +493,10 @@ const ShipFormDrawer: FC<ShipFormDrawerProps> = ({
               <Input placeholder="Batam" />
             </Form.Item>
           </Col>
-          <Col span={12}>
+        </Row>
+
+        <Row gutter={16}>
+          <Col span={24}>
             <Form.Item name="notes" label="Catatan">
               <Input.TextArea
                 placeholder="Informasi tambahan"

@@ -25,25 +25,51 @@ export const toCreateShipPayload = (
     throw new Error('Kapasitas wajib diisi');
   }
 
+  if (values.typeShipId === undefined || values.typeShipId === null) {
+    throw new Error('Tipe kapal wajib dipilih');
+  }
+
+  if (values.typeLoadId === undefined || values.typeLoadId === null) {
+    throw new Error('Jenis muatan wajib dipilih');
+  }
+
+  if (values.dockId === undefined || values.dockId === null) {
+    throw new Error('Lokasi dermaga wajib dipilih');
+  }
+
+  const toNumberOrThrow = (input: number | string, fieldLabel: string) => {
+    const numeric = Number(input);
+    if (!Number.isFinite(numeric)) {
+      throw new Error(`${fieldLabel} tidak valid`);
+    }
+    return numeric;
+  };
+
+  const maximalTanki =
+    values.maximalTanki !== undefined && values.maximalTanki !== null
+      ? Number(values.maximalTanki)
+      : undefined;
+
   return {
-    name: values.name.trim(),
-    code: values.code.trim(),
-    type: values.type,
-    flag: values.flag.trim(),
-    company: values.company.trim(),
-    captainName: values.captainName.trim(),
-    capacity: Number(values.capacity),
-    cargoType: values.cargoType,
-    arrivalDate: values.arrivalDate.toISOString(),
-    operationCompletionTime: toIsoString(values.operationCompletionTime),
-    portLocation: values.portLocation,
+    kodeKapal: values.code.trim(),
+    namaKapal: values.name.trim(),
     status: values.status,
+    typeLoadId: toNumberOrThrow(values.typeLoadId, 'Jenis muatan'),
+    typeShipId: toNumberOrThrow(values.typeShipId, 'Tipe kapal'),
+    bendera: values.flag.trim(),
+    perusahaan: values.company.trim(),
+    namaKapten: values.captainName.trim(),
+    kapasitasMT: Number(values.capacity),
+    maximalTanki,
+    tanggalKedatangan: values.arrivalDate.toISOString(),
+    waktuSelesaiOperasi: toIsoString(values.operationCompletionTime),
+    dockId: toNumberOrThrow(values.dockId, 'Lokasi dermaga'),
     contactPerson: values.contactPerson.trim(),
-    phone: values.phone.trim(),
+    telepon: values.phone.trim(),
     email: values.email.trim(),
-    originPort: values.originPort.trim(),
-    destinationPort: values.destinationPort.trim(),
-    notes: normalizeText(values.notes),
+    pelabuhanAsal: values.originPort.trim(),
+    pelabuhanTujuan: values.destinationPort.trim(),
+    catatan: normalizeText(values.notes),
   };
 };
 
@@ -53,6 +79,12 @@ export const deriveShipSummary = (ships: Ship[]): ShipSummary => {
       summary.total += 1;
 
       switch (ship.status) {
+        case 'active':
+          summary.inOperation += 1;
+          break;
+        case 'inactive':
+          summary.completed += 1;
+          break;
         case 'Scheduled':
           summary.scheduled += 1;
           break;
