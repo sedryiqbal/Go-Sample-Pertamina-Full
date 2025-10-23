@@ -6,16 +6,19 @@ export interface AvailableModule {
 }
 
 export interface Role {
-  id: string;
+  id: string | number;
   name: string;
-  permissions: string[];
-  unitId: string;
-  unitName: string;
+  description?: string;
+  permissions?: string[];
+  unitId?: string;
+  unitName?: string;
   createdAt: string;
   updatedAt: string;
-  userCount: number;
+  userCount?: number;
   permissionsDetail?: RolePermissionDetail[];
   permissionsRaw?: string;
+  menuPermissions?: RoleMenuPermission[];
+  totalPermissions?: number;
 }
 
 export interface RoleListResponse {
@@ -28,17 +31,19 @@ export interface RoleListResponse {
 
 export interface CreateRoleRequest {
   name: string;
-  permissions: string[];
+  description?: string;
+  permissions?: string[];
 }
 
 export interface UpdateRoleRequest {
   name: string;
-  permissions: string[];
+  description?: string;
+  permissions?: string[];
 }
 
 export interface DeleteRoleResponse {
   message: string;
-  id: string;
+  id: string | number;
 }
 
 export interface RoleQueryParams {
@@ -52,6 +57,39 @@ export interface RolePermissionDetail {
   actions: string[];
 }
 
+export interface RoleMenuOption {
+  menuId: number;
+  menuNama: string;
+  menuDeskripsi?: string;
+  menuIcon?: string;
+  menuUrl?: string;
+  menuOrder?: number;
+  isActive?: boolean;
+  isSelected?: boolean;
+}
+
+export interface RawRoleMenu {
+  id: number;
+  nama: string;
+  deskripsi: string;
+  icon: string;
+  url: string;
+  order: number;
+  isActive: boolean;
+  isSelected: boolean;
+}
+
+export interface RoleMenuPermission {
+  menuId: number;
+  menuNama: string;
+  menuDeskripsi: string;
+  menuIcon: string;
+  menuUrl: string;
+  menuOrder: number;
+  assignedAt: string;
+  assignedBy: string;
+}
+
 export interface RoleSearchParams {
   name?: string;
   page?: number;
@@ -59,27 +97,25 @@ export interface RoleSearchParams {
 }
 
 export interface RoleSearchResponse {
+  code: string;
   status: boolean;
-  code: number;
-  data?: {
-    message?: string;
-    items?: {
-      data: Array<{
-        id: string;
-        name: string;
-        permissions: string;
-        unitId: string;
-        unitName: string;
-        createdAt: string;
-        updatedAt: string;
-        userCount: number;
-      }>;
-      totalCount: number;
+  message: string;
+  data: Array<{
+    id: number;
+    nama: string;
+    deskripsi: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  meta?: {
+    pagination?: {
       page: number;
-      pageSize: number;
-      totalPages: number;
+      perPage: number;
+      totalData: number;
+      totalPage: number;
     };
   };
+  timestamp?: string;
 }
 
 export interface RoleSearchResult {
@@ -87,4 +123,70 @@ export interface RoleSearchResult {
   total: number;
   page: number;
   pageSize: number;
+}
+
+export interface RolePermissionResponse {
+  code: string;
+  status: boolean;
+  message: string;
+  data: {
+    id: number;
+    nama: string;
+    deskripsi: string;
+    permissions: RoleMenuPermission[];
+    totalPermissions: number;
+    createdAt: string;
+  };
+  timestamp?: string;
+}
+
+export interface RolePermissionsResult {
+  id: number;
+  name: string;
+  description?: string;
+  permissions: RoleMenuPermission[];
+  totalPermissions: number;
+  createdAt: string;
+}
+
+export interface RoleAvailableMenusResponse {
+  code: string;
+  status: boolean;
+  message: string;
+  data:
+    | {
+        menus: RawRoleMenu[];
+        totalMenus?: number;
+        selectedCount?: number;
+      }
+    | RawRoleMenu[];
+  timestamp?: string;
+}
+
+export interface RoleAssignMenusResponse {
+  code: string;
+  status: boolean;
+  message: string;
+  data?: unknown;
+  timestamp?: string;
+}
+
+export interface RoleUpdateResponse {
+  code: string;
+  status: boolean;
+  message: string;
+  data: {
+    id: number;
+    nama: string;
+    deskripsi: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+  timestamp?: string;
+}
+
+export interface RoleAvailableMenusResult {
+  menus: RoleMenuOption[];
+  totalMenus: number;
+  selectedCount: number;
 }

@@ -1,16 +1,10 @@
-import {
-  DeleteOutlined,
-  EditOutlined,
-  EyeOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
-import { Badge, Button, message, Space, Tag, Tooltip, Typography } from 'antd';
-import React, { useCallback, useMemo } from 'react';
+import { Button, message, Space, Tooltip, Typography } from 'antd';
+import React from 'react';
 import { searchRoles } from '@/services/roles/api';
 import type { Role } from '@/services/roles/typings';
-import { mockAvailableModules } from '../../../../../mock/roles.mock';
 
 const { Text } = Typography;
 
@@ -27,49 +21,25 @@ const RoleTable: React.FC<RoleTableProps> = ({
   onDelete,
   onView,
 }) => {
-  const moduleMetaMap = useMemo(() => {
-    const map = new Map<string, (typeof mockAvailableModules)[number]>();
-    mockAvailableModules.forEach((module) => {
-      map.set(module.key, module);
-    });
-    return map;
-  }, []);
-
-  const formatModuleLabel = useCallback(
-    (key: string) => {
-      const meta = moduleMetaMap.get(key);
-      if (meta) {
-        return meta.name;
-      }
-      return key
-        .replace(/[_-]/g, ' ')
-        .replace(/\b\w/g, (char) => char.toUpperCase());
-    },
-    [moduleMetaMap],
-  );
-
-  const formatActionLabel = useCallback(
-    (action: string) =>
-      action
-        .replace(/[_-]/g, ' ')
-        .replace(/\b\w/g, (char) => char.toUpperCase()),
-    [],
-  );
-
-  const getUserCountColor = (count: number) => {
-    if (count === 0) return 'default';
-    if (count <= 2) return 'blue';
-    if (count <= 5) return 'green';
-    return 'red';
-  };
-
   const columns: ProColumns<Role>[] = [
+    // {
+    //   title: 'ID',
+    //   dataIndex: 'id',
+    //   key: 'id',
+    //   width: 100,
+    //   hideInSearch: true,
+    //   sorter: (a, b) =>
+    //     String(a.id ?? '').localeCompare(String(b.id ?? ''), 'id-ID', {
+    //       numeric: true,
+    //       sensitivity: 'base',
+    //     }),
+    //   render: (_, record) => <Text code>{record.id}</Text>,
+    // },s
     {
       title: 'Nama Role',
       dataIndex: 'name',
       key: 'name',
-      fixed: 'left',
-      width: 220,
+      width: 240,
       fieldProps: {
         placeholder: 'Cari berdasarkan nama role',
       },
@@ -77,136 +47,56 @@ const RoleTable: React.FC<RoleTableProps> = ({
         transform: (value: string) => ({ name: value }),
       },
       sorter: (a, b) => a.name.localeCompare(b.name),
-      render: (_, record) => (
-        <Space>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: '50%',
-              backgroundColor: '#fd0017',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '14px',
-              fontWeight: 'bold',
-            }}
-          >
-            {record.name.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <Text strong style={{ fontSize: '14px' }}>
-              {record.name}
-            </Text>
-            <br />
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              {record.unitName}
-            </Text>
-          </div>
-        </Space>
-      ),
-    },
-    {
-      title: 'Permissions',
-      dataIndex: 'permissions',
-      key: 'permissions',
-      width: 360,
-      hideInSearch: true,
       render: (_, record) => {
-        const details = record.permissionsDetail ?? [];
-        if (details.length === 0) {
-          return <Badge status="default" text="Tidak ada permission" />;
-        }
-
-        const visibleCount = 3;
-        const visiblePermissions = details.slice(0, visibleCount);
-        const remainingCount = details.length - visibleCount;
-
+        const initial =
+          record.name && record.name.length > 0
+            ? record.name.charAt(0).toUpperCase()
+            : '?';
         return (
-          <Space wrap size={[6, 6]}>
-            {visiblePermissions.map(({ module, actions }) => {
-              const moduleMeta = moduleMetaMap.get(module);
-              const moduleLabel = moduleMeta?.name || formatModuleLabel(module);
-              const formattedActions =
-                actions && actions.length > 0
-                  ? actions
-                      .map((action) => formatActionLabel(action))
-                      .join(', ')
-                  : 'Tidak ada aksi';
-
-              return (
-                <Tooltip
-                  key={module}
-                  title={
-                    <div>
-                      {moduleMeta?.description && (
-                        <div style={{ marginBottom: 4 }}>
-                          {moduleMeta.description}
-                        </div>
-                      )}
-                      <div>
-                        <strong>Aksi:</strong> {formattedActions}
-                      </div>
-                    </div>
-                  }
-                >
-                  <Tag
-                    color="blue"
-                    style={{
-                      margin: 0,
-                      fontSize: '11px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    <span>{moduleMeta?.icon || '📁'}</span>
-                    <span>{moduleLabel}</span>
-                  </Tag>
-                </Tooltip>
-              );
-            })}
-            {remainingCount > 0 && (
-              <Tooltip title={`${remainingCount} permission lainnya`}>
-                <Tag color="default" style={{ fontSize: '11px', margin: 0 }}>
-                  +{remainingCount}
-                </Tag>
-              </Tooltip>
-            )}
+          <Space>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                backgroundColor: '#fd0017',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: '14px',
+                fontWeight: 'bold',
+              }}
+            >
+              {initial}
+            </div>
+            <div>
+              <Text strong style={{ fontSize: '14px' }}>
+                {record.name}
+              </Text>
+            </div>
           </Space>
         );
       },
     },
     {
-      title: 'Pengguna',
-      dataIndex: 'userCount',
-      key: 'userCount',
-      width: 140,
-      align: 'center',
+      title: 'Deskripsi',
+      dataIndex: 'description',
+      key: 'description',
       hideInSearch: true,
-      sorter: (a, b) => a.userCount - b.userCount,
-      render: (_, record) => (
-        <Space direction="vertical" size={2} style={{ textAlign: 'center' }}>
-          <UserOutlined style={{ fontSize: '16px', color: '#fd0017' }} />
-          <Badge
-            count={record.userCount}
-            style={{
-              backgroundColor:
-                getUserCountColor(record.userCount) === 'default'
-                  ? '#d9d9d9'
-                  : undefined,
-            }}
-            color={getUserCountColor(record.userCount)}
-          />
-        </Space>
-      ),
+      ellipsis: true,
+      render: (_, record) =>
+        record.description ? (
+          <Text>{record.description}</Text>
+        ) : (
+          <Text type="secondary">-</Text>
+        ),
     },
     {
       title: 'Dibuat',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 150,
+      width: 180,
       valueType: 'dateTime',
       hideInSearch: true,
       sorter: (a, b) =>
@@ -216,7 +106,7 @@ const RoleTable: React.FC<RoleTableProps> = ({
       title: 'Diperbarui',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
-      width: 150,
+      width: 180,
       valueType: 'dateTime',
       hideInSearch: true,
       sorter: (a, b) =>
@@ -236,7 +126,9 @@ const RoleTable: React.FC<RoleTableProps> = ({
               })}
             </Text>
             {isRecent && (
-              <Badge status="success" style={{ fontSize: '10px' }} />
+              <Text type="success" style={{ fontSize: '10px' }}>
+                Baru
+              </Text>
             )}
           </div>
         );
@@ -245,7 +137,7 @@ const RoleTable: React.FC<RoleTableProps> = ({
     {
       title: 'Aksi',
       key: 'actions',
-      width: 160,
+      width: 140,
       fixed: 'right',
       hideInSearch: true,
       render: (_, record) => (
@@ -278,7 +170,6 @@ const RoleTable: React.FC<RoleTableProps> = ({
                 danger
                 icon={<DeleteOutlined />}
                 onClick={() => onDelete(record)}
-                disabled={record.userCount > 0}
               />
             </Tooltip>
           )}
@@ -331,7 +222,7 @@ const RoleTable: React.FC<RoleTableProps> = ({
       dateFormatter="string"
       headerTitle="Daftar Role"
       size="small"
-      scroll={{ x: 1200 }}
+      scroll={{ x: 900 }}
       options={{
         reload: true,
         density: true,
