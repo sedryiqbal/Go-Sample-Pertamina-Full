@@ -14,6 +14,8 @@ import {
 } from 'antd';
 import { createStyles } from 'antd-style';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { fetchLabs } from '@/services/labs/api';
+import type { LabReference } from '@/services/labs/typings';
 import {
   createUser,
   deleteUser,
@@ -21,7 +23,11 @@ import {
   searchUsers,
   updateUser,
 } from '@/services/users/api';
-import type { RoleListItem, UserListItem } from '@/services/users/typings';
+import type {
+  CreateUserPayload,
+  RoleListItem,
+  UserListItem,
+} from '@/services/users/typings';
 
 const resolveErrorMessage = (error: unknown, fallback: string) => {
   if (!error || typeof error !== 'object') {
@@ -68,14 +74,21 @@ const useStyles = createStyles(({ token }) => ({
   },
 }));
 
+const USER_STATUS_OPTIONS = [
+  { label: 'Aktif', value: 'active' },
+  { label: 'Nonaktif', value: 'inactive' },
+];
+
 const Users: React.FC = () => {
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType | undefined>(undefined);
   const { styles } = useStyles();
   const [form] = Form.useForm<CreateUserFormValues>();
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [savingUser, setSavingUser] = useState(false);
   const [roles, setRoles] = useState<RoleListItem[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(false);
+  const [labs, setLabs] = useState<LabReference[]>([]);
+  const [loadingLabs, setLoadingLabs] = useState(false);
   const [editingUser, setEditingUser] = useState<UserListItem | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
@@ -84,16 +97,31 @@ const Users: React.FC = () => {
 
     const fetchRoleList = async () => {
       setLoadingRoles(true);
+      setLoadingLabs(true);
       try {
-        const list = await fetchRoles();
+        const [roleList, labList] = await Promise.all([
+          fetchRoles().catch(() => {
+            if (isMounted) {
+              message.error('Gagal memuat daftar role');
+            }
+            return [];
+          }),
+          fetchLabs().catch(() => {
+            if (isMounted) {
+              message.error('Gagal memuat daftar laboratorium');
+            }
+            return [];
+          }),
+        ]);
+
         if (isMounted) {
-          setRoles(list);
+          setRoles(roleList);
+          setLabs(labList);
         }
-      } catch (_error) {
-        message.error('Gagal memuat daftar role');
       } finally {
         if (isMounted) {
           setLoadingRoles(false);
+          setLoadingLabs(false);
         }
       }
     };
@@ -103,11 +131,15 @@ const Users: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [fetchRoles]);
+  }, []);
 
   const handleOpenCreate = useCallback(() => {
     form.resetFields();
-    form.setFieldsValue({ superAdmin: false });
+    form.setFieldsValue({
+      isSuperadmin: false,
+      status: 'active',
+      labId: undefined,
+    });
     setEditingUser(null);
     setFormModalVisible(true);
   }, [form]);
@@ -116,12 +148,14 @@ const Users: React.FC = () => {
     (record: UserListItem) => {
       setEditingUser(record);
       form.setFieldsValue({
-        name: record.name,
-        username: record.username,
-        email: record.email,
+        name: record.name ?? '',
+        email: record.email ?? '',
         password: '',
-        roleId: record.roleId,
-        superAdmin: record.superAdmin,
+        roleId: record.roleId ?? undefined,
+        labId: record.labId ?? undefined,
+        isSuperadmin: record.isSuperadmin ?? false,
+        phone: record.phone ?? '',
+        status: record.status ?? 'active',
       });
       setFormModalVisible(true);
     },
@@ -134,39 +168,50 @@ const Users: React.FC = () => {
     form.resetFields();
   }, [form]);
 
+  const buildUserPayload = useCallback(
+    (
+      values: CreateUserFormValues,
+      includePassword: boolean,
+    ): CreateUserPayload => {
+      if (values.roleId === undefined || values.roleId === null) {
+        throw new Error('Role wajib dipilih');
+      }
+
+      const payload: CreateUserPayload = {
+        email: values.email.trim(),
+        nama: values.name.trim(),
+        roleId: Number(values.roleId),
+        isSuperadmin: Boolean(values.isSuperadmin),
+        phone: values.phone.trim(),
+        status: values.status || 'active',
+      };
+
+      if (values.labId !== undefined && values.labId !== null) {
+        payload.labId = Number(values.labId);
+      }
+
+      if (includePassword && values.password) {
+        payload.password = values.password;
+      }
+
+      return payload;
+    },
+    [],
+  );
+
   const handleSubmitForm = useCallback(async () => {
     try {
       const values = await form.validateFields();
       setSavingUser(true);
 
-      const payload = {
-        username: values.username.trim(),
-        name: values.name.trim(),
-        email: values.email.trim(),
-        password: values.password,
-        roleId: values.roleId,
-        superAdmin: values.superAdmin ?? false,
-      };
+      const includePassword = !editingUser || Boolean(values.password);
+      const payload = buildUserPayload(values, includePassword);
 
       if (editingUser) {
-        const response = await updateUser(editingUser.id, payload);
-        if (response?.status === false) {
-          throw new Error(
-            response?.data?.message ||
-              response?.message ||
-              'Gagal memperbarui user',
-          );
-        }
+        await updateUser(editingUser.id, payload);
         message.success('User berhasil diperbarui');
       } else {
-        const response = await createUser(payload);
-        if (response?.status === false) {
-          throw new Error(
-            response?.data?.message ||
-              response?.message ||
-              'Gagal membuat user',
-          );
-        }
+        await createUser(payload);
         message.success('User berhasil dibuat');
       }
 
@@ -187,7 +232,14 @@ const Users: React.FC = () => {
     } finally {
       setSavingUser(false);
     }
-  }, [createUser, editingUser, form, resolveErrorMessage, updateUser]);
+  }, [
+    buildUserPayload,
+    createUser,
+    editingUser,
+    form,
+    resolveErrorMessage,
+    updateUser,
+  ]);
 
   const handleDeleteUser = useCallback(
     (record: UserListItem) => {
@@ -227,7 +279,8 @@ const Users: React.FC = () => {
       title: 'Nama',
       dataIndex: 'name',
       key: 'name',
-      width: 200,
+      width: 220,
+      hideInSearch: true,
       render: (_, record) => (
         <Space>
           <UserOutlined style={{ color: '#fd0017' }} />
@@ -236,42 +289,27 @@ const Users: React.FC = () => {
       ),
     },
     {
-      title: 'Username',
-      dataIndex: 'username',
-      key: 'username',
-      width: 160,
+      title: 'Pencarian',
+      dataIndex: 'search',
+      key: 'search',
+      valueType: 'text',
+      hideInTable: true,
     },
     {
       title: 'Email',
       dataIndex: 'email',
       key: 'email',
       copyable: true,
-      width: 220,
+      width: 240,
       ellipsis: true,
       hideInSearch: true,
     },
     {
       title: 'Role',
-      dataIndex: 'roleId',
-      key: 'roleId',
-      valueType: 'select',
-      fieldProps: {
-        allowClear: true,
-        showSearch: true,
-        optionFilterProp: 'label',
-      },
-      request: async () => {
-        try {
-          const roles = await fetchRoles();
-          return roles.map((role) => ({
-            label: role.name,
-            value: role.id,
-          }));
-        } catch (_error) {
-          message.error('Gagal memuat daftar role');
-          return [];
-        }
-      },
+      dataIndex: 'roleName',
+      key: 'roleName',
+      hideInSearch: true,
+      width: 180,
       render: (_, record) => (
         <Tag color="blue" style={{ marginRight: 0 }}>
           {record.roleName || 'Tanpa Role'}
@@ -286,16 +324,55 @@ const Users: React.FC = () => {
       width: 200,
     },
     {
-      title: 'Super Admin',
-      dataIndex: 'superAdmin',
-      key: 'superAdmin',
+      title: 'Laboratorium',
+      dataIndex: 'labName',
+      key: 'labName',
       hideInSearch: true,
+      width: 200,
+    },
+    {
+      title: 'Telepon',
+      dataIndex: 'phone',
+      key: 'phone',
+      hideInSearch: true,
+      width: 160,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      hideInSearch: true,
+      width: 140,
+      render: (_, record) => {
+        const status = record.status ?? 'unknown';
+        const color =
+          status === 'active'
+            ? 'green'
+            : status === 'inactive'
+              ? 'default'
+              : 'gold';
+        return <Tag color={color}>{status?.toUpperCase()}</Tag>;
+      },
+    },
+    {
+      title: 'Super Admin',
+      dataIndex: 'isSuperadmin',
+      key: 'isSuperadmin',
+      hideInSearch: true,
+      width: 140,
       render: (_, record) => (
-        <Tag color={record.superAdmin ? 'red' : 'default'}>
-          {record.superAdmin ? 'Ya' : 'Tidak'}
+        <Tag color={record.isSuperadmin ? 'red' : 'default'}>
+          {record.isSuperadmin ? 'Ya' : 'Tidak'}
         </Tag>
       ),
-      width: 120,
+    },
+    {
+      title: 'Terakhir Login',
+      dataIndex: 'lastLogin',
+      key: 'lastLogin',
+      valueType: 'dateTime',
+      hideInSearch: true,
+      width: 200,
     },
     {
       title: 'Dibuat Pada',
@@ -360,34 +437,18 @@ const Users: React.FC = () => {
           }}
           scroll={{ x: 'max-content' }}
           request={async (params) => {
-            const {
-              current = 1,
-              pageSize = 10,
-              name,
-              username,
-              roleId,
-            } = params;
+            const { current = 1, pageSize = 10, search } = params;
             try {
               const response = await searchUsers({
                 page: current,
                 pageSize,
-                name,
-                username,
-                roleId,
+                search,
               });
 
-              const success = Boolean(response?.status);
-              const items = response?.data?.items;
-              if (!success) {
-                message.error(
-                  response?.data?.message || 'Gagal memuat data user',
-                );
-              }
-
               return {
-                data: items?.data ?? [],
-                total: items?.totalCount ?? 0,
-                success,
+                data: response.data,
+                total: response.pagination.totalData,
+                success: true,
               };
             } catch (error) {
               message.error('Terjadi kesalahan saat mengambil data user');
@@ -424,27 +485,13 @@ const Users: React.FC = () => {
         cancelText="Batal"
         destroyOnClose
       >
-        <Form<CreateUserFormValues>
-          layout="vertical"
-          form={form}
-          initialValues={{ superAdmin: false }}
-        >
+        <Form<CreateUserFormValues> layout="vertical" form={form}>
           <Form.Item
             name="name"
             label="Nama"
             rules={[{ required: true, message: 'Nama wajib diisi' }]}
           >
             <Input placeholder="New User" />
-          </Form.Item>
-          <Form.Item
-            name="username"
-            label="Username"
-            rules={[
-              { required: true, message: 'Username wajib diisi' },
-              { min: 4, message: 'Username minimal 4 karakter' },
-            ]}
-          >
-            <Input placeholder="newuser234" />
           </Form.Item>
           <Form.Item
             name="email"
@@ -460,8 +507,24 @@ const Users: React.FC = () => {
             name="password"
             label="Password"
             rules={[
-              { required: true, message: 'Password wajib diisi' },
-              { min: 6, message: 'Password minimal 6 karakter' },
+              {
+                validator: (_, value) => {
+                  if (!value) {
+                    if (editingUser) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(
+                      new Error('Password wajib diisi saat membuat user'),
+                    );
+                  }
+                  if (value.length < 6) {
+                    return Promise.reject(
+                      new Error('Password minimal 6 karakter'),
+                    );
+                  }
+                  return Promise.resolve();
+                },
+              },
             ]}
           >
             <Input.Password placeholder="SecurePass123!" />
@@ -483,7 +546,38 @@ const Users: React.FC = () => {
             />
           </Form.Item>
           <Form.Item
-            name="superAdmin"
+            name="phone"
+            label="Nomor Telepon"
+            rules={[{ required: true, message: 'Nomor telepon wajib diisi' }]}
+          >
+            <Input placeholder="+6281234567890" />
+          </Form.Item>
+          <Form.Item
+            name="status"
+            label="Status"
+            rules={[{ required: true, message: 'Status wajib dipilih' }]}
+          >
+            <Select
+              placeholder="Pilih status"
+              options={USER_STATUS_OPTIONS}
+              allowClear={false}
+            />
+          </Form.Item>
+          <Form.Item name="labId" label="Laboratorium">
+            <Select
+              placeholder="Pilih laboratorium"
+              options={labs.map((lab) => ({
+                label: lab.name,
+                value: lab.id,
+              }))}
+              loading={loadingLabs}
+              allowClear
+              showSearch
+              optionFilterProp="label"
+            />
+          </Form.Item>
+          <Form.Item
+            name="isSuperadmin"
             label="Super Admin"
             valuePropName="checked"
           >
@@ -499,9 +593,11 @@ export default Users;
 
 interface CreateUserFormValues {
   name: string;
-  username: string;
   email: string;
-  password: string;
-  roleId: string;
-  superAdmin?: boolean;
+  password?: string;
+  roleId: number;
+  labId?: number | null;
+  isSuperadmin?: boolean;
+  phone: string;
+  status: string;
 }

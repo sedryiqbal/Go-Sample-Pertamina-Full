@@ -1,76 +1,57 @@
 export interface SearchUsersParams {
-  name?: string;
-  username?: string;
-  roleId?: string;
-  email?: string;
   page?: number;
   pageSize?: number;
+  search?: string;
 }
 
 export interface CreateUserPayload {
-  username: string;
-  name: string;
   email: string;
-  password: string;
-  roleId: string;
-  superAdmin?: boolean;
+  nama: string;
+  password?: string;
+  roleId: number;
+  unitId?: number;
+  labId?: number;
+  isSuperadmin: boolean;
+  phone: string;
+  status: string;
 }
 
 export interface UserListItem {
   id: string;
-  username: string;
   name: string;
   email: string;
-  roleId: string;
-  roleName: string;
-  unitId: string;
-  unitName: string;
-  superAdmin: boolean;
-  createdAt: string;
-  updatedAt: string;
+  roleId?: number | null;
+  roleName?: string | null;
+  unitId?: number | null;
+  unitName?: string | null;
+  labId?: number | null;
+  labName?: string | null;
+  isSuperadmin: boolean;
+  phone?: string | null;
+  status?: string | null;
+  lastLogin?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface SearchUsersResponse {
-  status: boolean;
-  code: number;
-  data?: {
-    message?: string;
-    items?: {
-      data: UserListItem[];
-      totalCount: number;
-      page: number;
-      pageSize: number;
-      totalPages: number;
-    };
-  };
+export interface UsersListPagination {
+  page: number;
+  perPage: number;
+  totalData: number;
+  totalPage: number;
 }
 
-export interface CreateUserResponse {
+export interface UsersListResponse {
+  data: UserListItem[];
+  pagination: UsersListPagination;
   status?: boolean;
-  code?: number;
   message?: string;
-  data?: {
-    message?: string;
-    user?: UserListItem;
-  };
 }
 
 export interface RoleListItem {
-  id: string;
+  id: number;
   name: string;
-  permissions?: string;
-  unitId?: string;
-  unitName?: string;
+  description?: string | null;
   createdAt?: string;
   updatedAt?: string;
-  userCount?: number;
-}
-
-export interface RolesResponse {
-  status: boolean;
-  code: number;
-  data?: {
-    message?: string;
-    items?: RoleListItem[];
-  };
 }

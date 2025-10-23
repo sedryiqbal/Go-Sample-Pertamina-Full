@@ -100,7 +100,7 @@ const Ships: React.FC = () => {
               ? value.map((item) => String(item))
               : [String(value)];
             return {
-              name,
+              name: name as keyof ShipFormValues,
               errors: messages,
             };
           }),
