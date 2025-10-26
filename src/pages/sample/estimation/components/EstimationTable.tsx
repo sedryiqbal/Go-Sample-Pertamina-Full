@@ -3,6 +3,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
+  SearchOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
@@ -57,6 +58,7 @@ const buildColumns = ({
     title: 'Jenis Produk',
     dataIndex: 'typeLoadName',
     key: 'typeLoadName',
+    hideInSearch: true,
     render: (_, record) => (
       <Space>
         <DatabaseOutlined style={{ color: '#fd0017' }} />
@@ -68,6 +70,7 @@ const buildColumns = ({
     title: 'Kapal / Tangki',
     dataIndex: 'shipName',
     key: 'shipName',
+    hideInSearch: true,
     render: (_, record) => (
       <div>
         <div style={{ fontWeight: 500 }}>
@@ -87,6 +90,7 @@ const buildColumns = ({
     title: 'Kuantitas',
     dataIndex: 'qty',
     key: 'qty',
+    hideInSearch: true,
     render: (_, record) => (
       <span>
         {typeof record.qty === 'number' ? record.qty : '-'}
@@ -99,6 +103,7 @@ const buildColumns = ({
     dataIndex: 'etaReceivedAt',
     key: 'etaReceivedAt',
     valueType: 'dateTime',
+    hideInSearch: true,
     render: (_, record) =>
       record.etaReceivedAt
         ? dayjs(record.etaReceivedAt).format('DD MMM YYYY HH:mm')
@@ -108,6 +113,7 @@ const buildColumns = ({
     title: 'Status',
     dataIndex: 'status',
     key: 'status',
+    hideInSearch: true,
     render: (_, record) => (
       <Tag color={getStatusColor(record.status)}>
         {getStatusLabel(record.status)}
@@ -118,6 +124,7 @@ const buildColumns = ({
     title: 'Lokasi',
     dataIndex: 'lokasi',
     key: 'lokasi',
+    hideInSearch: true,
     render: (_, record) => (
       <Space>{record.lokasi ?? record.unitName ?? '-'}</Space>
     ),
@@ -178,7 +185,22 @@ export const EstimationTable: React.FC<Props> = ({
     actionRef={actionRef}
     rowKey="id"
     search={{
-      labelWidth: 'auto',
+      labelWidth: 0,
+      collapsed: false,
+      collapseRender: false,
+      optionRender: ({ searchText, resetText }, { form }) => (
+        <Space>
+          <Button
+            type="primary"
+            onClick={() => form?.submit()}
+            icon={<SearchOutlined />}
+            style={{ backgroundColor: '#fd0017', borderColor: '#fd0017' }}
+          >
+            {searchText}
+          </Button>
+          <Button onClick={() => form?.resetFields()}>{resetText}</Button>
+        </Space>
+      ),
     }}
     columns={buildColumns({ onDetail, onEdit, onDelete })}
     request={request}
@@ -189,14 +211,14 @@ export const EstimationTable: React.FC<Props> = ({
     }}
     dateFormatter="string"
     headerTitle="Daftar Estimasi Sample"
-    toolBarRender={() => [
-      <Button key="export" type="default">
-        Export Excel
-      </Button>,
-      <Button key="import" type="default">
-        Import Excel
-      </Button>,
-    ]}
+    // toolBarRender={() => [
+    //   <Button key="export" type="default">
+    //     Export Excel
+    //   </Button>,
+    //   <Button key="import" type="default">
+    //     Import Excel
+    //   </Button>,
+    // ]}
   />
 );
 
