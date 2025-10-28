@@ -10,7 +10,13 @@ export type OrderStatus =
   | 'delivered'
   | 'cancelled';
 
-export type SampleStatus = 'available' | 'low' | 'urgent';
+export type SampleStatus =
+  | 'available'
+  | 'low'
+  | 'urgent'
+  | 'reserved'
+  | 'pending'
+  | 'unavailable';
 
 export interface SampleOrderRecord {
   id: string;
@@ -43,13 +49,27 @@ export interface SampleOrderRecord {
 export interface AvailableSample {
   id: string;
   sample_type: string;
+  sampleTypeId?: number | null;
   vessel_name: string;
+  shipId?: number | null;
   tank_number: string;
+  tankId?: number | null;
   quantity: number;
+  available_quantity?: number | null;
   unit: string;
+  unitId?: number | null;
   location: string;
   status: SampleStatus;
-  received_date: string;
+  received_date?: string;
+  detailSample?: string | null;
+  raw?: Record<string, unknown>;
+}
+
+export interface SelectOption {
+  label: string;
+  value: string | number;
+  disabled?: boolean;
+  meta?: Record<string, unknown>;
 }
 
 export interface SummaryMetrics {

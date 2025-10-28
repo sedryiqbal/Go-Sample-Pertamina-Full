@@ -106,3 +106,21 @@ export interface SampleEstimationPayload {
   etaReceivedAt: string;
   note?: string;
 }
+
+export interface CategoryTest {
+  id: number;
+  name: string;
+  isActive?: boolean | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  [key: string]: unknown;
+}
+
+export interface LabReference {
+  id: number;
+  nama: string;
+  deskripsi?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  [key: string]: unknown;
+}

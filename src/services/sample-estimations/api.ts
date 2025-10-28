@@ -1,6 +1,8 @@
 import { request } from '@umijs/max';
 import type {
   ApiEnvelope,
+  CategoryTest,
+  LabReference,
   PaginationMeta,
   ProductType,
   SampleEstimationListPayload,
@@ -18,6 +20,8 @@ const TANKS_ENDPOINT = '/api/Tankis';
 const UNITS_ENDPOINT = '/api/Satuans';
 const SAMPLE_ESTIMATIONS_ENDPOINT = '/api/EstimasiSamples';
 const SAMPLE_ESTIMATIONS_PAGED_ENDPOINT = `${SAMPLE_ESTIMATIONS_ENDPOINT}/paged`;
+const CATEGORY_TESTS_ENDPOINT = '/api/CategoryTests';
+const LABS_ENDPOINT = '/api/Labs';
 
 type RequestOptions = Parameters<typeof request>[1];
 
@@ -197,6 +201,38 @@ export const getSampleEstimations = async (
     data: Array.isArray(data) ? data : [],
     pagination: normalizePagination(meta),
   };
+};
+
+export const getAvailableSampleList = async (): Promise<
+  SampleEstimationRecord[]
+> => {
+  const { data } = await requestWithEnvelope<SampleEstimationRecord[]>(
+    SAMPLE_ESTIMATIONS_ENDPOINT,
+    {
+      method: 'GET',
+    },
+  );
+
+  return Array.isArray(data) ? data : [];
+};
+
+export const getCategoryTests = async (): Promise<CategoryTest[]> => {
+  const { data } = await requestWithEnvelope<CategoryTest[]>(
+    CATEGORY_TESTS_ENDPOINT,
+    {
+      method: 'GET',
+    },
+  );
+
+  return Array.isArray(data) ? data : [];
+};
+
+export const getLabs = async (): Promise<LabReference[]> => {
+  const { data } = await requestWithEnvelope<LabReference[]>(LABS_ENDPOINT, {
+    method: 'GET',
+  });
+
+  return Array.isArray(data) ? data : [];
 };
 
 export const createSampleEstimation = async (

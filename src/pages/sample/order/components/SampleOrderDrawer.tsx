@@ -21,14 +21,12 @@ import {
 import dayjs from 'dayjs';
 import React from 'react';
 
-import {
-  CATEGORY_TEST_OPTIONS,
-  LAB_LOCATION_OPTIONS,
-  PRODUCT_TYPE_OPTIONS,
-  SHIP_OPTIONS,
-  TANK_NUMBER_OPTIONS,
-} from '../constants';
-import type { AvailableSample, OrderType, SampleOrderRecord } from '../types';
+import type {
+  AvailableSample,
+  OrderType,
+  SampleOrderRecord,
+  SelectOption,
+} from '../types';
 import {
   getSampleStatusColor,
   getSampleStatusLabel,
@@ -45,6 +43,13 @@ interface SampleOrderDrawerProps {
   onClose: () => void;
   onSubmit: (values: any) => void;
   onSelectSample: (sampleId: string) => void;
+  productOptions: SelectOption[];
+  categoryTestOptions: SelectOption[];
+  shipOptions: SelectOption[];
+  tankOptions: SelectOption[];
+  labOptions: SelectOption[];
+  unitOptions: SelectOption[];
+  optionsLoading?: boolean;
 }
 
 const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
@@ -57,13 +62,20 @@ const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
   onClose,
   onSubmit,
   onSelectSample,
+  productOptions,
+  categoryTestOptions,
+  shipOptions,
+  tankOptions,
+  labOptions,
+  unitOptions,
+  optionsLoading = false,
 }) => {
   const handleQuantityChange = (value: number | null) => {
     if (
       orderType === 'ready' &&
       selectedSample &&
       isValidQuantity(value) &&
-      value! > selectedSample.quantity
+      value > selectedSample.quantity
     ) {
       message.warning(
         `Quantity tidak boleh melebihi stock tersedia: ${selectedSample.quantity} ${selectedSample.unit}`,
@@ -119,6 +131,7 @@ const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
                 onChange={onSelectSample}
                 optionLabelProp="label"
                 size="large"
+                loading={optionsLoading}
               >
                 {availableSamples.map((sample) => (
                   <Select.Option
@@ -166,7 +179,9 @@ const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
                         }}
                       >
                         Received:{' '}
-                        {dayjs(sample.received_date).format('DD/MM/YYYY')}
+                        {sample.received_date
+                          ? dayjs(sample.received_date).format('DD/MM/YYYY')
+                          : '-'}
                       </div>
                     </div>
                   </Select.Option>
@@ -262,13 +277,16 @@ const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
               <Select
                 placeholder="Pilih jenis product"
                 disabled={orderType === 'ready' && !!selectedSample}
-              >
-                {PRODUCT_TYPE_OPTIONS.map((option) => (
-                  <Select.Option key={option.value} value={option.value}>
-                    {option.label}
-                  </Select.Option>
-                ))}
-              </Select>
+                showSearch
+                options={productOptions}
+                loading={optionsLoading}
+                filterOption={(input, option) =>
+                  (option?.label ?? '')
+                    .toString()
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+              />
             </Form.Item>
           </Col>
           <Col span={12}>
@@ -280,13 +298,16 @@ const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
               <Select
                 placeholder="Pilih kapal"
                 disabled={orderType === 'ready' && !!selectedSample}
-              >
-                {SHIP_OPTIONS.map((ship) => (
-                  <Select.Option key={ship.value} value={ship.value}>
-                    {ship.label}
-                  </Select.Option>
-                ))}
-              </Select>
+                showSearch
+                options={shipOptions}
+                loading={optionsLoading}
+                filterOption={(input, option) =>
+                  (option?.label ?? '')
+                    .toString()
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+              />
             </Form.Item>
           </Col>
         </Row>
@@ -303,13 +324,16 @@ const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
               <Select
                 placeholder="Pilih nomor tangki"
                 disabled={orderType === 'ready' && !!selectedSample}
-              >
-                {TANK_NUMBER_OPTIONS.map((tank) => (
-                  <Select.Option key={tank.value} value={tank.value}>
-                    {tank.label}
-                  </Select.Option>
-                ))}
-              </Select>
+                showSearch
+                options={tankOptions}
+                loading={optionsLoading}
+                filterOption={(input, option) =>
+                  (option?.label ?? '')
+                    .toString()
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+              />
             </Form.Item>
           </Col>
           <Col span={12}>
@@ -320,13 +344,18 @@ const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
                 { required: true, message: 'Category test wajib dipilih' },
               ]}
             >
-              <Select placeholder="Pilih category test">
-                {CATEGORY_TEST_OPTIONS.map((test) => (
-                  <Select.Option key={test.value} value={test.value}>
-                    {test.label}
-                  </Select.Option>
-                ))}
-              </Select>
+              <Select
+                placeholder="Pilih category test"
+                showSearch
+                options={categoryTestOptions}
+                loading={optionsLoading}
+                filterOption={(input, option) =>
+                  (option?.label ?? '')
+                    .toString()
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+              />
             </Form.Item>
           </Col>
         </Row>
@@ -386,11 +415,18 @@ const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
               label="Unit"
               rules={[{ required: true, message: 'Unit wajib dipilih' }]}
             >
-              <Select placeholder="Pilih unit">
-                <Select.Option value="botol">Botol</Select.Option>
-                <Select.Option value="liter">Liter</Select.Option>
-                <Select.Option value="ml">ml</Select.Option>
-              </Select>
+              <Select
+                placeholder="Pilih unit"
+                showSearch
+                options={unitOptions}
+                loading={optionsLoading}
+                filterOption={(input, option) =>
+                  (option?.label ?? '')
+                    .toString()
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+              />
             </Form.Item>
           </Col>
           <Col span={8}>
@@ -417,16 +453,35 @@ const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
           rules={[{ required: true, message: 'Lab location wajib dipilih' }]}
           tooltip="Pilih laboratorium tujuan untuk pengujian sample"
         >
-          <Select placeholder="Pilih lab location">
-            {LAB_LOCATION_OPTIONS.map((lab) => (
-              <Select.Option key={lab.value} value={lab.value}>
+          <Select
+            placeholder="Pilih lab location"
+            showSearch
+            optionLabelProp="label"
+            loading={optionsLoading}
+            filterOption={(input, option) =>
+              (option?.label ?? '')
+                .toString()
+                .toLowerCase()
+                .includes(input.toLowerCase())
+            }
+          >
+            {labOptions.map((lab) => (
+              <Select.Option
+                key={lab.value}
+                value={lab.value}
+                label={lab.label}
+              >
                 <div style={{ padding: '4px 0' }}>
-                  <div style={{ fontWeight: 500 }}>
-                    {lab.label.split(' (')[0]}
-                  </div>
+                  <div style={{ fontWeight: 500 }}>{lab.label}</div>
                   <div style={{ fontSize: '12px', color: '#666' }}>
-                    Estimasi delivery: {lab.time} jam
+                    Estimasi delivery:{' '}
+                    {lab.meta?.time ? `${lab.meta.time} jam` : '-'}
                   </div>
+                  {lab.meta?.description && (
+                    <div style={{ fontSize: '12px', color: '#999' }}>
+                      {lab.meta.description}
+                    </div>
+                  )}
                 </div>
               </Select.Option>
             ))}
