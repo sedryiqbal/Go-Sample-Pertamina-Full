@@ -5,6 +5,7 @@ import type {
   LabReference,
   ProductType,
   SampleEstimationRecord,
+  SampleOrderApiRecord,
   ShipReference,
   TankReference,
   UnitReference,
@@ -43,22 +44,56 @@ const PRIORITY_COLOR_MAP: Record<OrderPriority, string> = {
   urgent: 'red',
 };
 
+const PRIORITY_MAP: Record<string, OrderPriority> = {
+  normal: 'normal',
+  urgent: 'urgent',
+  high: 'urgent',
+};
+
 const STATUS_COLOR_MAP: Record<OrderStatus, string> = {
   pending: 'orange',
-  confirmed: 'blue',
-  picked_up: 'purple',
+  waiting_pickup_sample: 'gold',
   in_transit: 'cyan',
   delivered: 'green',
+  confirm_sample_in_lab: 'geekblue',
+  registered_lab_sample: 'purple',
+  start_testing: 'blue',
+  completed_testing: 'green',
+  comparation: 'volcano',
+  completed_comparation: 'green',
   cancelled: 'red',
+  confirmed: 'blue',
+  picked_up: 'purple',
 };
 
 const STATUS_LABEL_MAP: Record<OrderStatus, string> = {
   pending: 'Pending',
-  confirmed: 'Dikonfirmasi',
-  picked_up: 'Diambil',
-  in_transit: 'Dalam Perjalanan',
-  delivered: 'Terkirim',
-  cancelled: 'Dibatalkan',
+  waiting_pickup_sample: 'Waiting Pickup Sample',
+  in_transit: 'In Transit',
+  delivered: 'Delivered',
+  confirm_sample_in_lab: 'Confirm Sample In Lab',
+  registered_lab_sample: 'Registered Lab Sample',
+  start_testing: 'Start Testing',
+  completed_testing: 'Completed Testing',
+  comparation: 'Comparation',
+  completed_comparation: 'Completed Comparation',
+  cancelled: 'Cancelled',
+  confirmed: 'Confirmed',
+  picked_up: 'Picked Up',
+};
+
+const STATUS_CODE_MAP: Record<number, OrderStatus> = {
+  0: 'pending',
+  1: 'waiting_pickup_sample',
+  2: 'in_transit',
+  3: 'delivered',
+  4: 'confirm_sample_in_lab',
+  5: 'registered_lab_sample',
+  6: 'start_testing',
+  7: 'completed_testing',
+  8: 'comparation',
+  9: 'completed_comparation',
+  10: 'cancelled',
 };
 
 const RAW_STATUS_MAP: Record<string, SampleStatus> = {
@@ -94,6 +129,50 @@ export const getStatusColor = (status: OrderStatus) =>
 export const getStatusLabel = (status: OrderStatus) =>
   STATUS_LABEL_MAP[status] ?? status;
 
+export const mapApiStatusToOrderStatus = (
+  status: number | string | null | undefined,
+): OrderStatus => {
+  if (status === null || status === undefined || status === '') {
+    return 'pending';
+  }
+
+  if (typeof status === 'string' && status.trim() !== '') {
+    const numeric = Number(status);
+    if (Number.isFinite(numeric) && STATUS_CODE_MAP[numeric]) {
+      return STATUS_CODE_MAP[numeric];
+    }
+
+    const normalized = status.toLowerCase().replace(/[^a-z]/g, '');
+
+    const STRING_STATUS_MAP: Record<string, OrderStatus> = {
+      pending: 'pending',
+      waitingpickupsample: 'waiting_pickup_sample',
+      intransit: 'in_transit',
+      delivered: 'delivered',
+      confirmsampleinlab: 'confirm_sample_in_lab',
+      confirmedsampleinlab: 'confirm_sample_in_lab',
+      registeredlabsample: 'registered_lab_sample',
+      starttesting: 'start_testing',
+      completedtesting: 'completed_testing',
+      comparation: 'comparation',
+      completedcomparation: 'completed_comparation',
+      cancelled: 'cancelled',
+      canceled: 'cancelled',
+      confirmed: 'confirmed',
+      pickedup: 'picked_up',
+    };
+
+    return STRING_STATUS_MAP[normalized] ?? 'pending';
+  }
+
+  const normalized = Number(status);
+  if (Number.isFinite(normalized) && STATUS_CODE_MAP[normalized]) {
+    return STATUS_CODE_MAP[normalized];
+  }
+
+  return 'pending';
+};
+
 export const buildOrderNumber = (orderType: OrderType) => {
   const prefix = orderType === 'ready' ? 'SO' : 'RQ';
   const sequence = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
@@ -128,9 +207,20 @@ export const computeSummary = (
   request: orders.filter((item) => item.order_type === 'request').length,
   pending: orders.filter((item) => item.status === 'pending').length,
   in_progress: orders.filter((item) =>
-    ['confirmed', 'picked_up', 'in_transit'].includes(item.status),
+    [
+      'waiting_pickup_sample',
+      'in_transit',
+      'confirm_sample_in_lab',
+      'registered_lab_sample',
+      'start_testing',
+      'comparation',
+    ].includes(item.status),
   ).length,
-  delivered: orders.filter((item) => item.status === 'delivered').length,
+  delivered: orders.filter((item) =>
+    ['delivered', 'completed_testing', 'completed_comparation'].includes(
+      item.status,
+    ),
+  ).length,
 });
 
 export const transformAvailableSample = (
@@ -251,3 +341,93 @@ export const mapLabsToOptions = (labs: LabReference[]): SelectOption[] =>
       }),
     )
     .filter((item): item is SelectOption => Boolean(item));
+
+export const transformSampleOrderRecord = (
+  record: SampleOrderApiRecord,
+): SampleOrderRecord => {
+  const orderDate = record.tanggalOrder ? dayjs(record.tanggalOrder) : null;
+  const etaArrival = record.etaArival ? dayjs(record.etaArival) : null;
+  const estimatedHours =
+    orderDate && etaArrival
+      ? Math.max(1, Math.round(etaArrival.diff(orderDate, 'hour', true)))
+      : 0;
+
+  const tankLabel = record.tankiName
+    ? record.tankiName
+    : typeof record.nomorTangki === 'number'
+      ? `Tangki ${record.nomorTangki}`
+      : '-';
+
+  const quantityValue = record.quantity ?? record.sample?.qty ?? 0;
+
+  const priorityRaw =
+    typeof record.priority === 'string'
+      ? record.priority.toLowerCase()
+      : record.priority;
+  const priority: OrderPriority =
+    typeof priorityRaw === 'string'
+      ? (PRIORITY_MAP[priorityRaw] ?? 'normal')
+      : 'normal';
+
+  const orderTypeRaw = record.type?.toLowerCase();
+  const orderType: OrderType = orderTypeRaw === 'request' ? 'request' : 'ready';
+
+  const productName =
+    record.typeLoadName ??
+    record.jenisProduct ??
+    (typeof record.sample?.typeLoadName === 'string'
+      ? (record.sample.typeLoadName as string)
+      : '-');
+
+  const orderNumber = record.orderNo?.trim()
+    ? record.orderNo
+    : record.nomorNpc?.trim()
+      ? record.nomorNpc
+      : `SO-${record.id}`;
+
+  const statusNormalized = mapApiStatusToOrderStatus(record.status ?? null);
+
+  return {
+    id: String(record.id),
+    order_number: orderNumber,
+    order_type: orderType,
+    order_date: record.tanggalOrder ?? '',
+    npc_number: record.nomorNpc ?? '-',
+    sample_type: productName,
+    vessel_name: record.shipName ?? record.sample?.shipName ?? '-',
+    tank_number: tankLabel ?? '-',
+    quantity: Number(quantityValue) ?? 0,
+    unit: record.satuanName ?? record.sample?.satuanName ?? '',
+    lab_location: record.labName ?? '-',
+    category_test: record.categoryTestName ?? '-',
+    estimated_delivery_time: estimatedHours,
+    priority,
+    status: statusNormalized,
+    category: undefined,
+    company_sender: undefined,
+    sender_name: undefined,
+    sender_phone: undefined,
+    estimated_arrival: record.etaArival ?? undefined,
+    photo_sample: record.pathPhotoSample ?? undefined,
+    memo_file: record.pathMemo ?? undefined,
+    notes: typeof record.notes === 'string' ? record.notes : undefined,
+    created_at: record.createdAt ?? '',
+    selected_sample_id:
+      record.estimasiSampleId !== undefined && record.estimasiSampleId !== null
+        ? String(record.estimasiSampleId)
+        : undefined,
+    lab_id: record.labId ?? null,
+    category_test_id: record.categoryTestId ?? null,
+    sample_estimation_id: record.estimasiSampleId ?? null,
+    sample_type_id: record.typeLoadId ?? null,
+    ship_id: record.shipId ?? null,
+    tank_id: record.nomorTangki ?? null,
+    unit_id: record.satuanId ?? null,
+    order_status_code:
+      typeof record.status === 'number'
+        ? record.status
+        : (Number(record.status) ?? null),
+    status_label: getStatusLabel(statusNormalized),
+    raw: record,
+  };
+};

@@ -1,7 +1,9 @@
 import { request } from '@umijs/max';
+import type { UploadFile } from 'antd/es/upload/interface';
 import type {
   ApiEnvelope,
   CategoryTest,
+  CreateSampleOrderPayload,
   LabReference,
   PaginationMeta,
   ProductType,
@@ -9,6 +11,9 @@ import type {
   SampleEstimationListResponse,
   SampleEstimationPayload,
   SampleEstimationRecord,
+  SampleOrderApiRecord,
+  SampleOrderListQuery,
+  SampleOrderListResponse,
   ShipReference,
   TankReference,
   UnitReference,
@@ -22,6 +27,9 @@ const SAMPLE_ESTIMATIONS_ENDPOINT = '/api/EstimasiSamples';
 const SAMPLE_ESTIMATIONS_PAGED_ENDPOINT = `${SAMPLE_ESTIMATIONS_ENDPOINT}/paged`;
 const CATEGORY_TESTS_ENDPOINT = '/api/CategoryTests';
 const LABS_ENDPOINT = '/api/Labs';
+const SAMPLE_ORDERS_ENDPOINT = '/api/SampleOrders';
+const SAMPLE_ORDERS_PAGED_ENDPOINT = `${SAMPLE_ORDERS_ENDPOINT}/paged`;
+const FILE_UPLOAD_ENDPOINT = '/api/FileUpload/upload';
 
 type RequestOptions = Parameters<typeof request>[1];
 
@@ -233,6 +241,120 @@ export const getLabs = async (): Promise<LabReference[]> => {
   });
 
   return Array.isArray(data) ? data : [];
+};
+
+export const createSampleOrder = async (
+  payload: CreateSampleOrderPayload,
+): Promise<{ message?: string }> => {
+  const { message: responseMessage } = await requestWithEnvelope<unknown>(
+    SAMPLE_ORDERS_ENDPOINT,
+    {
+      method: 'POST',
+      data: payload,
+    },
+  );
+
+  return {
+    message: responseMessage,
+  };
+};
+
+export const getSampleOrdersPaged = async (
+  params?: SampleOrderListQuery,
+): Promise<SampleOrderListResponse> => {
+  const requestParams: Record<string, unknown> = {};
+
+  if (params?.page !== undefined) {
+    requestParams.Page = params.page;
+  }
+
+  if (params?.pageSize !== undefined) {
+    requestParams.PageSize = params.pageSize;
+  }
+
+  if (params?.search && params.search.trim() !== '') {
+    requestParams.Search = params.search.trim();
+  }
+
+  const { data, meta } = await requestWithEnvelope<SampleOrderApiRecord[]>(
+    SAMPLE_ORDERS_PAGED_ENDPOINT,
+    {
+      method: 'GET',
+      params: requestParams,
+    },
+  );
+
+  return {
+    data: Array.isArray(data) ? data : [],
+    pagination: normalizePagination(meta),
+  };
+};
+
+export interface UploadedFileInfo {
+  fileName: string;
+  fileUrl: string;
+  fileType?: string;
+  fileSize?: number;
+  uploadedAt?: string;
+}
+
+export const uploadAttachment = async (
+  file: File,
+): Promise<UploadedFileInfo> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const { data } = await requestWithEnvelope<UploadedFileInfo>(FILE_UPLOAD_ENDPOINT, {
+    method: 'POST',
+    data: formData,
+    requestType: 'form',
+  });
+
+  if (!data || !data.fileUrl) {
+    throw new Error('File upload gagal diproses.');
+  }
+
+  return data;
+};
+
+export const cancelSampleOrder = async (
+  orderId: number | string,
+  cancelReason: string,
+): Promise<{ message?: string }> => {
+  if (orderId === null || orderId === undefined || orderId === '') {
+    throw new Error('ID sample order wajib diisi');
+  }
+
+  const { message: responseMessage } = await requestWithEnvelope<unknown>(
+    `${SAMPLE_ORDERS_ENDPOINT}/${orderId}/cancel`,
+    {
+      method: 'POST',
+      data: {
+        cancelReason,
+      },
+    },
+  );
+
+  return {
+    message: responseMessage,
+  };
+};
+
+export const getSampleOrderDetail = async (
+  orderId: number | string,
+): Promise<SampleOrderApiRecord | null> => {
+  if (orderId === null || orderId === undefined || orderId === '') {
+    throw new Error('ID sample order wajib diisi');
+  }
+
+  const { data } = await requestWithEnvelope<SampleOrderApiRecord>(
+    `${SAMPLE_ORDERS_ENDPOINT}/${orderId}`,
+    {
+      method: 'GET',
+    },
+  );
+
+  return (data as SampleOrderApiRecord) ?? null;
 };
 
 export const createSampleEstimation = async (

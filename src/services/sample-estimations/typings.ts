@@ -107,6 +107,70 @@ export interface SampleEstimationPayload {
   note?: string;
 }
 
+export interface CreateSampleOrderPayload {
+  estimasiSampleId?: number;
+  tanggalOrder: string;
+  nomorNpc: string;
+  labId: number;
+  categoryTestId: number;
+  etaArival: string;
+  pathPhotoSample?: string | null;
+  pathMemo?: string | null;
+  notes?: string | null;
+  jenisProduct: string;
+  typeLoadId: number;
+  shipId: number;
+  nomorTangki: number;
+  quantity: number;
+  satuanId: number;
+  priority: string;
+}
+
+export interface SampleOrderApiRecord {
+  id: number;
+  estimasiSampleId?: number | null;
+  unitId?: number | null;
+  unitName?: string | null;
+  tanggalOrder?: string | null;
+  nomorNpc?: string | null;
+  labId?: number | null;
+  labName?: string | null;
+  categoryTestId?: number | null;
+  categoryTestName?: string | null;
+  etaArival?: string | null;
+  notes?: string | null;
+  jenisProduct?: string | null;
+  typeLoadId?: number | null;
+  typeLoadName?: string | null;
+  shipId?: number | null;
+  shipName?: string | null;
+  nomorTangki?: number | null;
+  tankiName?: string | null;
+  quantity?: number | null;
+  satuanId?: number | null;
+  satuanName?: string | null;
+  status?: number | string | null;
+  priority?: string | number | null;
+  createdAt?: string | null;
+  orderNo?: string | null;
+  type?: string | null;
+  pathPhotoSample?: string | null;
+  pathMemo?: string | null;
+  sample?: Record<string, unknown> | null;
+  [key: string]: unknown;
+}
+
+export interface SampleOrderListQuery {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}
+
+export interface SampleOrderListResponse {
+  data: SampleOrderApiRecord[];
+  pagination: PaginationMeta;
+}
+
 export interface CategoryTest {
   id: number;
   name: string;

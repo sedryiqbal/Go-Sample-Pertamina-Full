@@ -17,6 +17,7 @@ import {
   Space,
   Tag,
   Upload,
+  type UploadProps,
 } from 'antd';
 import dayjs from 'dayjs';
 import React from 'react';
@@ -50,6 +51,8 @@ interface SampleOrderDrawerProps {
   labOptions: SelectOption[];
   unitOptions: SelectOption[];
   optionsLoading?: boolean;
+  submitting?: boolean;
+  onUploadFile: (file: File) => Promise<string>;
 }
 
 const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
@@ -69,6 +72,8 @@ const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
   labOptions,
   unitOptions,
   optionsLoading = false,
+  submitting = false,
+  onUploadFile,
 }) => {
   const handleQuantityChange = (value: number | null) => {
     if (
@@ -80,6 +85,28 @@ const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
       message.warning(
         `Quantity tidak boleh melebihi stock tersedia: ${selectedSample.quantity} ${selectedSample.unit}`,
       );
+    }
+  };
+
+  const handleUploadRequest: UploadProps['customRequest'] = async (options) => {
+    const { file, onSuccess, onError } = options;
+    const uploadFile = file as File & { url?: string };
+    const hide = message.loading('Mengunggah file...', 0);
+
+    try {
+      const fileUrl = await onUploadFile(uploadFile);
+      hide();
+      uploadFile.url = fileUrl;
+      message.success('File berhasil diunggah.');
+      onSuccess?.({ fileUrl }, uploadFile);
+    } catch (error) {
+      hide();
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Upload file gagal. Mohon coba kembali.';
+      message.error(errorMessage);
+      onError?.(error as Error);
     }
   };
 
@@ -100,11 +127,23 @@ const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
       }
       width={800}
       open={open}
-      onClose={onClose}
+      onClose={() => {
+        if (!submitting) {
+          onClose();
+        }
+      }}
+      maskClosable={!submitting}
       extra={
         <Space>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button type="primary" onClick={() => form.submit()}>
+          <Button onClick={onClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            type="primary"
+            onClick={() => form.submit()}
+            loading={submitting}
+            disabled={submitting}
+          >
             Save Order
           </Button>
         </Space>
@@ -533,7 +572,8 @@ const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
                 listType="picture-card"
                 maxCount={3}
                 accept="image/*"
-                beforeUpload={() => false}
+                customRequest={handleUploadRequest}
+                disabled={submitting || optionsLoading}
               >
                 <div style={{ textAlign: 'center' }}>
                   <UploadOutlined style={{ fontSize: 20, color: '#666' }} />
@@ -553,7 +593,8 @@ const SampleOrderDrawer: React.FC<SampleOrderDrawerProps> = ({
               <Upload
                 maxCount={2}
                 accept=".pdf,.doc,.docx"
-                beforeUpload={() => false}
+                customRequest={handleUploadRequest}
+                disabled={submitting || optionsLoading}
               >
                 <Button
                   icon={<FileTextOutlined />}

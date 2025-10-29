@@ -2,7 +2,7 @@ import { FormOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ActionType } from '@ant-design/pro-components';
 import { PageContainer } from '@ant-design/pro-components';
 import { history, useLocation } from '@umijs/max';
-import { Button, Form, message } from 'antd';
+import { Button, Form, Input, Modal, message } from 'antd';
 import dayjs from 'dayjs';
 import React, {
   useCallback,
@@ -13,19 +13,28 @@ import React, {
 } from 'react';
 
 import {
+  cancelSampleOrder,
+  createSampleOrder,
   getAvailableSampleList,
   getCategoryTests,
   getLabs,
   getProductTypes,
+  getSampleOrderDetail,
+  getSampleOrdersPaged,
   getShips,
   getTanks,
   getUnits,
+  uploadAttachment,
 } from '@/services/sample-estimations/api';
+import type { CreateSampleOrderPayload } from '@/services/sample-estimations/typings';
 
 import CalendarModeAlert from './components/CalendarModeAlert';
 import OrderSummaryCards from './components/OrderSummaryCards';
+import SampleOrderDetailModal from './components/SampleOrderDetailModal';
 import SampleOrderDrawer from './components/SampleOrderDrawer';
-import SampleOrderTable from './components/SampleOrderTable';
+import SampleOrderTable, {
+  type SampleOrderTableQuery,
+} from './components/SampleOrderTable';
 import {
   FALLBACK_CATEGORY_TEST_OPTIONS,
   FALLBACK_LAB_OPTIONS,
@@ -34,7 +43,7 @@ import {
   FALLBACK_TANK_OPTIONS,
   FALLBACK_UNIT_OPTIONS,
 } from './constants';
-import { AVAILABLE_SAMPLES, SAMPLE_ORDERS } from './mockData';
+import { AVAILABLE_SAMPLES } from './mockData';
 import type {
   AvailableSample,
   OrderType,
@@ -53,65 +62,8 @@ import {
   mapTanksToOptions,
   mapUnitsToOptions,
   transformAvailableSample,
+  transformSampleOrderRecord,
 } from './utils';
-
-const mergeOptions = (
-  primary: SelectOption[],
-  secondary: SelectOption[],
-): SelectOption[] => {
-  const map = new Map<string, SelectOption>();
-
-  [...primary, ...secondary].forEach((option) => {
-    const key = option.value.toString().toLowerCase();
-    const existing = map.get(key);
-
-    if (existing) {
-      map.set(key, {
-        ...existing,
-        label: existing.label ?? option.label,
-        value: existing.value ?? option.value,
-        disabled: existing.disabled ?? option.disabled,
-        meta: {
-          ...(option.meta ?? {}),
-          ...(existing.meta ?? {}),
-        },
-      });
-      return;
-    }
-
-    map.set(key, option);
-  });
-
-  return Array.from(map.values());
-};
-
-const buildOptionsFromSamples = (
-  samples: AvailableSample[],
-  selector: (sample: AvailableSample) => string | number | undefined | null,
-): SelectOption[] => {
-  const seen = new Set<string>();
-  const options: SelectOption[] = [];
-
-  samples.forEach((sample) => {
-    const value = selector(sample);
-    if (value === null || value === undefined || value === '') {
-      return;
-    }
-
-    const key = value.toString().toLowerCase();
-    if (seen.has(key)) {
-      return;
-    }
-    seen.add(key);
-
-    options.push({
-      label: value.toString(),
-      value,
-    });
-  });
-
-  return options;
-};
 
 const SampleOrder: React.FC = () => {
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -145,11 +97,24 @@ const SampleOrder: React.FC = () => {
     FALLBACK_UNIT_OPTIONS,
   );
   const [loadingDropdowns, setLoadingDropdowns] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [tableOrders, setTableOrders] = useState<SampleOrderRecord[]>([]);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<SampleOrderRecord | null>(
+    null,
+  );
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailRecord, setDetailRecord] = useState<SampleOrderRecord | null>(
+    null,
+  );
 
   const actionRef = useRef<ActionType>(null);
   const calendarInitializedRef = useRef(false);
   const lastSearchRef = useRef<string>();
   const [form] = Form.useForm();
+  const [cancelForm] = Form.useForm();
   const location = useLocation();
 
   const defaultUnitValue = useMemo(() => unitOptions[0]?.value, [unitOptions]);
@@ -229,36 +194,37 @@ const SampleOrder: React.FC = () => {
       const unitOptionsFromApi = mapUnitsToOptions(unitList);
       const labOptionsFromApi = mapLabsToOptions(labList);
 
-      const productOptionsFromSamples = buildOptionsFromSamples(
-        mappedSamples,
-        (sample) => sample.sample_type,
-      );
-      const shipOptionsFromSamples = buildOptionsFromSamples(
-        mappedSamples,
-        (sample) => sample.vessel_name,
-      );
-      const tankOptionsFromSamples = buildOptionsFromSamples(
-        mappedSamples,
-        (sample) => sample.tank_number,
-      );
-      const labOptionsFromSamples = buildOptionsFromSamples(
-        mappedSamples,
-        (sample) => sample.location,
-      );
-      const unitOptionsFromSamples = buildOptionsFromSamples(
-        mappedSamples,
-        (sample) => sample.unit,
-      );
-
       setAllAvailableSamples(
         mappedSamples.length > 0 ? mappedSamples : AVAILABLE_SAMPLES,
       );
-      setProductOptions(productOptionsFromApi);
-      setCategoryTestOptions(categoryTestOptionsFromApi);
-      setShipOptions(shipOptionsFromApi);
-      setTankOptions(tankOptionsFromApi);
-      setLabOptions(labOptionsFromApi);
-      setUnitOptions(unitOptionsFromApi);
+      setProductOptions(
+        productOptionsFromApi.length > 0
+          ? productOptionsFromApi
+          : FALLBACK_PRODUCT_OPTIONS,
+      );
+      setCategoryTestOptions(
+        categoryTestOptionsFromApi.length > 0
+          ? categoryTestOptionsFromApi
+          : FALLBACK_CATEGORY_TEST_OPTIONS,
+      );
+      setShipOptions(
+        shipOptionsFromApi.length > 0
+          ? shipOptionsFromApi
+          : FALLBACK_SHIP_OPTIONS,
+      );
+      setTankOptions(
+        tankOptionsFromApi.length > 0
+          ? tankOptionsFromApi
+          : FALLBACK_TANK_OPTIONS,
+      );
+      setLabOptions(
+        labOptionsFromApi.length > 0 ? labOptionsFromApi : FALLBACK_LAB_OPTIONS,
+      );
+      setUnitOptions(
+        unitOptionsFromApi.length > 0
+          ? unitOptionsFromApi
+          : FALLBACK_UNIT_OPTIONS,
+      );
       calendarInitializedRef.current = false;
     } catch (_error) {
       message.error(
@@ -434,21 +400,303 @@ const SampleOrder: React.FC = () => {
     }
   };
 
-  const handleEdit = (record: SampleOrderRecord) => {
-    setEditingRecord(record);
-    setOrderType(record.order_type);
-    form.setFieldsValue({
-      ...record,
-      order_date: record.order_date ? dayjs(record.order_date) : null,
-      estimated_arrival: record.estimated_arrival
-        ? dayjs(record.estimated_arrival)
-        : null,
-    });
-    setSelectedSample(null);
-    setDrawerVisible(true);
+  const openCancelModal = (record: SampleOrderRecord) => {
+    setCancelTarget(record);
+    cancelForm.resetFields();
+    setCancelModalVisible(true);
   };
 
+  const handleFileUpload = useCallback(async (file: File) => {
+    const result = await uploadAttachment(file);
+    if (!result?.fileUrl) {
+      throw new Error('URL file tidak tersedia.');
+    }
+    return result.fileUrl;
+  }, []);
+
+  const handleTableRequest = useCallback(
+    async (
+      params: SampleOrderTableQuery & { current?: number; pageSize?: number },
+    ) => {
+      const { current = 1, pageSize = 10, keyword } = params;
+
+      try {
+        const { data, pagination } = await getSampleOrdersPaged({
+          page: current,
+          pageSize,
+          search: keyword,
+        });
+
+        const transformed = data.map(transformSampleOrderRecord);
+        setTableOrders(transformed);
+
+        return {
+          data: transformed,
+          success: true,
+          total: pagination?.totalData ?? transformed.length,
+        };
+      } catch (error: any) {
+        const errorMessage =
+          error?.message ??
+          'Gagal memuat data sample order. Mohon coba kembali.';
+        message.error(errorMessage);
+        setTableOrders([]);
+
+        return {
+          data: [],
+          success: false,
+          total: 0,
+        };
+      }
+    },
+    [],
+  );
+
   const handleSubmit = async (values: any) => {
+    const isReadyOrder = orderType === 'ready';
+    const isEditing = Boolean(editingRecord);
+
+    const parseOptionalNumber = (numericValue: unknown) => {
+      if (numericValue === null || numericValue === undefined) {
+        return undefined;
+      }
+      const parsed = Number(numericValue);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+    };
+
+    const findOptionByValue = (
+      options: SelectOption[],
+      value: unknown,
+    ): SelectOption | undefined =>
+      options.find((option) => option.value === value);
+
+    const extractUploadPath = (uploadValue: unknown) => {
+      if (!uploadValue) {
+        return undefined;
+      }
+
+      const extractFromList = (fileList?: any[]) => {
+        if (!Array.isArray(fileList) || fileList.length === 0) {
+          return undefined;
+        }
+
+        const first = fileList[0];
+        if (!first || typeof first !== 'object') {
+          return undefined;
+        }
+
+        if (first.url) {
+          return first.url as string;
+        }
+
+        const responseData =
+          first.response?.data ?? first.response ?? undefined;
+        if (responseData && typeof responseData === 'object') {
+          const candidate = responseData as { fileUrl?: string };
+          if (candidate.fileUrl) {
+            return candidate.fileUrl;
+          }
+        }
+
+        if (first.originFileObj instanceof File) {
+          return first.originFileObj.name;
+        }
+
+        return undefined;
+      };
+
+      if (Array.isArray(uploadValue)) {
+        return extractFromList(uploadValue);
+      }
+
+      const maybeFileList = (uploadValue as { fileList?: unknown[] }).fileList;
+      if (maybeFileList) {
+        return extractFromList(maybeFileList as any[]);
+      }
+
+      return undefined;
+    };
+
+    const tanggalOrder = values.order_date
+      ? dayjs(values.order_date).toISOString()
+      : dayjs().toISOString();
+    const etaArrival = values.estimated_arrival
+      ? dayjs(values.estimated_arrival).toISOString()
+      : dayjs().toISOString();
+
+    const priorityValue = values.priority ?? 'normal';
+
+    if (isReadyOrder && !isEditing) {
+      if (!selectedSample) {
+        message.error('Silakan pilih sample estimasi terlebih dahulu.');
+        return;
+      }
+
+      const estimasiSampleId = Number(
+        selectedSample.raw?.id ?? selectedSample.id,
+      );
+      const labOption = findOptionByValue(labOptions, values.lab_location);
+      const categoryOption = findOptionByValue(
+        categoryTestOptions,
+        values.category_test,
+      );
+      const productOption = findOptionByValue(
+        productOptions,
+        values.sample_type,
+      );
+
+      const labId = parseOptionalNumber(labOption?.meta?.id);
+      const categoryTestId = parseOptionalNumber(categoryOption?.meta?.id);
+      const shipId = parseOptionalNumber(
+        selectedSample.shipId ?? selectedSample.raw?.shipId,
+      );
+      const tankNumber = parseOptionalNumber(
+        selectedSample.tankId ?? selectedSample.raw?.nomorTanki,
+      );
+      const unitId = parseOptionalNumber(
+        selectedSample.unitId ?? selectedSample.raw?.satuanId,
+      );
+      const typeLoadId =
+        parseOptionalNumber(
+          selectedSample.sampleTypeId ?? selectedSample.raw?.typeLoadId,
+        ) ?? parseOptionalNumber(productOption?.meta?.id);
+
+      if (
+        !Number.isFinite(estimasiSampleId) ||
+        !labId ||
+        !categoryTestId ||
+        !shipId ||
+        !tankNumber ||
+        !unitId ||
+        !typeLoadId
+      ) {
+        message.error(
+          'Data sample atau referensi tidak lengkap untuk membuat order.',
+        );
+        return;
+      }
+
+      const payload: CreateSampleOrderPayload = {
+        estimasiSampleId,
+        tanggalOrder,
+        nomorNpc: values.npc_number,
+        labId,
+        categoryTestId,
+        etaArival: etaArrival,
+        pathPhotoSample: extractUploadPath(values.photo_sample) ?? null,
+        pathMemo: extractUploadPath(values.memo_file) ?? null,
+        notes: values.notes ?? null,
+        jenisProduct: selectedSample.sample_type,
+        typeLoadId,
+        shipId,
+        nomorTangki: tankNumber,
+        quantity: Number(values.quantity),
+        satuanId: unitId,
+        priority: String(priorityValue),
+      };
+
+      setSubmitting(true);
+      try {
+        const response = await createSampleOrder(payload);
+        message.success(response.message ?? 'Ready Order berhasil dibuat.');
+        handleDrawerClose();
+        actionRef.current?.reload();
+      } catch (error: any) {
+        const errorMessage =
+          error?.message ?? 'Gagal membuat ready order. Mohon coba kembali.';
+        message.error(errorMessage);
+      } finally {
+        setSubmitting(false);
+      }
+
+      return;
+    }
+
+    if (orderType === 'request' && !isEditing) {
+      const productOption = findOptionByValue(
+        productOptions,
+        values.sample_type,
+      );
+      const labOption = findOptionByValue(labOptions, values.lab_location);
+      const categoryOption = findOptionByValue(
+        categoryTestOptions,
+        values.category_test,
+      );
+      const shipOption = findOptionByValue(shipOptions, values.vessel_name);
+      const tankOption = findOptionByValue(tankOptions, values.tank_number);
+      const unitOption = findOptionByValue(unitOptions, values.unit);
+
+      const typeLoadId = parseOptionalNumber(productOption?.meta?.id);
+      const labId = parseOptionalNumber(labOption?.meta?.id);
+      const categoryTestId = parseOptionalNumber(categoryOption?.meta?.id);
+      const shipId = parseOptionalNumber(shipOption?.meta?.id);
+      let tankNumber = parseOptionalNumber(tankOption?.meta?.id);
+      if (!tankNumber && typeof values.tank_number === 'string') {
+        const digits = values.tank_number.match(/\d+/);
+        if (digits?.[0]) {
+          tankNumber = parseOptionalNumber(digits[0]);
+        }
+      }
+      const unitId = parseOptionalNumber(unitOption?.meta?.id);
+
+      if (!typeLoadId) {
+        message.error('Jenis product tidak valid.');
+        return;
+      }
+
+      if (!labId || !categoryTestId) {
+        message.error('Lab atau category test belum dipilih.');
+        return;
+      }
+
+      if (!shipId || !tankNumber) {
+        message.error('Data kapal atau tangki belum lengkap.');
+        return;
+      }
+
+      if (!unitId) {
+        message.error('Data satuan belum lengkap.');
+        return;
+      }
+
+      const payload: CreateSampleOrderPayload = {
+        tanggalOrder,
+        nomorNpc: values.npc_number,
+        labId,
+        categoryTestId,
+        etaArival: etaArrival,
+        pathPhotoSample: extractUploadPath(values.photo_sample) ?? null,
+        pathMemo: extractUploadPath(values.memo_file) ?? null,
+        notes: values.notes ?? null,
+        jenisProduct:
+          typeof values.sample_type === 'string'
+            ? values.sample_type
+            : (productOption?.label ?? ''),
+        typeLoadId,
+        shipId,
+        nomorTangki: tankNumber,
+        quantity: Number(values.quantity),
+        satuanId: unitId,
+        priority: String(priorityValue),
+      };
+
+      setSubmitting(true);
+      try {
+        const response = await createSampleOrder(payload);
+        message.success(response.message ?? 'Request Order berhasil dibuat.');
+        handleDrawerClose();
+        actionRef.current?.reload();
+      } catch (error: any) {
+        const errorMessage =
+          error?.message ?? 'Gagal membuat request order. Mohon coba kembali.';
+        message.error(errorMessage);
+      } finally {
+        setSubmitting(false);
+      }
+
+      return;
+    }
+
     try {
       const orderNumber = buildOrderNumber(orderType);
       const orderPayload = {
@@ -481,7 +729,55 @@ const SampleOrder: React.FC = () => {
     }
   };
 
-  const summaryData = computeSummary(SAMPLE_ORDERS);
+  const summaryData = useMemo(() => computeSummary(tableOrders), [tableOrders]);
+
+  const handleCancelOrder = async () => {
+    try {
+      const { cancelReason } = await cancelForm.validateFields();
+      if (!cancelTarget) {
+        message.error('Data sample order tidak ditemukan.');
+        return;
+      }
+
+      setCancelSubmitting(true);
+      const response = await cancelSampleOrder(cancelTarget.id, cancelReason);
+      message.success(response.message ?? 'Sample order berhasil dibatalkan.');
+      setCancelModalVisible(false);
+      setCancelTarget(null);
+      cancelForm.resetFields();
+      actionRef.current?.reload();
+    } catch (error: any) {
+      if (error?.errorFields) {
+        return;
+      }
+      const errorMessage =
+        error?.message ?? 'Gagal membatalkan order. Mohon coba kembali.';
+      message.error(errorMessage);
+    } finally {
+      setCancelSubmitting(false);
+    }
+  };
+
+  const handleShowDetail = async (record: SampleOrderRecord) => {
+    setDetailVisible(true);
+    setDetailLoading(true);
+    setDetailRecord(record);
+
+    try {
+      const detail = await getSampleOrderDetail(record.id);
+      if (!detail) {
+        throw new Error('Detail sample order tidak ditemukan.');
+      }
+      const transformed = transformSampleOrderRecord(detail);
+      setDetailRecord(transformed);
+    } catch (error: any) {
+      const errorMessage =
+        error?.message ?? 'Gagal memuat detail sample order.';
+      message.error(errorMessage);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   return (
     <PageContainer
@@ -537,8 +833,9 @@ const SampleOrder: React.FC = () => {
 
       <SampleOrderTable
         actionRef={actionRef}
-        dataSource={SAMPLE_ORDERS}
-        onEdit={handleEdit}
+        onDetail={handleShowDetail}
+        onCancel={openCancelModal}
+        request={handleTableRequest}
       />
 
       <SampleOrderDrawer
@@ -558,7 +855,50 @@ const SampleOrder: React.FC = () => {
         labOptions={labOptions}
         unitOptions={unitOptions}
         optionsLoading={loadingDropdowns}
+        submitting={submitting}
+        onUploadFile={handleFileUpload}
       />
+
+      <SampleOrderDetailModal
+        open={detailVisible}
+        loading={detailLoading}
+        record={detailRecord}
+        onClose={() => {
+          setDetailVisible(false);
+          setDetailRecord(null);
+        }}
+      />
+
+      <Modal
+        title="Batalkan Sample Order"
+        open={cancelModalVisible}
+        onCancel={() => {
+          if (!cancelSubmitting) {
+            setCancelModalVisible(false);
+            setCancelTarget(null);
+            cancelForm.resetFields();
+          }
+        }}
+        onOk={handleCancelOrder}
+        confirmLoading={cancelSubmitting}
+        okText="Konfirmasi"
+        cancelText="Batal"
+      >
+        <Form form={cancelForm} layout="vertical">
+          <Form.Item
+            name="cancelReason"
+            label="Alasan Pembatalan"
+            rules={[
+              { required: true, message: 'Alasan pembatalan wajib diisi' },
+            ]}
+          >
+            <Input.TextArea
+              rows={4}
+              placeholder="Tuliskan alasan pembatalan order"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </PageContainer>
   );
 };

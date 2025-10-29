@@ -1,14 +1,23 @@
+import type { SampleOrderApiRecord } from '@/services/sample-estimations/typings';
+
 export type OrderType = 'ready' | 'request';
 
 export type OrderPriority = 'normal' | 'urgent';
 
 export type OrderStatus =
   | 'pending'
-  | 'confirmed'
-  | 'picked_up'
+  | 'waiting_pickup_sample'
   | 'in_transit'
   | 'delivered'
-  | 'cancelled';
+  | 'confirm_sample_in_lab'
+  | 'registered_lab_sample'
+  | 'start_testing'
+  | 'completed_testing'
+  | 'comparation'
+  | 'completed_comparation'
+  | 'cancelled'
+  | 'confirmed'
+  | 'picked_up';
 
 export type SampleStatus =
   | 'available'
@@ -44,6 +53,16 @@ export interface SampleOrderRecord {
   notes?: string;
   created_at: string;
   selected_sample_id?: string;
+  sample_estimation_id?: number | null;
+  sample_type_id?: number | null;
+  lab_id?: number | null;
+  category_test_id?: number | null;
+  ship_id?: number | null;
+  tank_id?: number | null;
+  unit_id?: number | null;
+  order_status_code?: number | null;
+  status_label?: string;
+  raw?: SampleOrderApiRecord;
 }
 
 export interface AvailableSample {

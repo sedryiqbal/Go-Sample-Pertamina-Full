@@ -1,22 +1,18 @@
-import { EditOutlined } from '@ant-design/icons';
+import { EyeOutlined, StopOutlined } from '@ant-design/icons';
 import type { ProColumns } from '@ant-design/pro-components';
 import { Button, Space, Tag } from 'antd';
 import React from 'react';
 import type { SampleOrderRecord } from './types';
-import {
-  getPriorityColor,
-  getSampleStatusColor,
-  getSampleStatusLabel,
-  getStatusColor,
-  getStatusLabel,
-} from './utils';
+import { getPriorityColor, getStatusColor, getStatusLabel } from './utils';
 
 interface ColumnFactoryParams {
-  onEdit: (record: SampleOrderRecord) => void;
+  onDetail: (record: SampleOrderRecord) => void;
+  onCancel: (record: SampleOrderRecord) => void;
 }
 
 export const getOrderColumns = ({
-  onEdit,
+  onDetail,
+  onCancel,
 }: ColumnFactoryParams): ProColumns<SampleOrderRecord>[] => [
   {
     title: 'No. Order',
@@ -113,26 +109,41 @@ export const getOrderColumns = ({
     ),
     filters: [
       { text: 'Pending', value: 'pending' },
-      { text: 'Dikonfirmasi', value: 'confirmed' },
-      { text: 'Diambil', value: 'picked_up' },
-      { text: 'Dalam Perjalanan', value: 'in_transit' },
-      { text: 'Terkirim', value: 'delivered' },
-      { text: 'Dibatalkan', value: 'cancelled' },
+      { text: 'Waiting Pickup', value: 'waiting_pickup_sample' },
+      { text: 'In Transit', value: 'in_transit' },
+      { text: 'Delivered', value: 'delivered' },
+      { text: 'Confirm In Lab', value: 'confirm_sample_in_lab' },
+      { text: 'Registered Lab Sample', value: 'registered_lab_sample' },
+      { text: 'Start Testing', value: 'start_testing' },
+      { text: 'Completed Testing', value: 'completed_testing' },
+      { text: 'Comparation', value: 'comparation' },
+      { text: 'Completed Comparation', value: 'completed_comparation' },
+      { text: 'Cancelled', value: 'cancelled' },
     ],
   },
   {
     title: 'Aksi',
     key: 'actions',
-    width: 120,
+    width: 180,
     render: (_, record) => (
       <Space>
         <Button
           type="link"
           size="small"
-          icon={<EditOutlined />}
-          onClick={() => onEdit(record)}
+          icon={<EyeOutlined />}
+          onClick={() => onDetail(record)}
         >
-          Edit
+          Detail
+        </Button>
+        <Button
+          type="link"
+          size="small"
+          danger
+          icon={<StopOutlined />}
+          disabled={record.status === 'cancelled'}
+          onClick={() => onCancel(record)}
+        >
+          Cancel
         </Button>
       </Space>
     ),
