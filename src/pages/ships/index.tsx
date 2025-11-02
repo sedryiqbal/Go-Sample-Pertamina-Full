@@ -26,7 +26,20 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import ProductQCModal from '@/components/ProductQCModal';
+import ProductQCListModal from '@/components/ProductQCListModal';
+import ProductQCModal, {
+  type CoqDetail,
+  type PortStarboardRecord,
+  type ProductQCData,
+  type ProductQCSampleData,
+} from '@/components/ProductQCModal';
+import type { ProductQcRecord } from '@/services/product-qc/api';
+import {
+  type CreateProductQcPayload,
+  createProductQc,
+  deleteProductQc,
+  fetchProductQcByShip,
+} from '@/services/product-qc/api';
 import ShipDetailModal from './components/ShipDetailModal';
 import ShipFormDrawer from './components/ShipFormDrawer';
 import {
@@ -78,9 +91,23 @@ const Ships: React.FC = () => {
   const [editingShip, setEditingShip] = useState<ShipTableRecord | null>(null);
   const [qcModalVisible, setQcModalVisible] = useState(false);
   const [qcShip, setQcShip] = useState<ShipTableRecord | null>(null);
-  const [qcDataByShip, setQcDataByShip] = useState<Record<string, any>>({});
+  const [qcDataByShip, setQcDataByShip] = useState<
+    Record<string, ProductQCData>
+  >({});
+  const [qcListVisible, setQcListVisible] = useState(false);
+  const [qcRecords, setQcRecords] = useState<ProductQcRecord[]>([]);
+  const [qcRecordsLoading, setQcRecordsLoading] = useState(false);
+  const [selectedQcRecord, setSelectedQcRecord] =
+    useState<ProductQcRecord | null>(null);
+  const [qcAvailabilityByShip, setQcAvailabilityByShip] = useState<
+    Record<string, boolean>
+  >({});
   const [detailVisible, setDetailVisible] = useState(false);
   const [detailShip, setDetailShip] = useState<ShipTableRecord | null>(null);
+  const [creatingProductQc, setCreatingProductQc] = useState(false);
+  const [deletingQcId, setDeletingQcId] = useState<string | number | null>(
+    null,
+  );
 
   const handleFormApiError = useCallback(
     (error: unknown) => {
@@ -129,6 +156,41 @@ const Ships: React.FC = () => {
     [form],
   );
 
+  const loadProductQcRecords = useCallback(
+    async (shipId: string | number | null | undefined) => {
+      if (shipId === null || shipId === undefined || shipId === '') {
+        return;
+      }
+
+      const shipKey = String(shipId);
+      setQcRecordsLoading(true);
+      setQcRecords([]);
+
+      try {
+        const records = await fetchProductQcByShip(shipId);
+        setQcRecords(records);
+        setQcAvailabilityByShip((prev) => ({
+          ...prev,
+          [shipKey]: records.length > 0,
+        }));
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : 'Gagal memuat data Product QC';
+        message.error(errorMessage);
+        setQcRecords([]);
+        setQcAvailabilityByShip((prev) => ({
+          ...prev,
+          [shipKey]: false,
+        }));
+      } finally {
+        setQcRecordsLoading(false);
+      }
+    },
+    [fetchProductQcByShip],
+  );
+
   const handleTableRequest = useCallback(
     async (params: Record<string, any>) => {
       const { current = 1, pageSize = 10, search } = params ?? {};
@@ -140,6 +202,207 @@ const Ships: React.FC = () => {
       });
     },
     [loadShips],
+  );
+
+  const convertWaterFlag = useCallback(
+    (value: number | null | undefined): 'P' | 'N' | '' =>
+      value === 1 ? 'P' : value === 0 ? 'N' : '',
+    [],
+  );
+
+  const toNullableNumber = useCallback((value: unknown): number | null => {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+  }, []);
+
+  const mapProductQcRecordToSampleData = useCallback(
+    (record: ProductQcRecord): ProductQCSampleData => {
+      const portRecords: Partial<PortStarboardRecord>[] = [];
+      const starboardRecords: Partial<PortStarboardRecord>[] = [];
+
+      (record.compartmentData ?? []).forEach((item, index) => {
+        const normalized: Partial<PortStarboardRecord> = {
+          id: item.id ?? index + 1,
+          free_water: convertWaterFlag(item.freeWater),
+          suspended_water: convertWaterFlag(item.suspendedWater),
+          electrical_conductivity: toNullableNumber(
+            item.electricalConductivity,
+          ),
+          temperature_observed: toNullableNumber(item.temperatureObserved),
+          density_observed: toNullableNumber(item.densityObserved),
+          density_15c: toNullableNumber(item.densityAt15C),
+          batch_density_15c: toNullableNumber(item.batchDensity),
+          diff: toNullableNumber(item.diff),
+          volume_liters: null,
+          dens_15c_x_volume: null,
+          notes: item.notes ?? null,
+        };
+
+        if (item.type === 0) {
+          portRecords.push(normalized);
+        } else {
+          starboardRecords.push(normalized);
+        }
+      });
+
+      const coqDetails: CoqDetail[] = (record.rCoQs ?? []).map((coq) => ({
+        coq_no: coq.no ?? '',
+        issuance_date: coq.date ?? '',
+      }));
+
+      return {
+        vessel_name: record.shipName,
+        name_of_tanker: record.shipName ? `MT. ${record.shipName}` : undefined,
+        arrival_date: record.arrivalDate ?? undefined,
+        refinery_terminal: record.refineryTerminal,
+        grade_of_product: record.gradeOfProduct,
+        sample_type: record.gradeOfProduct,
+        quantity_in_batch:
+          record.quantityInBatch !== null &&
+          record.quantityInBatch !== undefined
+            ? record.quantityInBatch
+            : undefined,
+        port_data: portRecords,
+        starboard_data: starboardRecords,
+        coq_details: coqDetails.length > 0 ? coqDetails : undefined,
+      };
+    },
+    [convertWaterFlag, toNullableNumber],
+  );
+
+  const convertWaterToNumeric = useCallback(
+    (value: 'P' | 'N' | '' | null | undefined): number =>
+      value === 'P' ? 1 : 0,
+    [],
+  );
+
+  const toNumberOrZero = useCallback((value: number | null | undefined) => {
+    if (value === null || value === undefined || value === '') {
+      return 0;
+    }
+
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+  }, []);
+
+  const parseDateToIso = useCallback((value?: string | null) => {
+    if (!value) {
+      return null;
+    }
+
+    const formats = ['DD MMM YYYY', 'DD-MM-YYYY', 'YYYY-MM-DD'];
+    let parsed: dayjs.Dayjs | null = null;
+
+    for (const format of formats) {
+      const candidate = dayjs(value, format, true);
+      if (candidate.isValid()) {
+        parsed = candidate;
+        break;
+      }
+    }
+
+    if (!parsed) {
+      const fallback = dayjs(value);
+      parsed = fallback.isValid() ? fallback : null;
+    }
+
+    return parsed ? parsed.toISOString() : null;
+  }, []);
+
+  const buildCreateProductQcPayload = useCallback(
+    (
+      ship: ShipTableRecord,
+      formData: ProductQCData,
+    ): CreateProductQcPayload => {
+      const numericShipId = Number(ship.id);
+      if (!Number.isFinite(numericShipId)) {
+        throw new Error('Ship ID tidak valid untuk Product QC');
+      }
+
+      const arrivalDateIso =
+        parseDateToIso(formData.arrival_date) ??
+        (ship.arrivalDate
+          ? dayjs(ship.arrivalDate).toISOString()
+          : undefined) ??
+        new Date().toISOString();
+
+      const normalizeCompartment = (
+        records: PortStarboardRecord[],
+        type: number,
+      ) =>
+        records
+          .filter((record) => {
+            const hasNumeric =
+              record.temperature_observed !== null ||
+              record.density_observed !== null ||
+              record.electrical_conductivity !== null ||
+              record.batch_density_15c !== null ||
+              record.diff !== null;
+            const hasWaterFlag =
+              record.free_water === 'P' ||
+              record.free_water === 'N' ||
+              record.suspended_water === 'P' ||
+              record.suspended_water === 'N';
+            return hasNumeric || hasWaterFlag;
+          })
+          .map((record) => ({
+            type,
+            freeWater: convertWaterToNumeric(record.free_water),
+            suspendedWater: convertWaterToNumeric(record.suspended_water),
+            electricalConductivity: toNumberOrZero(
+              record.electrical_conductivity,
+            ),
+            temperatureObserved: toNumberOrZero(record.temperature_observed),
+            densityObserved: toNumberOrZero(record.density_observed),
+            densityAt15C:
+              record.density_15c !== null && record.density_15c !== undefined
+                ? Number(record.density_15c)
+                : undefined,
+            batchDensity: toNumberOrZero(record.batch_density_15c),
+            diff: toNumberOrZero(record.diff),
+            notes:
+              record.notes !== undefined && record.notes !== null
+                ? String(record.notes)
+                : '',
+          }));
+
+      const compartmentData = [
+        ...normalizeCompartment(formData.port_data, 0),
+        ...normalizeCompartment(formData.starboard_data, 1),
+      ];
+
+      if (compartmentData.length === 0) {
+        throw new Error(
+          'Tambahkan minimal satu data compartment sebelum menyimpan Product QC',
+        );
+      }
+
+      const rCoQs = (formData.coq_details ?? [])
+        .filter(
+          (item) =>
+            (item.coq_no && item.coq_no.trim().length > 0) ||
+            (item.issuance_date && item.issuance_date.trim().length > 0),
+        )
+        .map((item) => ({
+          no: item.coq_no?.trim() ?? '',
+          date: parseDateToIso(item.issuance_date) ?? new Date().toISOString(),
+        }));
+
+      return {
+        shipID: numericShipId,
+        arrivalDate: arrivalDateIso,
+        quantityInBatch: Number(formData.quantity_in_batch ?? 0),
+        refineryTerminal: formData.refinery_terminal?.trim() ?? '',
+        gradeOfProduct: formData.grade_of_product?.trim() ?? '',
+        compartmentData,
+        rCoQs,
+      };
+    },
+    [convertWaterToNumeric, parseDateToIso, toNumberOrZero],
   );
 
   const handleAdd = useCallback(() => {
@@ -200,10 +463,16 @@ const Ships: React.FC = () => {
     [deleteShip],
   );
 
-  const handleOpenQC = useCallback((record: ShipTableRecord) => {
-    setQcShip(record);
-    setQcModalVisible(true);
-  }, []);
+  const handleOpenQC = useCallback(
+    (record: ShipTableRecord) => {
+      setQcShip(record);
+      setSelectedQcRecord(null);
+      setQcModalVisible(false);
+      setQcListVisible(true);
+      loadProductQcRecords(record.id);
+    },
+    [loadProductQcRecords],
+  );
 
   const handleShowDetail = useCallback((record: ShipTableRecord) => {
     setDetailShip(record);
@@ -211,17 +480,94 @@ const Ships: React.FC = () => {
   }, []);
 
   const handleSubmitQC = useCallback(
-    (data: any) => {
+    async (data: ProductQCData) => {
       if (!qcShip) {
-        return;
+        throw new Error('Data kapal tidak ditemukan');
       }
 
-      setQcDataByShip((prev) => ({ ...prev, [qcShip.id]: data }));
-      message.success('Product QC untuk kapal berhasil disimpan');
-      setQcModalVisible(false);
-      setQcShip(null);
+      setCreatingProductQc(true);
+      try {
+        const payload = buildCreateProductQcPayload(qcShip, data);
+        await createProductQc(payload);
+
+        const shipKey = String(qcShip.id);
+        setQcDataByShip((prev) => ({ ...prev, [shipKey]: data }));
+        setQcAvailabilityByShip((prev) => ({ ...prev, [shipKey]: true }));
+
+        message.success('Product QC untuk kapal berhasil disimpan');
+        setQcModalVisible(false);
+        setSelectedQcRecord(null);
+        setQcListVisible(true);
+        await loadProductQcRecords(qcShip.id);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Gagal menyimpan Product QC';
+        throw new Error(errorMessage);
+      } finally {
+        setCreatingProductQc(false);
+      }
     },
-    [qcShip],
+    [qcShip, buildCreateProductQcPayload, loadProductQcRecords],
+  );
+
+  const handleSelectExistingQc = useCallback((record: ProductQcRecord) => {
+    setSelectedQcRecord(record);
+    setQcListVisible(false);
+    setQcModalVisible(true);
+  }, []);
+
+  const handleCreateQcFromList = useCallback(() => {
+    if (!qcShip) {
+      message.warning('Silakan pilih kapal terlebih dahulu');
+      return;
+    }
+    setSelectedQcRecord(null);
+    setQcModalVisible(true);
+    setQcListVisible(false);
+  }, [qcShip]);
+
+  const handleDeleteQcRecord = useCallback(
+    async (record: ProductQcRecord) => {
+      const targetShipId = qcShip?.id ?? record.shipID;
+      const shipKey = String(targetShipId);
+
+      setDeletingQcId(record.id);
+      try {
+        await deleteProductQc(record.id);
+
+        setQcRecords((prev) => {
+          const next = prev.filter((item) => item.id !== record.id);
+          setQcAvailabilityByShip((prevAvailability) => ({
+            ...prevAvailability,
+            [shipKey]: next.length > 0,
+          }));
+          return next;
+        });
+
+        setQcDataByShip((prev) => {
+          if (prev[shipKey] === undefined) {
+            return prev;
+          }
+          const next = { ...prev };
+          delete next[shipKey];
+          return next;
+        });
+
+        if (selectedQcRecord?.id === record.id) {
+          setSelectedQcRecord(null);
+          setQcModalVisible(false);
+        }
+
+        message.success('Product QC berhasil dihapus');
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Gagal menghapus Product QC';
+        message.error(errorMessage);
+      } finally {
+        setDeletingQcId(null);
+      }
+    },
+    [qcShip, selectedQcRecord],
   );
 
   const openQCPdfWindow = useCallback((ship: ShipTableRecord, data: any) => {
@@ -415,6 +761,25 @@ const Ships: React.FC = () => {
     win.document.close();
   }, []);
 
+  const qcModalSampleData = useMemo<ProductQCSampleData | undefined>(() => {
+    if (selectedQcRecord) {
+      return mapProductQcRecordToSampleData(selectedQcRecord);
+    }
+
+    if (qcShip) {
+      return {
+        vessel_name: qcShip.name,
+        name_of_tanker: qcShip.name ? `MT. ${qcShip.name}` : undefined,
+        sample_type: qcShip.cargoType ?? undefined,
+        grade_of_product: qcShip.cargoType ?? undefined,
+        refinery_terminal: qcShip.portLocation ?? undefined,
+        arrival_date: qcShip.arrivalDate ?? undefined,
+      };
+    }
+
+    return undefined;
+  }, [selectedQcRecord, qcShip, mapProductQcRecordToSampleData]);
+
   const handleDrawerClose = useCallback(() => {
     setDrawerVisible(false);
     setEditingShip(null);
@@ -601,7 +966,9 @@ const Ships: React.FC = () => {
         width: 420,
         hideInSearch: true,
         render: (_, record) => {
-          const hasQC = !!qcDataByShip[record.id];
+          const shipKey = String(record.id);
+          const hasQcRecords = qcAvailabilityByShip[shipKey] ?? false;
+          const hasLocalQcData = !!qcDataByShip[shipKey];
           return (
             <Space size={8} wrap={false}>
               <Button
@@ -632,7 +999,7 @@ const Ships: React.FC = () => {
               </Button>
               <Button
                 size="small"
-                type={hasQC ? 'default' : 'primary'}
+                type={hasQcRecords ? 'default' : 'primary'}
                 icon={<FileDoneOutlined />}
                 onClick={() => handleOpenQC(record)}
                 style={{ borderRadius: 16 }}
@@ -642,9 +1009,9 @@ const Ships: React.FC = () => {
               <Button
                 size="small"
                 icon={<FileTextOutlined />}
-                disabled={!hasQC}
+                disabled={!hasLocalQcData}
                 onClick={() => {
-                  const qcData = qcDataByShip[record.id];
+                  const qcData = qcDataByShip[shipKey];
                   if (!qcData) {
                     message.warning(
                       'Silakan simpan Product QC terlebih dahulu',
@@ -669,6 +1036,7 @@ const Ships: React.FC = () => {
       handleShowDetail,
       openQCPdfWindow,
       qcDataByShip,
+      qcAvailabilityByShip,
     ],
   );
 
@@ -777,21 +1145,38 @@ const Ships: React.FC = () => {
         ship={detailShip}
       />
 
+      <ProductQCListModal
+        open={qcListVisible}
+        loading={qcRecordsLoading}
+        ship={qcShip}
+        records={qcRecords}
+        onClose={() => {
+          setQcListVisible(false);
+          setSelectedQcRecord(null);
+          setQcRecords([]);
+          setQcShip(null);
+        }}
+        onSelect={handleSelectExistingQc}
+        onCreateNew={qcShip ? handleCreateQcFromList : undefined}
+        onDelete={handleDeleteQcRecord}
+        deletingId={deletingQcId}
+      />
+
       <ProductQCModal
         visible={qcModalVisible}
         onClose={() => {
           setQcModalVisible(false);
-          setQcShip(null);
+          setSelectedQcRecord(null);
+          if (qcShip) {
+            setQcListVisible(true);
+          }
         }}
-        sampleData={
-          qcShip
-            ? {
-                vessel_name: qcShip.name,
-                sample_type: qcShip.cargoType,
-              }
-            : undefined
-        }
+        sampleData={qcModalSampleData}
         onSubmit={handleSubmitQC}
+        viewOnly={!!selectedQcRecord}
+        submitting={creatingProductQc}
+        ship={qcShip}
+        shipId={qcShip?.id ?? null}
       />
     </PageContainer>
   );

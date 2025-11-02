@@ -8,6 +8,7 @@ import {
 import {
   Button,
   Card,
+  DatePicker,
   Form,
   Input,
   InputNumber,
@@ -20,13 +21,30 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import type { ShipTableRecord } from '@/pages/ships/types';
+import { calculateDensityAt15C } from '@/services/product-qc/api';
 
-interface CoqDetail {
+export interface CoqDetail {
   coq_no: string;
   issuance_date: string;
 }
 
-interface ProductQCData {
+export interface PortStarboardRecord {
+  id: number;
+  free_water: 'P' | 'N' | '';
+  suspended_water: 'P' | 'N' | '';
+  electrical_conductivity: number | null;
+  temperature_observed: number | null;
+  density_observed: number | null;
+  density_15c: number | null;
+  batch_density_15c: number | null;
+  diff: number | null;
+  volume_liters: number | null;
+  dens_15c_x_volume: number | null;
+  notes?: string | null;
+}
+
+export interface ProductQCData {
   // Header Information
   name_of_tanker: string;
   arrival_date: string;
@@ -42,114 +60,225 @@ interface ProductQCData {
   starboard_data: PortStarboardRecord[];
 }
 
-interface PortStarboardRecord {
-  id: number;
-  free_water: 'P' | 'N' | '';
-  suspended_water: 'P' | 'N' | '';
-  electrical_conductivity: number | null;
-  temperature_observed: number | null;
-  density_observed: number | null;
-  density_15c: number | null; // Calculated
-  batch_density_15c: number | null;
-  diff: number | null; // Calculated
-  volume_liters: number | null;
-  dens_15c_x_volume: number | null; // Calculated
+export interface CalculatedResults {
+  total_volume_dens_15c: number;
+  total_volume: number;
+  expected_density: number;
+  refinery_certificate_density: number;
+  density_difference: number;
 }
 
-interface ProductQCModalProps {
+export interface ProductQCSampleData {
+  arrival_date?: string;
+  grade_of_product?: string;
+  name_of_tanker?: string;
+  refinery_terminal?: string;
+  quantity_in_batch?: number;
+  coq_details?: CoqDetail[];
+  port_note?: string;
+  starboard_note?: string;
+  port_data?: Partial<PortStarboardRecord>[];
+  starboard_data?: Partial<PortStarboardRecord>[];
+  calculatedResults?: Partial<CalculatedResults>;
+  vessel_name?: string;
+  sample_type?: string;
+}
+
+export interface ProductQCModalProps {
   visible: boolean;
   onClose: () => void;
-  sampleData?: any;
-  onSubmit: (data: ProductQCData) => void;
+  sampleData?: ProductQCSampleData;
+  onSubmit: (data: ProductQCData) => Promise<void> | void;
+  viewOnly?: boolean;
+  submitting?: boolean;
+  shipId?: number | string | null;
+  ship?: ShipTableRecord | null;
 }
+
+const DEFAULT_RECORD_LENGTH = 8;
+
+const DEFAULT_CALCULATED_RESULTS: CalculatedResults = {
+  total_volume_dens_15c: 0,
+  total_volume: 0,
+  expected_density: 0,
+  refinery_certificate_density: 627,
+  density_difference: 0,
+};
+
+const createEmptyRecord = (index: number): PortStarboardRecord => ({
+  id: index + 1,
+  free_water: '',
+  suspended_water: '',
+  electrical_conductivity: null,
+  temperature_observed: null,
+  density_observed: null,
+  density_15c: null,
+  batch_density_15c: null,
+  diff: null,
+  volume_liters: null,
+  dens_15c_x_volume: null,
+  notes: null,
+});
+
+const normalizeRecords = (
+  source?: Partial<PortStarboardRecord>[],
+): PortStarboardRecord[] => {
+  const prepared = (source ?? []).map((record, index) => ({
+    ...createEmptyRecord(index),
+    ...record,
+    id:
+      record?.id !== undefined && record?.id !== null
+        ? Number(record.id)
+        : index + 1,
+  }));
+
+  const length = Math.max(DEFAULT_RECORD_LENGTH, prepared.length);
+
+  return Array.from({ length }, (_, index) => {
+    const existing = prepared[index];
+    if (existing) {
+      return {
+        ...createEmptyRecord(index),
+        ...existing,
+        id: existing.id ?? index + 1,
+      };
+    }
+    return createEmptyRecord(index);
+  });
+};
+
+const computeTotals = (
+  portRecords: PortStarboardRecord[],
+  starboardRecords: PortStarboardRecord[],
+  refineryCertificateDensity: number,
+) => {
+  const allRecords = [...portRecords, ...starboardRecords];
+
+  const totalVolumeDens15C = allRecords.reduce(
+    (sum, record) => sum + (record.dens_15c_x_volume || 0),
+    0,
+  );
+
+  const totalVolume = allRecords.reduce(
+    (sum, record) => sum + (record.volume_liters || 0),
+    0,
+  );
+
+  const expectedDensity =
+    totalVolume > 0 ? (totalVolumeDens15C / totalVolume) * 1000 : 0;
+
+  return {
+    total_volume_dens_15c: Math.round(totalVolumeDens15C * 1000) / 1000,
+    total_volume: Math.round(totalVolume * 1000) / 1000,
+    expected_density: Math.round(expectedDensity * 10) / 10,
+    density_difference:
+      Math.round(Math.abs(expectedDensity - refineryCertificateDensity) * 10) /
+      10,
+  };
+};
 
 const ProductQCModal: React.FC<ProductQCModalProps> = ({
   visible,
   onClose,
   sampleData,
   onSubmit,
+  viewOnly = false,
+  submitting = false,
 }) => {
   const [form] = Form.useForm();
   const [portData, setPortData] = useState<PortStarboardRecord[]>([]);
   const [starboardData, setStarboardData] = useState<PortStarboardRecord[]>([]);
   const [portNote, setPortNote] = useState('');
   const [starboardNote, setStarboardNote] = useState('');
-  const [calculatedResults, setCalculatedResults] = useState({
-    total_volume_dens_15c: 0,
-    total_volume: 0,
-    expected_density: 0,
-    refinery_certificate_density: 627, // Default value
-    density_difference: 0,
-  });
+  const [calculatedResults, setCalculatedResults] = useState<CalculatedResults>(
+    () => ({ ...DEFAULT_CALCULATED_RESULTS }),
+  );
+  const isViewOnly = viewOnly ?? false;
+  const [calculatingDensityKey, setCalculatingDensityKey] = useState<
+    string | null
+  >(null);
 
   // Initialize empty records for Port and Starboard
   useEffect(() => {
     if (visible) {
       form.resetFields();
-      const initializeRecords = (): PortStarboardRecord[] =>
-        Array.from({ length: 8 }, (_, index) => ({
-          id: index + 1,
-          free_water: '',
-          suspended_water: '',
-          electrical_conductivity: null,
-          temperature_observed: null,
-          density_observed: null,
-          density_15c: null,
-          batch_density_15c: null,
-          diff: null,
-          volume_liters: null,
-          dens_15c_x_volume: null,
-        }));
+      setCalculatingDensityKey(null);
 
-      setPortData(initializeRecords());
-      setStarboardData(initializeRecords());
+      const initialPortRecords = normalizeRecords(sampleData?.port_data);
+      const initialStarboardRecords = normalizeRecords(
+        sampleData?.starboard_data,
+      );
+
+      setPortData(initialPortRecords);
+      setStarboardData(initialStarboardRecords);
       setPortNote(sampleData?.port_note || '');
       setStarboardNote(sampleData?.starboard_note || '');
 
-      const coqDetails: CoqDetail[] = Array.from({ length: 4 }, (_, idx) => ({
-        coq_no: sampleData?.coq_details?.[idx]?.coq_no || '',
-        issuance_date:
-          sampleData?.coq_details?.[idx]?.issuance_date ||
-          (idx === 0 ? dayjs().format('DD MMM YYYY') : ''),
-      }));
+      const arrivalSource = sampleData?.arrival_date;
+      const arrivalDateValue =
+        arrivalSource && dayjs(arrivalSource).isValid()
+          ? dayjs(arrivalSource)
+          : dayjs();
 
-      const defaultValues: Partial<ProductQCData> = {
-        arrival_date: sampleData?.arrival_date || dayjs().format('DD MMM YYYY'),
-        grade_of_product: sampleData?.sample_type ?? undefined,
-        name_of_tanker: sampleData?.vessel_name
-          ? `MT. ${sampleData.vessel_name}`
-          : undefined,
+      const coqDetails = Array.from({ length: 4 }, (_, idx) => {
+        const issuanceSource = sampleData?.coq_details?.[idx]?.issuance_date;
+        const issuanceDate =
+          issuanceSource && dayjs(issuanceSource).isValid()
+            ? dayjs(issuanceSource)
+            : undefined;
+
+        return {
+          coq_no: sampleData?.coq_details?.[idx]?.coq_no || '',
+          issuance_date: issuanceDate || (idx === 0 ? dayjs() : undefined),
+        };
+      });
+
+      const defaultValues = {
+        arrival_date: arrivalDateValue,
+        grade_of_product:
+          sampleData?.grade_of_product ?? sampleData?.sample_type ?? undefined,
+        name_of_tanker:
+          sampleData?.name_of_tanker ??
+          (sampleData?.vessel_name
+            ? `MT. ${sampleData.vessel_name}`
+            : undefined),
         refinery_terminal: sampleData?.refinery_terminal ?? undefined,
-        quantity_in_batch: sampleData?.quantity_in_batch ?? undefined,
+        quantity_in_batch:
+          sampleData?.quantity_in_batch !== undefined
+            ? sampleData.quantity_in_batch
+            : undefined,
         coq_details: coqDetails,
       };
 
       form.setFieldsValue(defaultValues);
+
+      const baseResults: CalculatedResults = {
+        ...DEFAULT_CALCULATED_RESULTS,
+        ...sampleData?.calculatedResults,
+      };
+
+      const totals = computeTotals(
+        initialPortRecords,
+        initialStarboardRecords,
+        baseResults.refinery_certificate_density,
+      );
+
+      setCalculatedResults({
+        ...baseResults,
+        ...totals,
+      });
     }
   }, [visible, sampleData, form]);
-
-  // API function to calculate Density @ 15°C
-  const calculateDensity15C = async (
-    tempObserved: number,
-    densityObserved: number,
-  ): Promise<number> => {
-    // In real implementation, this would call an actual API
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Formula: Density@15°C = Density@T / (1 + α * (T - 15))
-        // Where α is the coefficient of thermal expansion
-        const alpha = 0.0008; // Typical value for petroleum products
-        const density15C = densityObserved / (1 + alpha * (tempObserved - 15));
-        resolve(Math.round(density15C * 10000) / 10000); // Round to 4 decimal places
-      }, 1000); // Simulate API delay
-    });
-  };
 
   // Handle API call for Density @ 15°C
   const handleCalculateDensity15C = async (
     type: 'port' | 'starboard',
     index: number,
   ) => {
+    if (isViewOnly || submitting) {
+      return;
+    }
+
     const currentData = type === 'port' ? portData : starboardData;
     const record = currentData[index];
 
@@ -158,29 +287,28 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
       return;
     }
 
+    const operationKey = `${type}-${index}`;
+
     try {
-      message.loading({
-        content: 'Calculating Density @ 15°C via API...',
-        key: 'density-calc',
-      });
-
-      const density15C = await calculateDensity15C(
-        record.temperature_observed,
-        record.density_observed,
-      );
-
-      message.success({
-        content: 'Density @ 15°C calculated successfully!',
-        key: 'density-calc',
+      setCalculatingDensityKey(operationKey);
+      const density15C = await calculateDensityAt15C({
+        temperatureObserved: Number(record.temperature_observed),
+        densityObserved: Number(record.density_observed),
       });
 
       // Update the record with calculated value
       updateRecord(type, index, 'density_15c', density15C);
+      message.success('Density @ 15°C berhasil dihitung');
     } catch (_error) {
-      message.error({
-        content: 'Failed to calculate Density @ 15°C',
-        key: 'density-calc',
-      });
+      const errorMessage =
+        _error instanceof Error
+          ? _error.message
+          : 'Failed to calculate Density @ 15°C';
+      message.error(errorMessage);
+    } finally {
+      setCalculatingDensityKey((current) =>
+        current === operationKey ? null : current,
+      );
     }
   };
 
@@ -242,38 +370,24 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
     portRecords: PortStarboardRecord[],
     starboardRecords: PortStarboardRecord[],
   ) => {
-    const allRecords = [...portRecords, ...starboardRecords];
+    setCalculatedResults((prev) => {
+      const totals = computeTotals(
+        portRecords,
+        starboardRecords,
+        prev.refinery_certificate_density,
+      );
 
-    const totalVolumeDens15C = allRecords.reduce(
-      (sum, record) => sum + (record.dens_15c_x_volume || 0),
-      0,
-    );
-
-    const totalVolume = allRecords.reduce(
-      (sum, record) => sum + (record.volume_liters || 0),
-      0,
-    );
-
-    const expectedDensity =
-      totalVolume > 0 ? (totalVolumeDens15C / totalVolume) * 1000 : 0;
-
-    // Formula fix: Different = Expected Density - Refinery Certificate Density
-    const densityDifference = Math.abs(
-      expectedDensity - calculatedResults.refinery_certificate_density,
-    );
-
-    setCalculatedResults((prev) => ({
-      ...prev,
-      total_volume_dens_15c: Math.round(totalVolumeDens15C * 1000) / 1000,
-      total_volume: Math.round(totalVolume * 1000) / 1000,
-      expected_density: Math.round(expectedDensity * 10) / 10,
-      density_difference: Math.round(densityDifference * 10) / 10,
-    }));
+      return {
+        ...prev,
+        ...totals,
+      };
+    });
   };
 
   // Table columns for Port/Starboard data
   const getTableColumns = (
     type: 'port' | 'starboard',
+    readOnly: boolean,
   ): ColumnsType<PortStarboardRecord> => [
     {
       title: type === 'port' ? 'PORT' : 'STARBOARD',
@@ -295,6 +409,7 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
               size="small"
               value={record.free_water || undefined}
               placeholder="Select"
+              disabled={readOnly}
               onChange={(value) =>
                 updateRecord(type, index, 'free_water', value)
               }
@@ -315,6 +430,7 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
               size="small"
               value={record.suspended_water || undefined}
               placeholder="Select"
+              disabled={readOnly}
               onChange={(value) =>
                 updateRecord(type, index, 'suspended_water', value)
               }
@@ -336,6 +452,7 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
         <InputNumber
           size="small"
           value={record.electrical_conductivity}
+          disabled={readOnly}
           onChange={(value) =>
             updateRecord(type, index, 'electrical_conductivity', value)
           }
@@ -353,6 +470,7 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
         <InputNumber
           size="small"
           value={record.temperature_observed}
+          disabled={readOnly}
           onChange={(value) =>
             updateRecord(type, index, 'temperature_observed', value)
           }
@@ -370,6 +488,7 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
         <InputNumber
           size="small"
           value={record.density_observed}
+          disabled={readOnly}
           onChange={(value) =>
             updateRecord(type, index, 'density_observed', value)
           }
@@ -403,7 +522,13 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
             size="small"
             icon={<ThunderboltOutlined />}
             onClick={() => handleCalculateDensity15C(type, index)}
-            disabled={!record.temperature_observed || !record.density_observed}
+            disabled={
+              readOnly ||
+              !record.temperature_observed ||
+              !record.density_observed ||
+              calculatingDensityKey === `${type}-${index}`
+            }
+            loading={calculatingDensityKey === `${type}-${index}`}
             style={{
               fontSize: '10px',
               height: 24,
@@ -426,6 +551,7 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
         <InputNumber
           size="small"
           value={record.batch_density_15c}
+          disabled={readOnly}
           onChange={(value) =>
             updateRecord(type, index, 'batch_density_15c', value)
           }
@@ -461,18 +587,46 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
   ];
 
   const handleSubmit = async () => {
+    if (submitting) {
+      return;
+    }
+
     try {
       const formValues = await form.validateFields();
 
-      const coqDetails: CoqDetail[] = Array.from({ length: 4 }, (_, idx) => ({
-        coq_no: formValues?.coq_details?.[idx]?.coq_no || '',
-        issuance_date: formValues?.coq_details?.[idx]?.issuance_date || '',
-      }));
+      const arrivalDateValue = formValues.arrival_date;
+      const arrivalDateIso = arrivalDateValue
+        ? dayjs.isDayjs(arrivalDateValue)
+          ? arrivalDateValue.toISOString()
+          : dayjs(arrivalDateValue).isValid()
+            ? dayjs(arrivalDateValue).toISOString()
+            : ''
+        : '';
+
+      const coqDetails: CoqDetail[] = Array.from({ length: 4 }, (_, idx) => {
+        const issuanceValue = formValues?.coq_details?.[idx]?.issuance_date;
+        const issuanceIso = issuanceValue
+          ? dayjs.isDayjs(issuanceValue)
+            ? issuanceValue.toISOString()
+            : dayjs(issuanceValue).isValid()
+              ? dayjs(issuanceValue).toISOString()
+              : ''
+          : '';
+
+        return {
+          coq_no: formValues?.coq_details?.[idx]?.coq_no || '',
+          issuance_date: issuanceIso,
+        };
+      });
 
       const productQCData: ProductQCData & {
         calculatedResults?: typeof calculatedResults;
       } = {
-        ...formValues,
+        name_of_tanker: formValues.name_of_tanker || '',
+        arrival_date: arrivalDateIso,
+        quantity_in_batch: Number(formValues.quantity_in_batch ?? 0),
+        refinery_terminal: formValues.refinery_terminal || '',
+        grade_of_product: formValues.grade_of_product || '',
         coq_details: coqDetails,
         port_data: portData,
         starboard_data: starboardData,
@@ -481,11 +635,19 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
         calculatedResults,
       };
 
-      onSubmit(productQCData);
-      message.success('Product QC data saved successfully!');
+      await onSubmit(productQCData);
       onClose();
-    } catch (_error) {
-      message.error('Please fill in all required fields');
+    } catch (error: any) {
+      if (error?.errorFields) {
+        message.error('Please fill in all required fields');
+        return;
+      }
+
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Terjadi kesalahan saat menyimpan Product QC';
+      message.error(errorMessage);
     }
   };
 
@@ -503,19 +665,30 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
       onCancel={onClose}
       width="95%"
       style={{ top: 20 }}
-      footer={[
-        <Button key="cancel" onClick={onClose} icon={<CloseOutlined />}>
-          Cancel
-        </Button>,
-        <Button
-          key="submit"
-          type="primary"
-          onClick={handleSubmit}
-          icon={<SaveOutlined />}
-        >
-          Save Product QC
-        </Button>,
-      ]}
+      footer={
+        [
+          <Button
+            key="cancel"
+            onClick={onClose}
+            icon={<CloseOutlined />}
+            disabled={submitting}
+          >
+            {isViewOnly ? 'Tutup' : 'Cancel'}
+          </Button>,
+          !isViewOnly ? (
+            <Button
+              key="submit"
+              type="primary"
+              onClick={handleSubmit}
+              icon={<SaveOutlined />}
+              loading={submitting}
+              disabled={submitting}
+            >
+              Save Product QC
+            </Button>
+          ) : null,
+        ].filter(Boolean) as React.ReactNode[]
+      }
       destroyOnClose
     >
       <div style={{ maxHeight: '80vh', overflowY: 'auto' }}>
@@ -526,7 +699,11 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
           style={{ marginBottom: 16 }}
           bodyStyle={{ padding: '16px' }}
         >
-          <Form form={form} layout="vertical">
+          <Form
+            form={form}
+            layout="vertical"
+            disabled={isViewOnly || submitting}
+          >
             <table
               style={{
                 width: '100%',
@@ -564,7 +741,13 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
                   {
                     key: 'arrival_date',
                     label: 'Arrival Date',
-                    render: () => <Input placeholder="14 Oktober 2025" />,
+                    render: () => (
+                      <DatePicker
+                        style={{ width: '100%' }}
+                        format="DD MMM YYYY"
+                        placeholder="Pilih tanggal kedatangan"
+                      />
+                    ),
                     name: 'arrival_date' as const,
                     rules: [{ required: true }],
                   },
@@ -723,7 +906,12 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
                             name={['coq_details', index, 'issuance_date']}
                             style={{ marginBottom: 0 }}
                           >
-                            <Input placeholder="12 Oktober 2021" />
+                            <DatePicker
+                              style={{ width: '100%' }}
+                              format="DD MMM YYYY"
+                              placeholder="Pilih tanggal"
+                              allowClear
+                            />
                           </Form.Item>
                         </td>
                       </>
@@ -751,7 +939,7 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
           bodyStyle={{ padding: '8px' }}
         >
           <Table
-            columns={getTableColumns('port')}
+            columns={getTableColumns('port', isViewOnly || submitting)}
             dataSource={portData}
             pagination={false}
             size="small"
@@ -766,6 +954,7 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
               onChange={(event) => setPortNote(event.target.value)}
               rows={3}
               placeholder="Tambahkan catatan untuk port compartment"
+              disabled={isViewOnly || submitting}
             />
           </div>
         </Card>
@@ -778,7 +967,7 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
           bodyStyle={{ padding: '8px' }}
         >
           <Table
-            columns={getTableColumns('starboard')}
+            columns={getTableColumns('starboard', isViewOnly || submitting)}
             dataSource={starboardData}
             pagination={false}
             size="small"
@@ -795,6 +984,7 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
               onChange={(event) => setStarboardNote(event.target.value)}
               rows={3}
               placeholder="Tambahkan catatan untuk starboard compartment"
+              disabled={isViewOnly || submitting}
             />
           </div>
         </Card>
@@ -806,3 +996,10 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
 };
 
 export default ProductQCModal;
+
+export type {
+  ProductQCData,
+  PortStarboardRecord,
+  ProductQCSampleData,
+  CalculatedResults,
+};
