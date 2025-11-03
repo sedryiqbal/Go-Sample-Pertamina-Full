@@ -1,5 +1,5 @@
 export type OrderPriority = 'normal' | 'urgent';
-export type OrderType = 'ready' | 'request';
+export type OrderType = 'ready' | 'request' | 'sample';
 export type OrderStatus = 'completed' | 'cancelled';
 export type ProgressStatus = 'pickup' | 'in_transit' | 'delivered';
 
@@ -22,11 +22,10 @@ export interface PendingSampleOrder {
   unit: string;
   pickup_location: string;
   delivery_location: string;
-  estimated_pickup_time: string;
-  estimated_delivery_time: number;
+  estimated_arrival_time: string | null;
+  notes?: string | null;
   priority: OrderPriority;
   created_at: string;
-  distance: string;
 }
 
 export interface ShippingHistory {

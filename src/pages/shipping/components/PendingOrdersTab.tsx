@@ -3,6 +3,7 @@ import {
   CalendarOutlined,
   ClockCircleOutlined,
   ExperimentOutlined,
+  FileTextOutlined,
   TruckOutlined,
 } from '@ant-design/icons';
 import {
@@ -69,229 +70,258 @@ const PendingOrdersTab: React.FC<PendingOrdersTabProps> = ({
   return (
     <div style={{ padding: 16 }}>
       <Row gutter={[16, 16]}>
-        {orders.map((order) => (
-          <Col xs={24} sm={12} key={order.id}>
-            <Card
-              size="small"
-              hoverable
-              className={`pending-order-card ${
-                order.priority === 'urgent' ? 'urgent-pulse' : ''
-              }`}
-              style={{
-                height: '100%',
-                ...cardStyles.pendingCard,
-                ...(order.priority === 'urgent'
-                  ? cardStyles.urgentCard
-                  : cardStyles.normalCard),
-              }}
-              bodyStyle={{ padding: 16 }}
-            >
-              <div style={{ marginBottom: 12 }}>
-                <Row align="middle" justify="space-between" gutter={[8, 8]}>
-                  <Col xs={16} sm={18}>
-                    <Space align="center">
-                      <Badge dot={order.priority === 'urgent'} color="red">
-                        <Avatar
-                          icon={<ExperimentOutlined />}
-                          style={{
-                            backgroundColor:
-                              order.priority === 'urgent'
-                                ? '#ff4d4f'
-                                : '#1890ff',
-                            color: '#fff',
-                          }}
-                          size="large"
-                        />
-                      </Badge>
-                      <div>
-                        <Space align="center">
-                          <Text strong style={{ fontSize: 16, color: '#333' }}>
-                            {order.order_number}
-                          </Text>
-                        </Space>
-                        <br />
-                        <Space size={4} wrap>
-                          <Tag
-                            color={getOrderTypeColor(order.order_type)}
-                            style={{ margin: 0, fontSize: 11 }}
-                          >
-                            {order.order_type.toUpperCase()}
-                          </Tag>
-                          <Tag
-                            color={getPriorityColor(order.priority)}
-                            style={{ margin: 0, fontSize: 11 }}
-                          >
-                            {order.priority.toUpperCase()}
-                          </Tag>
-                        </Space>
-                      </div>
-                    </Space>
-                  </Col>
-                  <Col xs={8} sm={6}>
-                    <div style={{ textAlign: 'right' }}>
-                      <Text strong style={{ fontSize: 12, color: '#1890ff' }}>
-                        {order.npc_number}
-                      </Text>
-                      <br />
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        <CalendarOutlined />{' '}
-                        {dayjs(order.created_at).format('HH:mm')}
-                      </Text>
-                    </div>
-                  </Col>
-                </Row>
-              </div>
+        {orders.map((order) => {
+          const etaDisplay = order.estimated_arrival_time
+            ? dayjs(order.estimated_arrival_time).format('DD MMM YYYY HH:mm')
+            : '-';
+          const createdAtDisplay = dayjs(order.created_at).isValid()
+            ? dayjs(order.created_at).format('DD MMM YYYY HH:mm')
+            : '-';
+          const rawNotes =
+            typeof order.notes === 'string'
+              ? order.notes
+              : order.notes != null
+                ? String(order.notes)
+                : '';
+          const notesDisplay = rawNotes.trim() ? rawNotes.trim() : '-';
 
-              <div style={{ marginBottom: 12 }}>
-                <Text strong style={{ fontSize: 15, color: '#1890ff' }}>
-                  {order.sample_type}
-                </Text>
-                <Text style={{ marginLeft: 8, color: '#666' }}>
-                  • {order.vessel_name}
-                </Text>
-                <br />
-                <Text type="secondary" style={{ fontSize: 13 }}>
-                  <BoxPlotOutlined /> {order.tank_number} • {order.quantity}{' '}
-                  {order.unit}
-                </Text>
-              </div>
-
-              <div style={{ marginBottom: 12 }}>
-                <Row gutter={[8, 8]}>
-                  <Col xs={24} sm={12}>
-                    <div
-                      style={{
-                        background: '#f6ffed',
-                        padding: '8px 12px',
-                        borderRadius: 6,
-                        border: '1px solid #b7eb8f',
-                      }}
-                    >
-                      <Text
-                        type="secondary"
-                        style={{ fontSize: 11, display: 'block' }}
-                      >
-                        📍 PICKUP
-                      </Text>
-                      <Text strong style={{ fontSize: 12, color: '#52c41a' }}>
-                        {order.pickup_location}
-                      </Text>
-                    </div>
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <div
-                      style={{
-                        background: '#e6f7ff',
-                        padding: '8px 12px',
-                        borderRadius: 6,
-                        border: '1px solid #91d5ff',
-                      }}
-                    >
-                      <Text
-                        type="secondary"
-                        style={{ fontSize: 11, display: 'block' }}
-                      >
-                        🏥 DELIVERY
-                      </Text>
-                      <Text strong style={{ fontSize: 12, color: '#1890ff' }}>
-                        {order.delivery_location}
-                      </Text>
-                    </div>
-                  </Col>
-                </Row>
-              </div>
-
-              <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
-                <Col xs={8}>
-                  <div
-                    className="shipping-metrics"
-                    style={{
-                      textAlign: 'center',
-                      padding: 8,
-                      background: '#fafafa',
-                      borderRadius: 6,
-                    }}
-                  >
-                    <TruckOutlined style={{ fontSize: 16, color: '#fa541c' }} />
-                    <br />
-                    <Text strong style={{ fontSize: 12 }}>
-                      {order.distance}
-                    </Text>
-                    <br />
-                    <Text type="secondary" style={{ fontSize: 10 }}>
-                      Distance
-                    </Text>
-                  </div>
-                </Col>
-                <Col xs={8}>
-                  <div
-                    className="shipping-metrics"
-                    style={{
-                      textAlign: 'center',
-                      padding: 8,
-                      background: '#fafafa',
-                      borderRadius: 6,
-                    }}
-                  >
-                    <ClockCircleOutlined
-                      style={{ fontSize: 16, color: '#722ed1' }}
-                    />
-                    <br />
-                    <Text strong style={{ fontSize: 12 }}>
-                      {order.estimated_delivery_time}h
-                    </Text>
-                    <br />
-                    <Text type="secondary" style={{ fontSize: 10 }}>
-                      Est. Time
-                    </Text>
-                  </div>
-                </Col>
-                <Col xs={8}>
-                  <div
-                    className="shipping-metrics"
-                    style={{
-                      textAlign: 'center',
-                      padding: 8,
-                      background: '#fafafa',
-                      borderRadius: 6,
-                    }}
-                  >
-                    <CalendarOutlined
-                      style={{ fontSize: 16, color: '#13c2c2' }}
-                    />
-                    <br />
-                    <Text strong style={{ fontSize: 12 }}>
-                      {dayjs(order.estimated_pickup_time).format('HH:mm')}
-                    </Text>
-                    <br />
-                    <Text type="secondary" style={{ fontSize: 10 }}>
-                      Pickup
-                    </Text>
-                  </div>
-                </Col>
-              </Row>
-
-              <Button
-                type="primary"
-                block
-                size="large"
-                loading={takingOrderId === order.id}
-                onClick={() => onTakeOrder(order)}
+          return (
+            <Col xs={24} sm={12} key={order.id}>
+              <Card
+                size="small"
+                hoverable
+                className={`pending-order-card ${
+                  order.priority === 'urgent' ? 'urgent-pulse' : ''
+                }`}
                 style={{
-                  backgroundColor: '#52c41a',
-                  borderColor: '#52c41a',
-                  borderRadius: 8,
-                  height: 44,
-                  fontWeight: 600,
-                  fontSize: 14,
+                  height: '100%',
+                  ...cardStyles.pendingCard,
+                  ...(order.priority === 'urgent'
+                    ? cardStyles.urgentCard
+                    : cardStyles.normalCard),
                 }}
-                icon={takingOrderId ? undefined : <TruckOutlined />}
+                bodyStyle={{ padding: 16 }}
               >
-                {takingOrderId === order.id ? 'Taking Order...' : 'Take Order'}
-              </Button>
-            </Card>
-          </Col>
-        ))}
+                <div style={{ marginBottom: 12 }}>
+                  <Row align="middle" justify="space-between" gutter={[8, 8]}>
+                    <Col xs={16} sm={18}>
+                      <Space align="center">
+                        <Badge dot={order.priority === 'urgent'} color="red">
+                          <Avatar
+                            icon={<ExperimentOutlined />}
+                            style={{
+                              backgroundColor:
+                                order.priority === 'urgent'
+                                  ? '#ff4d4f'
+                                  : '#1890ff',
+                              color: '#fff',
+                            }}
+                            size="large"
+                          />
+                        </Badge>
+                        <div>
+                          <Space align="center">
+                            <Text
+                              strong
+                              style={{ fontSize: 16, color: '#333' }}
+                            >
+                              {order.order_number}
+                            </Text>
+                          </Space>
+                          <br />
+                          <Space size={4} wrap>
+                            <Tag
+                              color={getOrderTypeColor(order.order_type)}
+                              style={{ margin: 0, fontSize: 11 }}
+                            >
+                              {order.order_type.toUpperCase()}
+                            </Tag>
+                            <Tag
+                              color={getPriorityColor(order.priority)}
+                              style={{ margin: 0, fontSize: 11 }}
+                            >
+                              {order.priority.toUpperCase()}
+                            </Tag>
+                          </Space>
+                        </div>
+                      </Space>
+                    </Col>
+                    <Col xs={8} sm={6}>
+                      <div style={{ textAlign: 'right' }}>
+                        <Text strong style={{ fontSize: 12, color: '#1890ff' }}>
+                          {order.npc_number}
+                        </Text>
+                        <br />
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          <CalendarOutlined /> {createdAtDisplay}
+                        </Text>
+                      </div>
+                    </Col>
+                  </Row>
+                </div>
+
+                <div style={{ marginBottom: 12 }}>
+                  <Text strong style={{ fontSize: 15, color: '#1890ff' }}>
+                    {order.sample_type}
+                  </Text>
+                  <Text style={{ marginLeft: 8, color: '#666' }}>
+                    • {order.vessel_name}
+                  </Text>
+                  <br />
+                  <Text type="secondary" style={{ fontSize: 13 }}>
+                    <BoxPlotOutlined /> {order.tank_number} • {order.quantity}{' '}
+                    {order.unit}
+                  </Text>
+                </div>
+
+                <div style={{ marginBottom: 12 }}>
+                  <Row gutter={[8, 8]}>
+                    <Col xs={24} sm={12}>
+                      <div
+                        style={{
+                          background: '#f6ffed',
+                          padding: '8px 12px',
+                          borderRadius: 6,
+                          border: '1px solid #b7eb8f',
+                        }}
+                      >
+                        <Text
+                          type="secondary"
+                          style={{ fontSize: 11, display: 'block' }}
+                        >
+                          📍 PICKUP
+                        </Text>
+                        <Text strong style={{ fontSize: 12, color: '#52c41a' }}>
+                          {order.pickup_location}
+                        </Text>
+                      </div>
+                    </Col>
+                    <Col xs={24} sm={12}>
+                      <div
+                        style={{
+                          background: '#e6f7ff',
+                          padding: '8px 12px',
+                          borderRadius: 6,
+                          border: '1px solid #91d5ff',
+                        }}
+                      >
+                        <Text
+                          type="secondary"
+                          style={{ fontSize: 11, display: 'block' }}
+                        >
+                          🏥 DELIVERY
+                        </Text>
+                        <Text strong style={{ fontSize: 12, color: '#1890ff' }}>
+                          {order.delivery_location}
+                        </Text>
+                      </div>
+                    </Col>
+                  </Row>
+                </div>
+
+                <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
+                  <Col xs={24} sm={12}>
+                    <div
+                      className="shipping-metrics"
+                      style={{
+                        padding: '10px 12px',
+                        background: '#f9f5ff',
+                        borderRadius: 6,
+                        border: '1px solid #d3adf7',
+                        height: '100%',
+                      }}
+                    >
+                      <Space align="start" size={12}>
+                        <ClockCircleOutlined
+                          style={{
+                            fontSize: 20,
+                            color: '#722ed1',
+                            marginTop: 2,
+                          }}
+                        />
+                        <div>
+                          <Text
+                            strong
+                            style={{ fontSize: 12, color: '#2f54eb' }}
+                          >
+                            {etaDisplay}
+                          </Text>
+                          <br />
+                          <Text type="secondary" style={{ fontSize: 10 }}>
+                            Est. Arrival
+                          </Text>
+                        </div>
+                      </Space>
+                    </div>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <div
+                      className="shipping-metrics"
+                      style={{
+                        padding: '10px 12px',
+                        background: '#f0f5ff',
+                        borderRadius: 6,
+                        border: '1px solid #adc6ff',
+                        height: '100%',
+                      }}
+                    >
+                      <Space align="start" size={12} style={{ width: '100%' }}>
+                        <FileTextOutlined
+                          style={{
+                            fontSize: 20,
+                            color: '#13c2c2',
+                            marginTop: 2,
+                          }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <Text
+                            strong
+                            style={{
+                              fontSize: 12,
+                              color: '#08979c',
+                              display: 'block',
+                            }}
+                            ellipsis={
+                              notesDisplay !== '-'
+                                ? { tooltip: notesDisplay }
+                                : undefined
+                            }
+                          >
+                            {notesDisplay}
+                          </Text>
+                          <Text type="secondary" style={{ fontSize: 10 }}>
+                            Notes
+                          </Text>
+                        </div>
+                      </Space>
+                    </div>
+                  </Col>
+                </Row>
+
+                <Button
+                  type="primary"
+                  block
+                  size="large"
+                  loading={takingOrderId === order.id}
+                  onClick={() => onTakeOrder(order)}
+                  style={{
+                    backgroundColor: '#52c41a',
+                    borderColor: '#52c41a',
+                    borderRadius: 8,
+                    height: 44,
+                    fontWeight: 600,
+                    fontSize: 14,
+                  }}
+                  icon={takingOrderId ? undefined : <TruckOutlined />}
+                >
+                  {takingOrderId === order.id
+                    ? 'Taking Order...'
+                    : 'Take Order'}
+                </Button>
+              </Card>
+            </Col>
+          );
+        })}
       </Row>
     </div>
   );

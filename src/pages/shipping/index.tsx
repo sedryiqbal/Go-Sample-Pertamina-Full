@@ -10,6 +10,10 @@ import dayjs from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import {
+  type AvailableForPickupOrder,
+  getAvailableForPickupOrders,
+} from '@/services/shipping/api';
+import {
   HistoryDetailModal,
   HistoryTab,
   PendingOrdersTab,
@@ -19,7 +23,7 @@ import {
   SummaryCards,
 } from './components';
 import { buildShippingSummary } from './helpers';
-import { MOCK_HISTORY_ORDERS, MOCK_PENDING_ORDERS } from './mockData';
+import { MOCK_HISTORY_ORDERS } from './mockData';
 import type {
   PendingSampleOrder,
   ProgressOrder,
@@ -27,6 +31,120 @@ import type {
   ShippingSummary,
   StatusUpdate,
 } from './types';
+
+const sanitizeString = (value: unknown, fallback = ''): string => {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  const stringified = String(value).trim();
+  return stringified || fallback;
+};
+
+const pickFirstNonEmpty = (values: unknown[], fallback = ''): string => {
+  for (const value of values) {
+    const sanitized = sanitizeString(value, '');
+    if (sanitized) {
+      return sanitized;
+    }
+  }
+  return fallback;
+};
+
+const parseNumber = (value: unknown, fallback = 0): number => {
+  if (value === null || value === undefined || value === '') {
+    return fallback;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const normalizeOrderType = (
+  type?: string | null,
+): PendingSampleOrder['order_type'] => {
+  const normalized = sanitizeString(type, '').toLowerCase();
+  if (normalized === 'request') {
+    return 'request';
+  }
+  if (normalized === 'ready') {
+    return 'ready';
+  }
+  if (normalized === 'sample') {
+    return 'sample';
+  }
+  return 'sample';
+};
+
+const normalizePriority = (
+  priority?: string | null,
+): PendingSampleOrder['priority'] => {
+  const normalized = sanitizeString(priority, '').toLowerCase();
+  return normalized === 'urgent' ? 'urgent' : 'normal';
+};
+
+const buildTankLabel = (source: AvailableForPickupOrder): string => {
+  const namedTank = sanitizeString(source.tankiName, '');
+  if (namedTank) {
+    return namedTank;
+  }
+
+  const nomor = pickFirstNonEmpty(
+    [source.nomorTangki, source.sample?.nomorTanki],
+    '',
+  );
+  if (nomor) {
+    return `Tanki ${nomor}`;
+  }
+
+  return '-';
+};
+
+const mapAvailableOrderToPending = (
+  source: AvailableForPickupOrder,
+): PendingSampleOrder => {
+  const quantityCandidate =
+    source.quantity ??
+    (source.sample?.qty !== undefined ? source.sample.qty : undefined);
+
+  const notesCandidate = pickFirstNonEmpty([source.notes], '');
+  const estimatedArrival = sanitizeString(source.etaArival, '');
+  const createdAt = pickFirstNonEmpty(
+    [source.createdAt, source.tanggalOrder],
+    '',
+  );
+
+  return {
+    id: String(
+      source.id ?? source.orderNo ?? source.nomorNpc ?? `pending-${Date.now()}`,
+    ),
+    order_number: pickFirstNonEmpty([source.orderNo], '-'),
+    npc_number: pickFirstNonEmpty([source.nomorNpc], '-'),
+    order_type: normalizeOrderType(source.type),
+    sample_type: pickFirstNonEmpty(
+      [
+        source.typeLoadName,
+        source.sample?.typeLoadName,
+        source.categoryTestName,
+      ],
+      '-',
+    ),
+    vessel_name: pickFirstNonEmpty(
+      [source.shipName, source.sample?.shipName],
+      '-',
+    ),
+    tank_number: buildTankLabel(source),
+    quantity: parseNumber(quantityCandidate, 0),
+    unit: pickFirstNonEmpty(
+      [source.satuanName, source.sample?.satuanName],
+      '-',
+    ),
+    pickup_location: pickFirstNonEmpty([source.unitName], '-'),
+    delivery_location: pickFirstNonEmpty([source.labName], '-'),
+    estimated_arrival_time: estimatedArrival || null,
+    notes: notesCandidate || null,
+    priority: normalizePriority(source.priority),
+    created_at: createdAt,
+  };
+};
 
 const Shipping: React.FC = () => {
   const [pendingOrders, setPendingOrders] = useState<PendingSampleOrder[]>([]);
@@ -65,9 +183,12 @@ const Shipping: React.FC = () => {
 
   const loadShippingData = async () => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setPendingOrders(MOCK_PENDING_ORDERS);
+      const availableOrders = await getAvailableForPickupOrders();
+      const mappedPending = availableOrders.map(mapAvailableOrderToPending);
+
+      setPendingOrders(mappedPending);
       setHistoryOrders(MOCK_HISTORY_ORDERS);
+
       message.success('Data refreshed successfully');
     } catch (error) {
       message.error('Failed to refresh data');
@@ -97,10 +218,10 @@ const Shipping: React.FC = () => {
         pickup_location: order.pickup_location,
         delivery_location: order.delivery_location,
         pickup_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-        estimated_delivery_time: dayjs()
-          .add(order.estimated_delivery_time, 'hour')
-          .format('YYYY-MM-DD HH:mm:ss'),
-        distance: order.distance,
+        estimated_delivery_time: order.estimated_arrival_time
+          ? dayjs(order.estimated_arrival_time).format('YYYY-MM-DD HH:mm:ss')
+          : '',
+        distance: 'N/A',
         current_status: 'pickup',
         progress_percentage: 10,
         status_updates: [

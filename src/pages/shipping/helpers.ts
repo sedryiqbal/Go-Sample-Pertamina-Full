@@ -12,7 +12,7 @@ export const getPriorityColor = (priority: OrderPriority) =>
   priority === 'urgent' ? 'red' : 'blue';
 
 export const getOrderTypeColor = (type: OrderType) =>
-  type === 'ready' ? 'green' : 'blue';
+  type === 'request' ? 'blue' : 'green';
 
 export const getStatusColor = (status: OrderStatus) =>
   status === 'completed' ? 'green' : 'red';
