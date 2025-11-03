@@ -179,6 +179,10 @@ const mapShipRecord = (record: ShipApiRecord): Ship => {
     allowedStatusTransitions: undefined,
     createdAt: record.createdAt ?? undefined,
     updatedAt: record.updatedAt ?? undefined,
+    isQCCompleted:
+      record.isQCCompleted !== undefined && record.isQCCompleted !== null
+        ? Boolean(record.isQCCompleted)
+        : undefined,
   };
 };
 

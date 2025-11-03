@@ -961,6 +961,23 @@ const Ships: React.FC = () => {
         ),
       },
       {
+        title: 'QC Selesai',
+        dataIndex: 'isQCCompleted',
+        key: 'isQCCompleted',
+        width: 140,
+        hideInSearch: true,
+        render: (_, record) => {
+          const shipKey = String(record.id);
+          const isCompleted =
+            record.isQCCompleted ?? qcAvailabilityByShip[shipKey] ?? false;
+          return isCompleted ? (
+            <Tag color="green">Selesai</Tag>
+          ) : (
+            <Tag color="red">Belum</Tag>
+          );
+        },
+      },
+      {
         title: 'Aksi',
         key: 'actions',
         width: 420,

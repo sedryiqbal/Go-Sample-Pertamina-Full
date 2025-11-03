@@ -34,6 +34,7 @@ export interface Ship {
   allowedStatusTransitions?: string[];
   createdAt?: string;
   updatedAt?: string;
+  isQCCompleted?: boolean | null;
 }
 
 export interface CreateShipPayload {
