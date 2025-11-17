@@ -175,3 +175,75 @@ export const getInTransitOrders = async (): Promise<InTransitSampleOrder[]> => {
 
   return response?.data ?? [];
 };
+
+export interface DeliveredSampleOrder {
+  id?: number | string;
+  orderNo?: string | null;
+  unitName?: string | null;
+  tanggalOrder?: string | null;
+  nomorNpc?: string | null;
+  labName?: string | null;
+  categoryTestName?: string | null;
+  etaArival?: string | null;
+  notes?: string | null;
+  typeLoadName?: string | null;
+  shipName?: string | null;
+  nomorTangki?: number | string | null;
+  tankiName?: string | null;
+  quantity?: number | null;
+  satuanName?: string | null;
+  priority?: string | null;
+  status?: number | string | null;
+  driverName?: string | null;
+  takeOrderAt?: string | null;
+  pickupAt?: string | null;
+  deliveredAt?: string | null;
+  duration?: string | null;
+  type?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  sample?: {
+    shipName?: string | null;
+    typeLoadName?: string | null;
+    nomorTanki?: number | string | null;
+    qty?: number | null;
+    satuanName?: string | null;
+    [key: string]: unknown;
+  } | null;
+  transitLogs?: TransitLogRecord[];
+  [key: string]: unknown;
+}
+
+interface DeliveredOrdersResponse {
+  code?: string;
+  status?: boolean;
+  message?: string;
+  data?: DeliveredSampleOrder[];
+  meta?: {
+    pagination?: {
+      page?: number;
+      perPage?: number;
+      totalData?: number;
+      totalPage?: number;
+    };
+  };
+  timestamp?: string;
+}
+
+export const getDeliveredOrders = async (params?: {
+  page?: number;
+  pageSize?: number;
+}): Promise<DeliveredOrdersResponse> => {
+  const response = await request<DeliveredOrdersResponse>(
+    '/api/SampleOrders/driver/delivered',
+    {
+      method: 'GET',
+      params: {
+        page: params?.page ?? 1,
+        pageSize: params?.pageSize ?? 10,
+      },
+    },
+  );
+
+  return response ?? { data: [], meta: undefined };
+};

@@ -1,11 +1,9 @@
 import {
   CalendarOutlined,
-  CarOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   EyeOutlined,
   RocketOutlined,
-  TruckOutlined,
 } from '@ant-design/icons';
 import {
   Avatar,
@@ -29,21 +27,36 @@ const { Text } = Typography;
 interface HistoryTabProps {
   orders: ShippingHistory[];
   onViewDetails: (order: ShippingHistory) => void;
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+  };
+  onChangePage: (page: number, pageSize: number) => void;
 }
 
-const HistoryTab: React.FC<HistoryTabProps> = ({ orders, onViewDetails }) => (
+const HistoryTab: React.FC<HistoryTabProps> = ({
+  orders,
+  onViewDetails,
+  pagination,
+  onChangePage,
+}) => (
   <div style={{ padding: 16 }}>
     <Table
       dataSource={orders}
       rowKey="id"
       pagination={{
-        pageSize: 5,
+        current: pagination.page,
+        pageSize: pagination.pageSize,
+        total: pagination.total,
         showSizeChanger: true,
         showQuickJumper: true,
         showTotal: (total, range) =>
           `${range[0]}-${range[1]} of ${total} orders`,
         pageSizeOptions: ['5', '10', '20'],
         size: 'small',
+        onChange: (page, pageSize) => onChangePage(page, pageSize),
+        onShowSizeChange: (page, pageSize) => onChangePage(page, pageSize),
       }}
       scroll={{ x: 800 }}
       size="small"
@@ -55,10 +68,10 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ orders, onViewDetails }) => (
         {
           title: 'Order Details',
           key: 'order_details',
-          width: 280,
+          width: 300,
           render: (_: unknown, record: ShippingHistory) => (
             <div>
-              <Space align="center" style={{ marginBottom: 4 }}>
+              <Space align="start" style={{ width: '100%' }}>
                 <Avatar
                   icon={
                     record.status === 'completed' ? (
@@ -74,7 +87,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ orders, onViewDetails }) => (
                   }}
                   size="small"
                 />
-                <div>
+                <div style={{ flex: 1 }}>
                   <Text strong style={{ fontSize: 13, color: '#333' }}>
                     {record.order_number}
                   </Text>
@@ -82,14 +95,21 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ orders, onViewDetails }) => (
                   <Text type="secondary" style={{ fontSize: 11 }}>
                     {record.npc_number}
                   </Text>
+                  <br />
+                  <Tag
+                    color={getStatusColor(record.status)}
+                    style={{
+                      marginTop: 4,
+                      fontSize: 10,
+                      borderRadius: 999,
+                      padding: '2px 10px',
+                      display: 'inline-block',
+                    }}
+                  >
+                    {record.status.toUpperCase()}
+                  </Tag>
                 </div>
               </Space>
-              <Tag
-                color={getStatusColor(record.status)}
-                style={{ margin: 0, fontSize: 10 }}
-              >
-                {record.status.toUpperCase()}
-              </Tag>
             </div>
           ),
         },
@@ -226,22 +246,6 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ orders, onViewDetails }) => (
                   {dayjs(record.delivery_time).format('DD MMM, HH:mm')}
                 </Text>
               </div>
-            </div>
-          ),
-        },
-        {
-          title: 'Performance',
-          key: 'performance',
-          width: 140,
-          render: (_: unknown, record: ShippingHistory) => (
-            <div>
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                <TruckOutlined /> {record.distance}
-              </Text>
-              <br />
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                <CarOutlined /> {record.status.toUpperCase()}
-              </Text>
             </div>
           ),
         },

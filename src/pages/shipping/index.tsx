@@ -21,7 +21,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   type AvailableForPickupOrder,
   createTransitLog,
+  type DeliveredSampleOrder,
   getAvailableForPickupOrders,
+  getDeliveredOrders,
   getInTransitOrders,
   type InTransitSampleOrder,
   type TransitLogRecord,
@@ -37,7 +39,6 @@ import {
   SummaryCards,
 } from './components';
 import { buildShippingSummary } from './helpers';
-import { MOCK_HISTORY_ORDERS } from './mockData';
 import type {
   PendingSampleOrder,
   ProgressOrder,
@@ -98,7 +99,7 @@ const normalizePriority = (
 };
 
 const buildTankLabel = (
-  source: AvailableForPickupOrder | InTransitSampleOrder,
+  source: AvailableForPickupOrder | InTransitSampleOrder | DeliveredSampleOrder,
 ): string => {
   const namedTank = sanitizeString(source.tankiName, '');
   if (namedTank) {
@@ -109,6 +110,7 @@ const buildTankLabel = (
     [
       source.nomorTangki,
       (source as AvailableForPickupOrder)?.sample?.nomorTanki,
+      (source as DeliveredSampleOrder)?.sample?.nomorTanki,
     ],
     '',
   );
@@ -281,10 +283,62 @@ const mapInTransitOrderToProgress = (
   };
 };
 
+const mapDeliveredOrderToHistory = (
+  source: DeliveredSampleOrder,
+): ShippingHistory => {
+  const statusCode = Number(source.status);
+  const status: ShippingHistory['status'] =
+    statusCode === 10 ? 'cancelled' : 'completed';
+  const vesselName = pickFirstNonEmpty(
+    [source.shipName, source.sample?.shipName],
+    '',
+  );
+  const unitValue = pickFirstNonEmpty(
+    [source.satuanName, source.sample?.satuanName],
+    '',
+  );
+  const quantityValue = source.quantity ?? source.sample?.qty ?? undefined;
+
+  return {
+    id: String(
+      source.id ?? source.orderNo ?? source.nomorNpc ?? `history-${Date.now()}`,
+    ),
+    order_number: pickFirstNonEmpty([source.orderNo], '-'),
+    npc_number: pickFirstNonEmpty([source.nomorNpc], '-'),
+    sample_type: pickFirstNonEmpty(
+      [source.typeLoadName, source.categoryTestName],
+      '-',
+    ),
+    pickup_location: pickFirstNonEmpty([source.unitName], '-'),
+    delivery_location: pickFirstNonEmpty([source.labName], '-'),
+    pickup_time:
+      formatDateTime(source.pickupAt) || formatDateTime(source.takeOrderAt),
+    delivery_time:
+      formatDateTime(source.deliveredAt) ||
+      formatDateTime(source.updatedAt) ||
+      formatDateTime(source.pickupAt),
+    status,
+    distance: sanitizeString(source.duration, '-') || '-',
+    vessel_name: vesselName || undefined,
+    tank_number: buildTankLabel(source),
+    quantity:
+      quantityValue !== undefined && quantityValue !== null
+        ? parseNumber(quantityValue, 0)
+        : undefined,
+    unit: unitValue || undefined,
+    status_updates: mapTransitLogsToStatusUpdates(source.transitLogs),
+  };
+};
+
 const Shipping: React.FC = () => {
   const [pendingOrders, setPendingOrders] = useState<PendingSampleOrder[]>([]);
   const [progressOrders, setProgressOrders] = useState<ProgressOrder[]>([]);
   const [historyOrders, setHistoryOrders] = useState<ShippingHistory[]>([]);
+  const [historyPagination, setHistoryPagination] = useState({
+    page: 1,
+    pageSize: 10,
+    total: 0,
+  });
 
   const [pendingActionOrderId, setPendingActionOrderId] = useState<
     string | null
@@ -339,18 +393,35 @@ const Shipping: React.FC = () => {
     loadShippingData();
   }, []);
 
-  const loadShippingData = async (options?: { silent?: boolean }) => {
+  const loadShippingData = async (options?: {
+    silent?: boolean;
+    historyPage?: number;
+    historyPageSize?: number;
+  }) => {
+    const historyPage = options?.historyPage ?? historyPagination.page;
+    const historyPageSize =
+      options?.historyPageSize ?? historyPagination.pageSize;
     try {
-      const [availableOrders, inTransitOrders] = await Promise.all([
-        getAvailableForPickupOrders(),
-        getInTransitOrders(),
-      ]);
+      const [availableOrders, inTransitOrders, deliveredResponse] =
+        await Promise.all([
+          getAvailableForPickupOrders(),
+          getInTransitOrders(),
+          getDeliveredOrders({ page: historyPage, pageSize: historyPageSize }),
+        ]);
       const mappedPending = availableOrders.map(mapAvailableOrderToPending);
       const mappedProgress = inTransitOrders.map(mapInTransitOrderToProgress);
+      const deliveredData = deliveredResponse.data ?? [];
+      const mappedHistory = deliveredData.map(mapDeliveredOrderToHistory);
 
       setPendingOrders(mappedPending);
       setProgressOrders(mappedProgress);
-      setHistoryOrders(MOCK_HISTORY_ORDERS);
+      setHistoryOrders(mappedHistory);
+      const paginationMeta = deliveredResponse.meta?.pagination;
+      setHistoryPagination({
+        page: paginationMeta?.page ?? historyPage,
+        pageSize: paginationMeta?.perPage ?? historyPageSize,
+        total: paginationMeta?.totalData ?? mappedHistory.length,
+      });
 
       if (!options?.silent) {
         message.success('Data refreshed successfully');
@@ -696,6 +767,14 @@ const Shipping: React.FC = () => {
     setSelectedHistoryOrder(null);
   };
 
+  const handleHistoryPaginationChange = (page: number, pageSize: number) => {
+    loadShippingData({
+      silent: true,
+      historyPage: page,
+      historyPageSize: pageSize,
+    });
+  };
+
   const handleCancelProgressOrder = (order: ProgressOrder) => {
     setOrderToCancel(order);
     setCancelReason('');
@@ -883,6 +962,8 @@ const Shipping: React.FC = () => {
                   <HistoryTab
                     orders={historyOrders}
                     onViewDetails={handleOpenHistoryDetail}
+                    pagination={historyPagination}
+                    onChangePage={handleHistoryPaginationChange}
                   />
                 ),
               },
