@@ -26,6 +26,7 @@ export interface PendingSampleOrder {
   notes?: string | null;
   priority: OrderPriority;
   created_at: string;
+  status_code?: number | null;
 }
 
 export interface ShippingHistory {
@@ -63,6 +64,7 @@ export interface ProgressOrder {
   current_status: ProgressStatus;
   progress_percentage: number;
   status_updates: StatusUpdate[];
+  status_code?: number | null;
 }
 
 export interface ShippingSummary {

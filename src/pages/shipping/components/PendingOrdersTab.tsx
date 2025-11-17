@@ -44,16 +44,18 @@ const cardStyles = {
   },
 };
 
+type PendingActionType = 'take' | 'transit' | 'complete';
+
 interface PendingOrdersTabProps {
   orders: PendingSampleOrder[];
-  takingOrderId: string | null;
-  onTakeOrder: (order: PendingSampleOrder) => void;
+  actionOrderId: string | null;
+  onActionOrder: (order: PendingSampleOrder, action: PendingActionType) => void;
 }
 
 const PendingOrdersTab: React.FC<PendingOrdersTabProps> = ({
   orders,
-  takingOrderId,
-  onTakeOrder,
+  actionOrderId,
+  onActionOrder,
 }) => {
   if (orders.length === 0) {
     return (
@@ -84,6 +86,14 @@ const PendingOrdersTab: React.FC<PendingOrdersTabProps> = ({
                 ? String(order.notes)
                 : '';
           const notesDisplay = rawNotes.trim() ? rawNotes.trim() : '-';
+
+          const statusCode = Number(order.status_code ?? 0);
+          const actionMeta: { label: string; action: PendingActionType } =
+            statusCode === 1
+              ? { label: 'In Transit', action: 'transit' }
+              : statusCode === 2
+                ? { label: 'Completed', action: 'complete' }
+                : { label: 'Take Order', action: 'take' };
 
           return (
             <Col xs={24} sm={12} key={order.id}>
@@ -302,8 +312,8 @@ const PendingOrdersTab: React.FC<PendingOrdersTabProps> = ({
                   type="primary"
                   block
                   size="large"
-                  loading={takingOrderId === order.id}
-                  onClick={() => onTakeOrder(order)}
+                  loading={actionOrderId === order.id}
+                  onClick={() => onActionOrder(order, actionMeta.action)}
                   style={{
                     backgroundColor: '#52c41a',
                     borderColor: '#52c41a',
@@ -312,11 +322,15 @@ const PendingOrdersTab: React.FC<PendingOrdersTabProps> = ({
                     fontWeight: 600,
                     fontSize: 14,
                   }}
-                  icon={takingOrderId ? undefined : <TruckOutlined />}
+                  icon={
+                    actionMeta.action === 'take' && !actionOrderId ? (
+                      <TruckOutlined />
+                    ) : undefined
+                  }
                 >
-                  {takingOrderId === order.id
-                    ? 'Taking Order...'
-                    : 'Take Order'}
+                  {actionOrderId === order.id
+                    ? 'Processing...'
+                    : actionMeta.label}
                 </Button>
               </Card>
             </Col>

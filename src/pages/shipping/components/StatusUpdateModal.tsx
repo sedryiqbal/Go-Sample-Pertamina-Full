@@ -12,6 +12,7 @@ interface StatusUpdateModalProps {
   visible: boolean;
   order: ProgressOrder | null;
   message: string;
+  loading?: boolean;
   onChangeMessage: (value: string) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -21,6 +22,7 @@ const StatusUpdateModal: React.FC<StatusUpdateModalProps> = ({
   visible,
   order,
   message,
+  loading = false,
   onChangeMessage,
   onSubmit,
   onCancel,
@@ -37,6 +39,7 @@ const StatusUpdateModal: React.FC<StatusUpdateModalProps> = ({
     onCancel={onCancel}
     okText="Add Update"
     cancelText="Cancel"
+    confirmLoading={loading}
     width={500}
     okButtonProps={{
       disabled: !message.trim(),

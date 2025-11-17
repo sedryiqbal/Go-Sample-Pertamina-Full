@@ -6,6 +6,7 @@ import {
   MessageOutlined,
   PlayCircleOutlined,
   RocketOutlined,
+  StopOutlined,
 } from '@ant-design/icons';
 import {
   Avatar,
@@ -29,20 +30,65 @@ const { Text } = Typography;
 
 interface ProgressOrdersTabProps {
   orders: ProgressOrder[];
+  actionOrderId: string | null;
   onOpenStatusModal: (order: ProgressOrder) => void;
   onAdvanceStatus: (order: ProgressOrder) => void;
 }
 
-const getActionLabel = (status: ProgressOrder['current_status']) => {
-  if (status === 'pickup') return 'Start Transit';
-  if (status === 'in_transit') return 'Complete';
+const getActionLabel = (order: ProgressOrder) => {
+  if (order.status_code === 1) {
+    return 'In Transit';
+  }
+  if (order.status_code === 2) {
+    return 'Completed';
+  }
+  if (order.status_code && order.status_code >= 3) {
+    return 'Delivered';
+  }
+  if (order.current_status === 'pickup') return 'In Transit';
+  if (order.current_status === 'in_transit') return 'Completed';
   return 'Delivered';
 };
 
+const getActionButtonStyle = (order: ProgressOrder) => {
+  if (order.status_code === 2 || order.current_status === 'in_transit') {
+    return {
+      backgroundColor: '#52c41a',
+      borderColor: '#52c41a',
+      color: '#fff',
+    };
+  }
+
+  return {
+    backgroundColor: '#fa8c16',
+    borderColor: '#fa8c16',
+    color: '#fff',
+  };
+};
+
+const getProgressPercent = (order: ProgressOrder) => {
+  if (order.status_code === 2 && order.progress_percentage < 100) {
+    return 80;
+  }
+  return order.progress_percentage;
+};
+
+interface ProgressOrdersTabProps {
+  orders: ProgressOrder[];
+  actionOrderId: string | null;
+  cancelOrderId: string | null;
+  onOpenStatusModal: (order: ProgressOrder) => void;
+  onAdvanceStatus: (order: ProgressOrder) => void;
+  onCancelOrder: (order: ProgressOrder) => void;
+}
+
 const ProgressOrdersTab: React.FC<ProgressOrdersTabProps> = ({
   orders,
+  actionOrderId,
+  cancelOrderId,
   onOpenStatusModal,
   onAdvanceStatus,
+  onCancelOrder,
 }) => {
   if (orders.length === 0) {
     return (
@@ -127,7 +173,7 @@ const ProgressOrdersTab: React.FC<ProgressOrdersTabProps> = ({
                   </Text>
                 </div>
                 <Progress
-                  percent={order.progress_percentage}
+                  percent={getProgressPercent(order)}
                   strokeColor={{
                     '0%': '#ffa940',
                     '100%': '#52c41a',
@@ -334,7 +380,7 @@ const ProgressOrdersTab: React.FC<ProgressOrdersTabProps> = ({
               )}
 
               <Row gutter={[8, 8]}>
-                <Col xs={12}>
+                <Col xs={8}>
                   <Button
                     type="default"
                     block
@@ -350,7 +396,7 @@ const ProgressOrdersTab: React.FC<ProgressOrdersTabProps> = ({
                     Update Status
                   </Button>
                 </Col>
-                <Col xs={12}>
+                <Col xs={8}>
                   <Button
                     type="primary"
                     block
@@ -358,12 +404,28 @@ const ProgressOrdersTab: React.FC<ProgressOrdersTabProps> = ({
                     icon={<PlayCircleOutlined />}
                     onClick={() => onAdvanceStatus(order)}
                     style={{
-                      backgroundColor: '#fa8c16',
-                      borderColor: '#fa8c16',
+                      ...getActionButtonStyle(order),
                       borderRadius: 6,
                     }}
+                    loading={actionOrderId === order.id}
                   >
-                    {getActionLabel(order.current_status)}
+                    {getActionLabel(order)}
+                  </Button>
+                </Col>
+                <Col xs={8}>
+                  <Button
+                    danger
+                    block
+                    size="small"
+                    icon={<StopOutlined />}
+                    onClick={() => onCancelOrder(order)}
+                    style={{
+                      borderRadius: 6,
+                      borderColor: '#ff4d4f',
+                    }}
+                    loading={cancelOrderId === order.id}
+                  >
+                    Cancel
                   </Button>
                 </Col>
               </Row>
