@@ -40,10 +40,15 @@ export interface ShippingHistory {
   delivery_time: string;
   status: OrderStatus;
   distance: string;
+  canceled_at?: string | null;
   vessel_name?: string;
   tank_number?: string;
   quantity?: number;
   unit?: string;
+  take_order_time?: string;
+  driver_name?: string | null;
+  duration?: string | null;
+  notes?: string | null;
   status_updates?: StatusUpdate[];
 }
 

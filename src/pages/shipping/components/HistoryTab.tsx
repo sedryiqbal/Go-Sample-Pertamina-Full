@@ -232,7 +232,9 @@ const HistoryTab: React.FC<HistoryTabProps> = ({
                   🚚 PICKUP
                 </Text>
                 <Text strong style={{ fontSize: 11 }}>
-                  {dayjs(record.pickup_time).format('DD MMM, HH:mm')}
+                  {record.pickup_time
+                    ? dayjs(record.pickup_time).format('DD MMM, HH:mm')
+                    : '-'}
                 </Text>
               </div>
               <div>
@@ -240,10 +242,18 @@ const HistoryTab: React.FC<HistoryTabProps> = ({
                   type="secondary"
                   style={{ fontSize: 9, display: 'block' }}
                 >
-                  🏁 DELIVERY
+                  {record.status === 'cancelled'
+                    ? '❌ CANCELLED'
+                    : '🏁 DELIVERY'}
                 </Text>
                 <Text strong style={{ fontSize: 11 }}>
-                  {dayjs(record.delivery_time).format('DD MMM, HH:mm')}
+                  {record.status === 'cancelled'
+                    ? record.canceled_at
+                      ? dayjs(record.canceled_at).format('DD MMM, HH:mm')
+                      : '-'
+                    : record.delivery_time
+                      ? dayjs(record.delivery_time).format('DD MMM, HH:mm')
+                      : '-'}
                 </Text>
               </div>
             </div>

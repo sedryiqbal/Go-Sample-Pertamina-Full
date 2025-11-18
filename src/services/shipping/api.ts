@@ -199,6 +199,8 @@ export interface DeliveredSampleOrder {
   pickupAt?: string | null;
   deliveredAt?: string | null;
   duration?: string | null;
+  canceledAt?: string | null;
+  canceled_at?: string | null;
   type?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -246,4 +248,29 @@ export const getDeliveredOrders = async (params?: {
   );
 
   return response ?? { data: [], meta: undefined };
+};
+
+interface TransitLogsResponse {
+  code?: string;
+  status?: boolean;
+  message?: string;
+  data?: TransitLogRecord[];
+  timestamp?: string;
+}
+
+export const getTransitLogs = async (
+  orderId: string | number,
+): Promise<TransitLogRecord[]> => {
+  if (orderId === undefined || orderId === null || orderId === '') {
+    return [];
+  }
+
+  const response = await request<TransitLogsResponse>(
+    `/api/SampleOrders/${orderId}/transit-logs`,
+    {
+      method: 'GET',
+    },
+  );
+
+  return response?.data ?? [];
 };

@@ -286,9 +286,28 @@ const mapInTransitOrderToProgress = (
 const mapDeliveredOrderToHistory = (
   source: DeliveredSampleOrder,
 ): ShippingHistory => {
+  const rawCanceledAt =
+    source.canceledAt ??
+    (source as DeliveredSampleOrder & { canceled_at?: string | null })
+      ?.canceled_at ??
+    null;
+
   const statusCode = Number(source.status);
-  const status: ShippingHistory['status'] =
+  let status: ShippingHistory['status'] =
     statusCode === 10 ? 'cancelled' : 'completed';
+  if (Number.isNaN(statusCode)) {
+    const normalizedStatus = sanitizeString(source.status, '').toLowerCase();
+    if (
+      normalizedStatus === 'cancelled' ||
+      normalizedStatus === 'canceled' ||
+      normalizedStatus === 'cancel'
+    ) {
+      status = 'cancelled';
+    }
+  }
+  if (status !== 'cancelled' && rawCanceledAt) {
+    status = 'cancelled';
+  }
   const vesselName = pickFirstNonEmpty(
     [source.shipName, source.sample?.shipName],
     '',
@@ -315,6 +334,7 @@ const mapDeliveredOrderToHistory = (
       formatDateTime(source.pickupAt) || formatDateTime(source.takeOrderAt),
     delivery_time:
       formatDateTime(source.deliveredAt) ||
+      formatDateTime(rawCanceledAt) ||
       formatDateTime(source.updatedAt) ||
       formatDateTime(source.pickupAt),
     status,
@@ -326,7 +346,12 @@ const mapDeliveredOrderToHistory = (
         ? parseNumber(quantityValue, 0)
         : undefined,
     unit: unitValue || undefined,
+    take_order_time: formatDateTime(source.takeOrderAt) || undefined,
+    driver_name: sanitizeString(source.driverName, '') || undefined,
+    duration: sanitizeString(source.duration, '') || undefined,
+    notes: sanitizeString(source.notes, '') || undefined,
     status_updates: mapTransitLogsToStatusUpdates(source.transitLogs),
+    canceled_at: formatDateTime(rawCanceledAt) || undefined,
   };
 };
 
