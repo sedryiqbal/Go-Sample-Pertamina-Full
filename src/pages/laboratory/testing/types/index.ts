@@ -1,12 +1,25 @@
 export interface TestingRecord {
-  id: string;
-  sample_id: string;
-  order_number: string;
-  sample_type: string;
-  vessel_name: string;
-  tank_number: string;
-  received_date: string;
-  testing_status:
+  id: number | string;
+  orderNo?: string;
+  tanggalOrder?: string;
+  nomorNpc?: string;
+  categoryTestName?: string;
+  etaArival?: string;
+  status?: number;
+  priority?: 'normal' | 'urgent' | 'critical' | string;
+  notes?: string;
+  pathPhotoSample?: string;
+  pathMemo?: string;
+  createdAt?: string;
+
+  // Legacy/optional fields used by other UI components
+  sample_id?: string;
+  order_number?: string;
+  sample_type?: string;
+  vessel_name?: string;
+  tank_number?: string;
+  received_date?: string;
+  testing_status?:
     | 'received'
     | 'registered'
     | 'testing'
@@ -15,18 +28,27 @@ export interface TestingRecord {
     | 'failed'
     | 'pending'
     | 'shipped'
-    | 'proses';
-  lab_technician: string;
+    | 'proses'
+    | string;
+  lab_technician?: string;
   equipment_used?: string;
-  test_parameters: string[];
-  test_results: { [key: string]: any };
-  progress_percentage: number;
-  priority: 'normal' | 'urgent' | 'critical';
-  estimated_completion: string;
+  test_parameters?: string[];
+  test_results?: { [key: string]: any };
+  progress_percentage?: number;
+  estimated_completion?: string;
   actual_completion?: string;
   quality_notes?: string;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
+  sample?: {
+    id?: number;
+    shipName?: string;
+    typeLoadName?: string;
+    nomorTanki?: string | number;
+    qty?: number;
+    satuanName?: string;
+    status?: string;
+  };
 }
 
 export interface AuditLog {

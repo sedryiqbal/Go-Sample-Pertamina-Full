@@ -99,7 +99,7 @@ const TestingReportModal: React.FC<TestingReportModalProps> = ({
     standard: param.standard,
     limit: param.limit,
     unit: param.unit,
-    result: record.test_results[param.name] || {
+    result: record.test_results?.[param.name] || {
       value: '-',
       unit: param.unit,
       status: 'unknown',

@@ -7,6 +7,7 @@ import {
 } from '@ant-design/icons';
 import type { ActionType as ProActionType } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
+import { request } from '@umijs/max';
 import {
   Button,
   Card,
@@ -31,7 +32,7 @@ import {
   Typography,
 } from 'antd';
 import dayjs from 'dayjs';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { history } from 'umi';
 
 // Components
@@ -42,19 +43,13 @@ import SyringeManagement from '@/components/SyringeManagement';
 import { getTableColumns } from './columns';
 import TestingReportModal from './components/TestingReportModal';
 import { TEST_PARAMETERS } from './constants/testParameters';
-import {
-  MOCK_AUDIT_LOGS,
-  MOCK_SYRINGE_DATA,
-  MOCK_TESTING_DATA,
-} from './data/mockData';
+import { MOCK_AUDIT_LOGS, MOCK_SYRINGE_DATA } from './data/mockData';
 import type { AuditLog, SyringeData, TestingRecord } from './types';
 import {
-  getFilteredData,
   getPriorityColor,
   getProgressColor,
   getStatusColor,
   getStatusLabel,
-  getTabCount,
   getTestingSummary,
 } from './utils/helpers';
 
@@ -79,22 +74,16 @@ const LaboratoryTesting: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [reportRecord, setReportRecord] = useState<TestingRecord | undefined>();
+  const [tabCounts, setTabCounts] = useState({
+    all: 0,
+    pending: 0,
+    process: 0,
+    completed: 0,
+  });
+  const [summary, setSummary] = useState(getTestingSummary([]));
 
   const actionRef = useRef<ProActionType>(null);
   const [form] = Form.useForm();
-
-  // Testing status options
-  const testingStatusOptions = [
-    { label: 'Received', value: 'received' },
-    { label: 'Registered', value: 'registered' },
-    { label: 'Testing', value: 'testing' },
-    { label: 'Waiting Equipment', value: 'waiting_equipment' },
-    { label: 'Completed', value: 'completed' },
-    { label: 'Failed', value: 'failed' },
-    { label: 'Pending', value: 'pending' },
-    { label: 'Shipped', value: 'shipped' },
-    { label: 'Proses', value: 'proses' },
-  ];
 
   // Event handlers
   const handleLabAction = (
@@ -194,9 +183,16 @@ const LaboratoryTesting: React.FC = () => {
     });
   };
 
-  // Get filtered data and counts
-  const filteredData = getFilteredData(MOCK_TESTING_DATA, activeTab);
-  const summary = getTestingSummary(MOCK_TESTING_DATA);
+  const getStatusQueryByTab = (tabKey: string) => {
+    if (tabKey === 'pending') return 'PENDING';
+    if (tabKey === 'process') return 'IN_PROCESS';
+    if (tabKey === 'completed') return 'COMPLETED';
+    return '';
+  };
+
+  useEffect(() => {
+    actionRef.current?.reload();
+  }, [activeTab]);
 
   // Audit Logs Table Columns
   const auditLogsColumns = [
@@ -565,19 +561,19 @@ const LaboratoryTesting: React.FC = () => {
           items={[
             {
               key: 'all',
-              label: `All Samples (${getTabCount(MOCK_TESTING_DATA, 'all')})`,
+              label: `All Samples (${tabCounts.all})`,
             },
             {
               key: 'pending',
-              label: `Pending (${getTabCount(MOCK_TESTING_DATA, 'pending')})`,
+              label: `Pending (${tabCounts.pending})`,
             },
             {
               key: 'process',
-              label: `In Process (${getTabCount(MOCK_TESTING_DATA, 'process')})`,
+              label: `In Process (${tabCounts.process})`,
             },
             {
               key: 'completed',
-              label: `Completed (${getTabCount(MOCK_TESTING_DATA, 'completed')})`,
+              label: `Completed (${tabCounts.completed})`,
             },
           ]}
         />
@@ -585,7 +581,112 @@ const LaboratoryTesting: React.FC = () => {
         <ProTable<TestingRecord>
           columns={columns}
           actionRef={actionRef}
-          dataSource={filteredData}
+          request={async (params) => {
+            const statusParam = getStatusQueryByTab(activeTab);
+            const page = params?.current ?? 1;
+            const pageSize = params?.pageSize ?? 10;
+
+            try {
+              const response = await request('/api/LabTesting/sample-orders/', {
+                method: 'GET',
+                params: {
+                  page,
+                  pageSize,
+                  status: statusParam,
+                },
+              });
+
+              const mapStatusCodeToTestingStatus = (
+                statusCode: number | null,
+              ) => {
+                if (statusCode === null || Number.isNaN(statusCode))
+                  return 'pending';
+                if (statusCode >= 0 && statusCode <= 3) return 'shipped';
+                if (statusCode === 4) return 'pending';
+                if (statusCode === 5) return 'registered';
+                if (statusCode === 6) return 'testing';
+                if (statusCode >= 7 && statusCode <= 9) return 'completed';
+                if (statusCode === 10) return 'failed';
+                return 'pending';
+              };
+
+              const mapStatusToProgress = (status: string) => {
+                switch (status) {
+                  case 'shipped':
+                    return 20;
+                  case 'pending':
+                    return 40;
+                  case 'registered':
+                    return 50;
+                  case 'testing':
+                    return 70;
+                  case 'completed':
+                  case 'failed':
+                    return 100;
+                  default:
+                    return 0;
+                }
+              };
+
+              const records: TestingRecord[] = (response?.data || []).map(
+                (item: any) => {
+                  const statusCode =
+                    typeof item.status === 'number'
+                      ? item.status
+                      : Number(item.status);
+
+                  const testingStatus =
+                    mapStatusCodeToTestingStatus(statusCode);
+
+                  return {
+                    ...item,
+                    id: item.id,
+                    status: statusCode,
+                    // map API fields to legacy table fields
+                    sample_id: item.orderNo || `ORD-${item.id}`,
+                    order_number: item.orderNo,
+                    sample_type:
+                      item.sample?.typeLoadName || item.categoryTestName || '-',
+                    testing_status: testingStatus,
+                    received_date:
+                      item.receivedAt || item.received_at || undefined,
+                    estimated_completion:
+                      item.estimatedCompletionDate ||
+                      item.estimated_completion ||
+                      undefined,
+                    progress_percentage: mapStatusToProgress(testingStatus),
+                    priority: (item.priority as any) || 'normal',
+                    notes: item.notes,
+                    created_at: item.createdAt,
+                  };
+                },
+              );
+
+              const total =
+                response?.meta?.pagination?.totalData ??
+                response?.total ??
+                records.length;
+
+              setSummary(getTestingSummary(records));
+              setTabCounts((prev) => ({
+                ...prev,
+                [activeTab === 'process' ? 'process' : activeTab]: total,
+                ...(statusParam === '' ? { all: total } : {}),
+              }));
+
+              return {
+                data: records,
+                success: true,
+                total,
+              };
+            } catch (error) {
+              message.error('Gagal mengambil data sample orders');
+              return {
+                data: [],
+                success: false,
+              };
+            }
+          }}
           rowKey="id"
           search={{
             labelWidth: 'auto',
@@ -677,7 +778,7 @@ const LaboratoryTesting: React.FC = () => {
             >
               <div style={{ marginBottom: 16 }}>
                 <Progress
-                  percent={viewingRecord.progress_percentage}
+                  percent={viewingRecord.progress_percentage || 0}
                   strokeColor={getProgressColor(
                     viewingRecord.progress_percentage,
                   )}

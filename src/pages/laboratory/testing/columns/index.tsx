@@ -33,8 +33,8 @@ export const getTableColumns = (
           <Text strong>{record.sample_id}</Text>
         </div>
         <div>
-          <Tag color={getPriorityColor(record.priority)}>
-            {record.priority.toUpperCase()}
+          <Tag color={getPriorityColor(record.priority || 'normal')}>
+            {(record.priority || '').toUpperCase()}
           </Tag>
         </div>
       </div>
@@ -49,15 +49,33 @@ export const getTableColumns = (
     render: (_, record: TestingRecord) => (
       <div>
         <div>
-          <Text>{record.sample_type}</Text>
+          <Text>
+            {record.sample?.typeLoadName || record.sample_type || '-'}
+          </Text>
         </div>
         <div>
           <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.order_number}
+            {record.sample?.qty
+              ? `${record.sample?.qty} ${record.sample?.satuanName || ''}`
+              : '-'}
           </Text>
         </div>
       </div>
     ),
+  },
+  {
+    title: 'Kategori Test',
+    dataIndex: 'categoryTestName',
+    key: 'categoryTestName',
+    width: 160,
+    render: (categoryTestName: string | undefined) =>
+      categoryTestName ? (
+        <Tag color="blue" style={{ fontWeight: 500 }}>
+          {categoryTestName}
+        </Tag>
+      ) : (
+        <Text type="secondary">-</Text>
+      ),
   },
   // {
   //     title: 'Technician',
@@ -124,7 +142,8 @@ export const getTableColumns = (
     dataIndex: 'progress_percentage',
     key: 'progress_percentage',
     width: 120,
-    sorter: (a, b) => a.progress_percentage - b.progress_percentage,
+    sorter: (a, b) =>
+      (a.progress_percentage || 0) - (b.progress_percentage || 0),
     render: (_, record: TestingRecord) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div
@@ -138,15 +157,17 @@ export const getTableColumns = (
         >
           <div
             style={{
-              width: `${record.progress_percentage}%`,
+              width: `${record.progress_percentage || 0}%`,
               height: '100%',
-              backgroundColor: getProgressColor(record.progress_percentage),
+              backgroundColor: getProgressColor(
+                record.progress_percentage || 0,
+              ),
               transition: 'width 0.3s ease',
             }}
           />
         </div>
         <Text style={{ fontSize: '12px', fontWeight: 'bold' }}>
-          {record.progress_percentage}%
+          {record.progress_percentage || 0}%
         </Text>
       </div>
     ),
@@ -160,9 +181,15 @@ export const getTableColumns = (
       dayjs(a.received_date).unix() - dayjs(b.received_date).unix(),
     render: (_, record: TestingRecord) => (
       <div>
-        <div>{dayjs(record.received_date).format('DD MMM YYYY')}</div>
+        <div>
+          {record.received_date
+            ? dayjs(record.received_date).format('DD MMM YYYY')
+            : '-'}
+        </div>
         <div style={{ fontSize: '12px', color: '#999' }}>
-          {dayjs(record.received_date).format('HH:mm')}
+          {record.received_date
+            ? dayjs(record.received_date).format('HH:mm')
+            : '-'}
         </div>
       </div>
     ),
@@ -176,14 +203,20 @@ export const getTableColumns = (
       dayjs(a.estimated_completion).unix() -
       dayjs(b.estimated_completion).unix(),
     render: (_, record: TestingRecord) => {
-      const isOverdue = dayjs(record.estimated_completion).isBefore(dayjs());
+      const isOverdue =
+        record.estimated_completion &&
+        dayjs(record.estimated_completion).isBefore(dayjs());
       return (
         <div>
           <div style={{ color: isOverdue ? '#ff4d4f' : undefined }}>
-            {dayjs(record.estimated_completion).format('DD MMM YYYY')}
+            {record.estimated_completion
+              ? dayjs(record.estimated_completion).format('DD MMM YYYY')
+              : '-'}
           </div>
           <div style={{ fontSize: '12px', color: '#999' }}>
-            {dayjs(record.estimated_completion).format('HH:mm')}
+            {record.estimated_completion
+              ? dayjs(record.estimated_completion).format('HH:mm')
+              : '-'}
           </div>
         </div>
       );
@@ -275,19 +308,26 @@ export const getTableColumns = (
             <button
               type="button"
               onClick={() => handleViewReport(record)}
-              disabled={record.progress_percentage < 75}
+              disabled={(record.progress_percentage || 0) < 75}
               style={{
                 fontSize: '11px',
                 height: 24,
                 flex: 1,
-                color: record.progress_percentage >= 75 ? '#1890ff' : '#d9d9d9',
+                color:
+                  (record.progress_percentage || 0) >= 75
+                    ? '#1890ff'
+                    : '#d9d9d9',
                 borderColor:
-                  record.progress_percentage >= 75 ? '#1890ff' : '#d9d9d9',
+                  (record.progress_percentage || 0) >= 75
+                    ? '#1890ff'
+                    : '#d9d9d9',
                 backgroundColor: 'white',
                 border: '1px solid',
                 borderRadius: '4px',
                 cursor:
-                  record.progress_percentage >= 75 ? 'pointer' : 'not-allowed',
+                  (record.progress_percentage || 0) >= 75
+                    ? 'pointer'
+                    : 'not-allowed',
               }}
             >
               Report

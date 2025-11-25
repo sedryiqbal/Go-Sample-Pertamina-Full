@@ -1,48 +1,52 @@
 import type { TestingRecord } from '../types';
 
-export const getStatusColor = (status: string): string => {
+export const getStatusMeta = (
+  status?: number | string,
+): { label: string; color: string } => {
+  const statusCode =
+    typeof status === 'number'
+      ? status
+      : Number.isFinite(Number(status))
+        ? Number(status)
+        : null;
+
+  if (statusCode !== null) {
+    if (statusCode >= 0 && statusCode <= 3)
+      return { label: 'Shipped', color: 'default' };
+    if (statusCode === 4) return { label: 'Pending', color: 'warning' };
+    if (statusCode === 5) return { label: 'Terdaftar', color: 'processing' };
+    if (statusCode === 6)
+      return { label: 'Sedang Di uji', color: 'processing' };
+    if (statusCode >= 7 && statusCode <= 9)
+      return { label: 'Selesai', color: 'success' };
+    if (statusCode === 10) return { label: 'Dibatalkan', color: 'error' };
+  }
+
   switch (status) {
     case 'shipped':
-      return 'default';
+      return { label: 'Shipped', color: 'default' };
     case 'pending':
-      return 'warning';
+      return { label: 'Pending', color: 'warning' };
     case 'registered':
-      return 'processing';
+      return { label: 'Terdaftar', color: 'processing' };
     case 'testing':
-      return 'processing';
+      return { label: 'Sedang Diuji', color: 'processing' };
     case 'completed':
-      return 'success';
+      return { label: 'Selesai', color: 'success' };
     case 'failed':
-      return 'error';
+      return { label: 'Gagal', color: 'error' };
     default:
-      return 'default';
+      return { label: '-', color: 'default' };
   }
 };
 
-export const getStatusLabel = (status: string): string => {
-  switch (status) {
-    case 'received':
-      return 'Diterima';
-    case 'registered':
-      return 'Terdaftar';
-    case 'testing':
-      return 'Sedang Diuji';
-    case 'completed':
-      return 'Selesai';
-    case 'failed':
-      return 'Gagal';
-    case 'pending':
-      return 'Pending';
-    case 'shipped':
-      return 'Shipped';
-    case 'proses':
-      return 'Proses';
-    default:
-      return status;
-  }
-};
+export const getStatusColor = (status: string | number | undefined): string =>
+  getStatusMeta(status).color;
 
-export const getPriorityColor = (priority: string): string => {
+export const getStatusLabel = (status: string | number | undefined): string =>
+  getStatusMeta(status).label;
+
+export const getPriorityColor = (priority?: string): string => {
   switch (priority) {
     case 'normal':
       return 'default';
@@ -55,51 +59,41 @@ export const getPriorityColor = (priority: string): string => {
   }
 };
 
-export const getProgressColor = (percentage: number): string => {
+export const getProgressColor = (percentage: number | undefined): string => {
+  if (!percentage) return '#808080';
   if (percentage >= 90) return '#9fe400';
   if (percentage >= 50) return '#1890ff';
   if (percentage >= 40) return '#faad14';
   return '#808080';
 };
 
-export const getFilteredData = (
-  data: TestingRecord[],
-  activeTab: string,
-): TestingRecord[] => {
-  if (activeTab === 'all') return data;
-  if (activeTab === 'pending')
-    return data.filter((item) =>
-      ['received', 'registered', 'pending'].includes(item.testing_status),
-    );
-  if (activeTab === 'process')
-    return data.filter((item) =>
-      ['testing', 'proses'].includes(item.testing_status),
-    );
-  if (activeTab === 'completed')
-    return data.filter((item) => item.testing_status === 'completed');
-  return data;
-};
-
-export const getTabCount = (data: TestingRecord[], tabKey: string): number => {
-  if (tabKey === 'all') return data.length;
-  if (tabKey === 'pending')
-    return data.filter((item) =>
-      ['received', 'registered', 'pending'].includes(item.testing_status),
-    ).length;
-  if (tabKey === 'process')
-    return data.filter((item) =>
-      ['testing', 'proses'].includes(item.testing_status),
-    ).length;
-  if (tabKey === 'completed')
-    return data.filter((item) => item.testing_status === 'completed').length;
-  return 0;
-};
-
 export const getTestingSummary = (data: TestingRecord[]) => ({
   total: data.length,
-  received: data.filter((item) => item.testing_status === 'received').length,
-  testing: data.filter((item) =>
-    ['registered', 'testing'].includes(item.testing_status),
-  ).length,
-  completed: data.filter((item) => item.testing_status === 'completed').length,
+  received: data.filter((item) => {
+    const statusCode =
+      typeof item.status === 'number'
+        ? item.status
+        : Number.isFinite(Number(item.status))
+          ? Number(item.status)
+          : null;
+    return statusCode !== null && statusCode >= 0 && statusCode <= 3;
+  }).length,
+  testing: data.filter((item) => {
+    const statusCode =
+      typeof item.status === 'number'
+        ? item.status
+        : Number.isFinite(Number(item.status))
+          ? Number(item.status)
+          : null;
+    return statusCode !== null && [5, 6].includes(statusCode);
+  }).length,
+  completed: data.filter((item) => {
+    const statusCode =
+      typeof item.status === 'number'
+        ? item.status
+        : Number.isFinite(Number(item.status))
+          ? Number(item.status)
+          : null;
+    return statusCode !== null && statusCode >= 7 && statusCode <= 9;
+  }).length,
 });
