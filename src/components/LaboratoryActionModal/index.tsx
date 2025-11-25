@@ -45,7 +45,9 @@ export interface TestingRecord {
   id: string;
   sample_id: string;
   order_number: string;
+  nomorNpc: string;
   sample_type: string;
+  shipName: string;
   vessel_name: string;
   tank_number: string;
   testing_status: string;
@@ -555,7 +557,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
           </Title>
           <Space direction="vertical" size={4}>
             <Text>
-              <strong>Sample ID:</strong> {record.sample_id}
+              <strong>Nomor NPC:</strong> {record.nomorNpc}
             </Text>
             <Text>
               <strong>Order Number:</strong> {record.order_number}
@@ -564,11 +566,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
               <strong>Jenis Sampel:</strong> {record.sample_type}
             </Text>
             <Text>
-              <strong>Kapal/Tangki:</strong> {record.vessel_name} •{' '}
-              {record.tank_number}
-            </Text>
-            <Text>
-              <strong>Lab Technician:</strong> {record.lab_technician}
+              <strong>Kapal:</strong> {record.shipName}
             </Text>
             <div style={{ marginTop: 8 }}>
               <Tag color={record.priority === 'urgent' ? 'orange' : 'default'}>

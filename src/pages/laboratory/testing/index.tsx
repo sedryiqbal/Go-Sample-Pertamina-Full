@@ -610,22 +610,16 @@ const LaboratoryTesting: React.FC = () => {
                 return 'pending';
               };
 
-              const mapStatusToProgress = (status: string) => {
-                switch (status) {
-                  case 'shipped':
-                    return 20;
-                  case 'pending':
-                    return 40;
-                  case 'registered':
-                    return 50;
-                  case 'testing':
-                    return 70;
-                  case 'completed':
-                  case 'failed':
-                    return 100;
-                  default:
-                    return 0;
-                }
+              const mapStatusCodeToProgress = (statusCode: number | null) => {
+                if (statusCode === null || Number.isNaN(statusCode)) return 0;
+                if (statusCode >= 0 && statusCode <= 2) return 20;
+                if (statusCode === 3) return 40;
+                if (statusCode === 4) return 50;
+                if (statusCode === 5) return 60;
+                if (statusCode === 6) return 80;
+                if (statusCode >= 7 && statusCode <= 9) return 100;
+                if (statusCode === 10) return 0;
+                return 0;
               };
 
               const records: TestingRecord[] = (response?.data || []).map(
@@ -645,8 +639,8 @@ const LaboratoryTesting: React.FC = () => {
                     // map API fields to legacy table fields
                     sample_id: item.orderNo || `ORD-${item.id}`,
                     order_number: item.orderNo,
-                    sample_type:
-                      item.sample?.typeLoadName || item.categoryTestName || '-',
+                    sample_type: item.sample?.typeLoadName || '-',
+                    shipName: item.sample?.shipName || '-',
                     testing_status: testingStatus,
                     received_date:
                       item.receivedAt || item.received_at || undefined,
@@ -654,7 +648,7 @@ const LaboratoryTesting: React.FC = () => {
                       item.estimatedCompletionDate ||
                       item.estimated_completion ||
                       undefined,
-                    progress_percentage: mapStatusToProgress(testingStatus),
+                    progress_percentage: mapStatusCodeToProgress(statusCode),
                     priority: (item.priority as any) || 'normal',
                     notes: item.notes,
                     created_at: item.createdAt,

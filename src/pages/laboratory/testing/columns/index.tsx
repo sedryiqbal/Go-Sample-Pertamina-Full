@@ -77,45 +77,6 @@ export const getTableColumns = (
         <Text type="secondary">-</Text>
       ),
   },
-  // {
-  //     title: 'Technician',
-  //     dataIndex: 'lab_technician',
-  //     key: 'lab_technician',
-  //     width: 120,
-  //     search: true,
-  //     render: (_, record: TestingRecord) => (
-  //         <Badge
-  //             count={record.lab_technician}
-  //             style={{
-  //                 backgroundColor: '#1890ff',
-  //                 color: 'white',
-  //                 fontWeight: 'bold',
-  //             }}
-  //         />
-  //     ),
-  // },
-  // {
-  //     title: 'Parameter Test',
-  //     dataIndex: 'test_parameters',
-  //     key: 'test_parameters',
-  //     width: 200,
-  //     render: (_, record: TestingRecord) => (
-  //         <div>
-  //             {record.test_parameters?.slice(0, 2).map((param, index) => (
-  //                 <Tag key={index} color="blue" style={{ marginBottom: 2 }}>
-  //                     {param}
-  //                 </Tag>
-  //             ))}
-  //             {record.test_parameters?.length > 2 && (
-  //                 <Tooltip title={record.test_parameters.slice(2).join(', ')}>
-  //                     <Tag color="default">
-  //                         +{record.test_parameters.length - 2} lainnya
-  //                     </Tag>
-  //                 </Tooltip>
-  //             )}
-  //         </div>
-  //     ),
-  // },
   {
     title: 'Status',
     dataIndex: 'testing_status',
@@ -130,10 +91,10 @@ export const getTableColumns = (
       { text: 'Pending', value: 'pending' },
       { text: 'Shipped', value: 'shipped' },
     ],
-    onFilter: (value, record) => record.testing_status === value,
+    onFilter: (value, record) => record.status === value,
     render: (_, record: TestingRecord) => (
-      <Tag color={getStatusColor(record.testing_status)}>
-        {getStatusLabel(record.testing_status)}
+      <Tag color={getStatusColor(record.status)}>
+        {getStatusLabel(record.status)}
       </Tag>
     ),
   },
@@ -230,8 +191,8 @@ export const getTableColumns = (
     render: (_, record: TestingRecord) => {
       // Get status-specific action button
       const getStatusAction = () => {
-        switch (record.testing_status) {
-          case 'pending':
+        switch (record.status) {
+          case 3: // 'received'
             return (
               <button
                 type="button"
@@ -252,7 +213,7 @@ export const getTableColumns = (
                 Konfirmasi Sample
               </button>
             );
-          case 'registered':
+          case 4: // 'registered'
             return (
               <button
                 type="button"
@@ -273,7 +234,9 @@ export const getTableColumns = (
                 Mulai Pengujian
               </button>
             );
-          case 'testing':
+          // make case 5 or 6 to 'testing'
+          case 5: // 'testing'
+          case 6: // 'testing'
             return (
               <button
                 type="button"

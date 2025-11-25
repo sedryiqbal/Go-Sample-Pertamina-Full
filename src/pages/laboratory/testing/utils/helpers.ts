@@ -11,10 +11,12 @@ export const getStatusMeta = (
         : null;
 
   if (statusCode !== null) {
-    if (statusCode >= 0 && statusCode <= 3)
-      return { label: 'Shipped', color: 'default' };
-    if (statusCode === 4) return { label: 'Pending', color: 'warning' };
-    if (statusCode === 5) return { label: 'Terdaftar', color: 'processing' };
+    if (statusCode >= 0 && statusCode <= 2)
+      return { label: 'Perjalanan', color: 'default' };
+    if (statusCode === 3) return { label: 'Pending', color: 'warning' };
+    if (statusCode === 4) return { label: 'Terdaftar', color: 'processing' };
+    if (statusCode === 5)
+      return { label: 'Mulai Pengujian', color: 'processing' };
     if (statusCode === 6)
       return { label: 'Sedang Di uji', color: 'processing' };
     if (statusCode >= 7 && statusCode <= 9)
