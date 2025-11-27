@@ -81,6 +81,9 @@ const LaboratoryTesting: React.FC = () => {
     completed: 0,
   });
   const [summary, setSummary] = useState(getTestingSummary([]));
+  const [unitOptions, setUnitOptions] = useState<
+    { label: string; value: string; id?: number }[]
+  >([]);
 
   const actionRef = useRef<ProActionType>(null);
   const [form] = Form.useForm();
@@ -96,20 +99,137 @@ const LaboratoryTesting: React.FC = () => {
   };
 
   const handleActionSubmit = async (actionType: LabActionType, data: any) => {
-    console.log('Action submitted:', actionType, data);
-    // TODO: Implement API call to save final data and proceed to next stage
-    actionRef.current?.reload();
+    if (!editingRecord) return;
+
+    try {
+      if (actionType === 'confirm_sample') {
+        await request(
+          `/api/LabTesting/sample-orders/${editingRecord.id}/confirm`,
+          {
+            method: 'POST',
+            data: {
+              comment:
+                data?.description ||
+                data?.comment ||
+                'Konfirmasi sampel oleh laboratorium',
+            },
+          },
+        );
+        message.success('Sampel berhasil dikonfirmasi');
+      } else if (actionType === 'waiting_test') {
+        const estimated =
+          data?.estimated_completion && dayjs(data.estimated_completion);
+        if (!estimated || !estimated.isValid()) {
+          throw new Error('Estimasi selesai tidak valid');
+        }
+
+        await request(
+          `/api/LabTesting/sample-orders/${editingRecord.id}/register`,
+          {
+            method: 'POST',
+            data: {
+              estimatedCompletionDate: estimated.toISOString(),
+              comment:
+                data?.description ||
+                data?.comment ||
+                'Penjadwalan pengujian sampel',
+            },
+          },
+        );
+        message.success('Sampel berhasil dijadwalkan untuk pengujian');
+      } else if (actionType === 'input_result') {
+        const targetId = data?.sampleOrderId ?? editingRecord.id;
+        if (!targetId) {
+          throw new Error('Sample order tidak ditemukan');
+        }
+
+        const testsPayload = Array.isArray(data?.tests)
+          ? data.tests.filter(
+            (test: any) =>
+              typeof test?.propertyTestId === 'number' &&
+              typeof test?.value === 'number',
+          )
+          : [];
+
+        if (!testsPayload.length) {
+          message.error('Hasil pengujian belum diisi');
+          return;
+        }
+
+        await request(`/api/LabTesting/sample-orders/${targetId}/tests`, {
+          method: 'POST',
+          data: { tests: testsPayload },
+        });
+
+        await request(
+          `/api/LabTesting/sample-orders/${targetId}/complete`,
+          {
+            method: 'POST',
+            data: {
+              comment:
+                data?.recommendations ||
+                data?.comment ||
+                'Hasil pengujian dikonfirmasi',
+            },
+          },
+        );
+
+        message.success('Hasil pengujian berhasil dikonfirmasi');
+      } else {
+        message.success('Aksi berhasil diproses');
+      }
+
+      setActionModalVisible(false);
+      setEditingRecord(undefined);
+      actionRef.current?.reload();
+    } catch (error: any) {
+      const errorMessage =
+        error?.data?.Message ||
+        error?.data?.message ||
+        error?.message ||
+        'Gagal memproses aksi';
+      message.error(errorMessage);
+    }
   };
 
   const handleActionSave = async (actionType: LabActionType, data: any) => {
-    console.log('Action saved temporarily:', actionType, data);
-    // TODO: Implement API call to save temporary data
+    if (actionType !== 'input_result') {
+      message.info('Data berhasil disimpan sementara');
+      return;
+    }
+
+    const targetId = data?.sampleOrderId ?? editingRecord?.id;
+    if (!targetId) {
+      message.error('Sample order tidak ditemukan');
+      return;
+    }
+
+    const testsPayload = Array.isArray(data?.tests)
+      ? data.tests.filter(
+        (test: any) =>
+          typeof test?.propertyTestId === 'number' &&
+          typeof test?.value === 'number',
+      )
+      : [];
+
+    if (!testsPayload.length) {
+      message.warning('Tidak ada data pengujian yang dapat disimpan');
+      return;
+    }
+
     try {
-      // Simulate API call for saving temporary data
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      message.success('Data berhasil disimpan sementara');
-    } catch (error) {
-      message.error('Gagal menyimpan data sementara');
+      await request(`/api/LabTesting/sample-orders/${targetId}/tests`, {
+        method: 'POST',
+        data: { tests: testsPayload },
+      });
+      message.success('Data hasil pengujian berhasil disimpan');
+    } catch (error: any) {
+      const errorMessage =
+        error?.data?.Message ||
+        error?.data?.message ||
+        error?.message ||
+        'Gagal menyimpan data sementara';
+      message.error(errorMessage);
     }
   };
 
@@ -190,9 +310,84 @@ const LaboratoryTesting: React.FC = () => {
     return '';
   };
 
+  const normalizeDateValue = (value?: string | null) => {
+    if (!value || value === '-' || value === '') return undefined;
+    return value;
+  };
+
+  const formatDateTime = (value?: string | null) => {
+    if (!value || value === '-' || value === '') return '-';
+    const parsed = dayjs(value);
+    return parsed.isValid() ? parsed.format('DD/MM/YYYY HH:mm') : value;
+  };
+
+  const getLabStatusDetails = (record?: TestingRecord) => [
+    {
+      key: 'confirmed',
+      label: 'Dikonfirmasi',
+      color: '#52c41a',
+      at: record?.confirmedAt,
+      by: record?.confirmedBy,
+      reason: record?.confirmedReason,
+    },
+    {
+      key: 'registered',
+      label: 'Terdaftar',
+      color: '#1890ff',
+      at: record?.registeredAt,
+      by: record?.registeredBy,
+      reason: record?.registeredReason,
+    },
+    {
+      key: 'tested',
+      label: 'Sedang Diuji',
+      color: '#faad14',
+      at: record?.testedAt,
+      by: record?.testedBy,
+    },
+    {
+      key: 'completed',
+      label: 'Selesai',
+      color: '#389e0d',
+      at: record?.completedAt,
+      by: record?.completedBy,
+      reason: record?.completedReason,
+    },
+    {
+      key: 'canceled',
+      label: 'Dibatalkan',
+      color: '#ff4d4f',
+      at: record?.canceledAt,
+      by: record?.canceledBy,
+      reason: record?.canceledReason,
+    },
+  ];
+
   useEffect(() => {
     actionRef.current?.reload();
   }, [activeTab]);
+
+  useEffect(() => {
+    const fetchUnitOptions = async () => {
+      try {
+        const response = await request('/api/Satuans/by-flags', {
+          method: 'GET',
+          params: { isTests: true },
+        });
+        const options =
+          (response?.data || []).map((item: any) => ({
+            label: item.name,
+            value: item.name,
+            id: item.id,
+          })) || [];
+        setUnitOptions(options);
+      } catch (error) {
+        console.error('Failed to fetch satuan list', error);
+      }
+    };
+
+    fetchUnitOptions();
+  }, []);
 
   // Audit Logs Table Columns
   const auditLogsColumns = [
@@ -641,13 +836,16 @@ const LaboratoryTesting: React.FC = () => {
                     order_number: item.orderNo,
                     sample_type: item.sample?.typeLoadName || '-',
                     shipName: item.sample?.shipName || '-',
+                    categoryTestId: item.categoryTestId,
                     testing_status: testingStatus,
-                    received_date:
-                      item.receivedAt || item.received_at || undefined,
-                    estimated_completion:
+                    received_date: normalizeDateValue(
+                      item.receivedAt || item.received_at,
+                    ),
+                    estimated_completion: normalizeDateValue(
                       item.estimatedCompletionDate ||
                       item.estimated_completion ||
-                      undefined,
+                      item.etaArival,
+                    ),
                     progress_percentage: mapStatusCodeToProgress(statusCode),
                     priority: (item.priority as any) || 'normal',
                     notes: item.notes,
@@ -742,8 +940,8 @@ const LaboratoryTesting: React.FC = () => {
               style={{ marginBottom: 16 }}
             >
               <Descriptions column={2} size="small">
-                <Descriptions.Item label="Sample ID">
-                  {viewingRecord.sample_id}
+                <Descriptions.Item label="Nomor NPC">
+                  {viewingRecord.nomorNpc}
                 </Descriptions.Item>
                 <Descriptions.Item label="Order Number">
                   {viewingRecord.order_number}
@@ -751,16 +949,36 @@ const LaboratoryTesting: React.FC = () => {
                 <Descriptions.Item label="Jenis Sampel">
                   {viewingRecord.sample_type}
                 </Descriptions.Item>
+                <Descriptions.Item label="Kategori Tes">
+                  {viewingRecord.categoryTestName ? (
+                    <Tag color="blue">{viewingRecord.categoryTestName}</Tag>
+                  ) : (
+                    '-'
+                  )}
+                </Descriptions.Item>
                 <Descriptions.Item label="Kapal/Tangki">
-                  {viewingRecord.vessel_name} • {viewingRecord.tank_number}
+                  {viewingRecord.sample?.shipName || '-'}
                 </Descriptions.Item>
                 <Descriptions.Item label="Diterima">
-                  {dayjs(viewingRecord.received_date).format('DD/MM/YYYY')}
+                  {viewingRecord.received_date &&
+                    dayjs(viewingRecord.received_date).isValid()
+                    ? dayjs(viewingRecord.received_date).format('DD/MM/YYYY')
+                    : '-'}
                 </Descriptions.Item>
                 <Descriptions.Item label="Prioritas">
                   <Tag color={getPriorityColor(viewingRecord.priority)}>
                     {viewingRecord.priority.toUpperCase()}
                   </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Dibuat Pada">
+                  {viewingRecord.createdAt
+                    ? dayjs(viewingRecord.createdAt).format(
+                      'DD/MM/YYYY HH:mm',
+                    )
+                    : '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Catatan">
+                  {viewingRecord.notes || '-'}
                 </Descriptions.Item>
               </Descriptions>
             </Card>
@@ -826,20 +1044,60 @@ const LaboratoryTesting: React.FC = () => {
             <Card title="Informasi Lab" size="small">
               <Descriptions column={2} size="small">
                 <Descriptions.Item label="Estimasi Selesai">
-                  {viewingRecord.estimated_completion
+                  {viewingRecord.estimated_completion &&
+                    dayjs(viewingRecord.estimated_completion).isValid()
                     ? dayjs(viewingRecord.estimated_completion).format(
-                        'DD/MM/YYYY HH:mm',
-                      )
-                    : 'Invalid Date'}
+                      'DD/MM/YYYY HH:mm',
+                    )
+                    : '-'}
                 </Descriptions.Item>
                 <Descriptions.Item label="Actual Selesai">
-                  {viewingRecord.actual_completion
-                    ? dayjs(viewingRecord.actual_completion).format(
-                        'DD/MM/YYYY HH:mm',
-                      )
+                  {viewingRecord.completedAt
+                    ? dayjs(viewingRecord.completedAt).format(
+                      'DD/MM/YYYY HH:mm',
+                    )
                     : '-'}
                 </Descriptions.Item>
               </Descriptions>
+              <div style={{ marginTop: 12 }}>
+                <Text strong style={{ fontSize: '12px', color: '#595959' }}>
+                  Riwayat Status Laboratorium
+                </Text>
+                <div style={{ marginTop: 8 }}>
+                  {getLabStatusDetails(viewingRecord).map((detail) => (
+                    <div
+                      key={detail.key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '6px 0',
+                        borderBottom: '1px solid #f0f0f0',
+                      }}
+                    >
+                      <div style={{ width: 120 }}>
+                        <Text style={{ fontWeight: 500 }}>{detail.label}</Text>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+                          {formatDateTime(detail.at)}
+                        </div>
+                        <div style={{ fontSize: 12 }}>
+                          <Text type="secondary">Oleh:</Text>{' '}
+                          {detail.by && detail.by !== '-' ? detail.by : '-'}
+                        </div>
+                        {detail.reason &&
+                          detail.reason !== '-' &&
+                          detail.reason.trim() !== '' && (
+                            <div style={{ fontSize: 12, marginTop: 2 }}>
+                              <Text type="secondary">Catatan:</Text>{' '}
+                              {detail.reason}
+                            </div>
+                          )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
               {viewingRecord.quality_notes && (
                 <div style={{ marginTop: 12 }}>
                   <strong>Catatan:</strong>
@@ -931,6 +1189,7 @@ const LaboratoryTesting: React.FC = () => {
         onSave={handleActionSave}
         record={editingRecord}
         actionType={currentActionType}
+        unitOptions={unitOptions}
       />
 
       {/* Testing Report Modal */}

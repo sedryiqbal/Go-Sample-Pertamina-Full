@@ -1,14 +1,20 @@
+import { CloseOutlined } from '@ant-design/icons';
 import {
-  CheckCircleOutlined,
-  CloseOutlined,
-  ExclamationCircleOutlined,
-  MinusCircleOutlined,
-} from '@ant-design/icons';
-import { Card, Col, Divider, Modal, Row, Table, Tag, Typography } from 'antd';
+  Card,
+  Descriptions,
+  Divider,
+  Modal,
+  Spin,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
 import dayjs from 'dayjs';
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { request } from '@umijs/max';
 import { TEST_PARAMETERS } from '../constants/testParameters';
 import type { TestingRecord } from '../types';
+import { getPriorityColor } from '../utils/helpers';
 
 const { Title, Text } = Typography;
 
@@ -18,6 +24,119 @@ interface TestingReportModalProps {
   onClose: () => void;
 }
 
+interface PropertyTestParameter {
+  name: string;
+  key: string;
+  unit: string;
+  method: string;
+  standard?: string;
+  min?: number;
+  max?: number;
+  propertyTestId?: number;
+  satuanId?: number;
+}
+
+interface SavedTestResult {
+  propertyTestId: number;
+  satuanId?: number;
+  unit?: string;
+  method?: string;
+  value?: number;
+  propertyTestTitle?: string;
+}
+
+const DEFAULT_PROPERTY_TESTS: PropertyTestParameter[] = TEST_PARAMETERS.map(
+  (param, index) => ({
+    name: param.name,
+    key: param.key || `property-${index}`,
+    unit: param.unit,
+    method: param.method,
+    standard: param.standard,
+    min: param.min,
+    max: param.max,
+    propertyTestId: Number.isFinite(Number(param.key))
+      ? Number(param.key)
+      : undefined,
+  }),
+);
+
+const normalizePropertyTests = (data: any[]): PropertyTestParameter[] =>
+  data
+    .slice()
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+    .map((item: any, index: number) => {
+      const key =
+        item.id ??
+        item.key ??
+        item.code ??
+        item.propertyId ??
+        `property-${index}`;
+      const propertyTestId =
+        typeof item.propertyTestId === 'number'
+          ? item.propertyTestId
+          : typeof item.id === 'number'
+            ? item.id
+            : typeof item.propertyId === 'number'
+              ? item.propertyId
+              : undefined;
+      const satuanId =
+        typeof item.satuanId === 'number'
+          ? item.satuanId
+          : typeof item.unitId === 'number'
+            ? item.unitId
+            : undefined;
+      return {
+        name:
+          item.title ||
+          item.name ||
+          item.propertyName ||
+          item.testName ||
+          `Property ${index + 1}`,
+        key: String(key),
+        unit: item.unit || item.unitName || item.unitLabel || '',
+        standard: item.standard || item.standardName || '',
+        min:
+          typeof item.min === 'number'
+            ? item.min
+            : typeof item.minValue === 'number'
+              ? item.minValue
+              : undefined,
+        max:
+          typeof item.max === 'number'
+            ? item.max
+            : typeof item.maxValue === 'number'
+              ? item.maxValue
+              : undefined,
+        method: item.method || '',
+        propertyTestId,
+        satuanId,
+      };
+    });
+
+const resolvePropertyTestId = (
+  param: PropertyTestParameter | undefined,
+  fallbackKey?: string,
+): number | undefined => {
+  if (typeof param?.propertyTestId === 'number') {
+    return param.propertyTestId;
+  }
+  const numericKey = Number(fallbackKey || param?.key);
+  return Number.isFinite(numericKey) ? numericKey : undefined;
+};
+
+const extractResultValue = (result: any) => {
+  if (result === null || result === undefined) return undefined;
+  if (typeof result === 'number' || typeof result === 'string') {
+    return result;
+  }
+  if (typeof result === 'object') {
+    if (result.value !== undefined) return result.value;
+    if (result.result !== undefined) return result.result;
+    if (result.reading !== undefined) return result.reading;
+  }
+  return undefined;
+};
+
 const TestingReportModal: React.FC<TestingReportModalProps> = ({
   visible,
   record,
@@ -25,96 +144,190 @@ const TestingReportModal: React.FC<TestingReportModalProps> = ({
 }) => {
   if (!record) return null;
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pass':
-        return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
-      case 'fail':
-        return <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />;
-      default:
-        return <MinusCircleOutlined style={{ color: '#999' }} />;
+  const [propertyTests, setPropertyTests] = useState<PropertyTestParameter[]>(
+    DEFAULT_PROPERTY_TESTS,
+  );
+  const [existingTestResults, setExistingTestResults] = useState<
+    Record<number, SavedTestResult>
+  >({});
+  const [propertyLoading, setPropertyLoading] = useState(false);
+  const [resultsLoading, setResultsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    if (!record?.categoryTestId) {
+      setPropertyTests(DEFAULT_PROPERTY_TESTS);
+      return;
     }
-  };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pass':
-        return '#52c41a';
-      case 'fail':
-        return '#ff4d4f';
-      default:
-        return '#999';
+    let isCancelled = false;
+    const fetchPropertyTests = async () => {
+      setPropertyLoading(true);
+      try {
+        const response = await request(
+          `/api/PropertyTests/by-category/${record.categoryTestId}`,
+        );
+        if (isCancelled) return;
+        const list = Array.isArray(response?.data)
+          ? response.data
+          : Array.isArray(response)
+            ? response
+            : [];
+        const normalized = normalizePropertyTests(list);
+        setPropertyTests(
+          normalized.length ? normalized : DEFAULT_PROPERTY_TESTS,
+        );
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('Failed to fetch property tests', error);
+          message.error('Gagal mengambil daftar parameter uji');
+          setPropertyTests(DEFAULT_PROPERTY_TESTS);
+        }
+      } finally {
+        if (!isCancelled) {
+          setPropertyLoading(false);
+        }
+      }
+    };
+
+    fetchPropertyTests();
+    return () => {
+      isCancelled = true;
+    };
+  }, [visible, record?.categoryTestId]);
+
+  useEffect(() => {
+    if (!visible) {
+      setExistingTestResults({});
+      return;
     }
-  };
+    if (!record?.id) {
+      setExistingTestResults({});
+      return;
+    }
 
-  const reportColumns = [
-    {
-      title: 'Property',
-      dataIndex: 'name',
-      key: 'name',
-      width: 200,
-      render: (text: string, record: any) => (
-        <div>
-          <Text strong>{text}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.method}
-          </Text>
-        </div>
-      ),
-    },
-    {
-      title: 'Standar',
-      dataIndex: 'standard',
-      key: 'standard',
-      width: 120,
-      render: (text: string) => <Tag color="blue">{text}</Tag>,
-    },
-    {
-      title: 'Batas',
-      dataIndex: 'limit',
-      key: 'limit',
-      width: 100,
-      render: (text: string, record: any) => (
-        <div>
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.unit}
-          </Text>
-        </div>
-      ),
-    },
-    {
-      title: 'Hasil',
-      dataIndex: 'result',
-      key: 'result',
-      width: 100,
-      render: (result: any) => <Text strong>{result.value}</Text>,
-    },
-  ];
+    let isCancelled = false;
+    const fetchExistingResults = async () => {
+      setResultsLoading(true);
+      try {
+        const response = await request(
+          `/api/LabTesting/sample-orders/${record.id}/tests`,
+        );
+        if (isCancelled) return;
+        const list = Array.isArray(response?.data) ? response.data : [];
+        const normalized: Record<number, SavedTestResult> = {};
+        list.forEach((item: any) => {
+          if (typeof item?.propertyTestId !== 'number') return;
+          const numericValue =
+            typeof item.value === 'number'
+              ? item.value
+              : item.value !== undefined
+                ? Number(item.value)
+                : undefined;
+          normalized[item.propertyTestId] = {
+            propertyTestId: item.propertyTestId,
+            satuanId:
+              typeof item.satuanId === 'number' ? item.satuanId : undefined,
+            unit: item.satuanName || '',
+            method: item.method || '',
+            value:
+              numericValue !== undefined && !Number.isNaN(numericValue)
+                ? numericValue
+                : undefined,
+            propertyTestTitle: item.propertyTestTitle,
+          };
+        });
+        setExistingTestResults(normalized);
+        if (list.length) {
+          setPropertyTests((prev) => {
+            const next = [...prev];
+            list.forEach((item: any) => {
+              if (typeof item?.propertyTestId !== 'number') return;
+              const key = String(item.propertyTestId);
+              const exists = next.some(
+                (test) =>
+                  test.propertyTestId === item.propertyTestId ||
+                  test.key === key,
+              );
+              if (!exists) {
+                next.push({
+                  name: item.propertyTestTitle || `Property ${next.length + 1}`,
+                  key,
+                  unit: item.satuanName || '',
+                  standard: '',
+                  method: item.method || '',
+                  propertyTestId: item.propertyTestId,
+                  satuanId:
+                    typeof item.satuanId === 'number' ? item.satuanId : undefined,
+                });
+              }
+            });
+            return next;
+          });
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('Failed to fetch lab test results', error);
+          message.error('Gagal mengambil hasil pengujian');
+        }
+      } finally {
+        if (!isCancelled) {
+          setResultsLoading(false);
+        }
+      }
+    };
 
-  const reportData = TEST_PARAMETERS.map((param: any, index: number) => ({
-    key: index,
-    name: param.name,
-    method: param.method,
-    standard: param.standard,
-    limit: param.limit,
-    unit: param.unit,
-    result: record.test_results?.[param.name] || {
-      value: '-',
-      unit: param.unit,
-      status: 'unknown',
-    },
-  }));
+    fetchExistingResults();
+    return () => {
+      isCancelled = true;
+    };
+  }, [visible, record?.id]);
 
-  const passCount = reportData.filter(
-    (item: any) => item.result.status === 'pass',
-  ).length;
-  const failCount = reportData.filter(
-    (item: any) => item.result.status === 'fail',
-  ).length;
-  const unknownCount = reportData.filter(
-    (item: any) => item.result.status === 'unknown',
-  ).length;
+  const detailedResults = useMemo(() => {
+    return propertyTests.map((test, index) => {
+      const propertyId = resolvePropertyTestId(test, test.key);
+      const existingResult = propertyId
+        ? existingTestResults[propertyId]
+        : undefined;
+      const fallbackKey = test.key || test.name;
+      const fallbackResult =
+        (fallbackKey && record.test_results?.[fallbackKey]) ||
+        (test.name && record.test_results?.[test.name]);
+      const mergedResult = existingResult || fallbackResult;
+      const displayName =
+        existingResult?.propertyTestTitle ||
+        test.name ||
+        fallbackKey ||
+        `Property ${index + 1}`;
+      const displayUnit =
+        existingResult?.unit ||
+        (typeof fallbackResult === 'object' ? fallbackResult.unit : undefined) ||
+        test.unit ||
+        '-';
+      const rawMethod =
+        existingResult?.method ||
+        (typeof fallbackResult === 'object'
+          ? fallbackResult.method
+          : undefined) ||
+        test.method ||
+        '';
+      const displayMethod =
+        rawMethod && String(rawMethod).trim().length ? rawMethod : '-';
+      const value =
+        existingResult?.value !== undefined
+          ? existingResult.value
+          : extractResultValue(fallbackResult);
+      return {
+        key: test.key || `test-${index}`,
+        name: displayName,
+        unit: displayUnit || '-',
+        method: displayMethod || '-',
+        value: value ?? '-',
+      };
+    });
+  }, [propertyTests, existingTestResults, record.test_results]);
+
+  const isLoading = propertyLoading || resultsLoading;
 
   return (
     <Modal
@@ -152,42 +365,49 @@ const TestingReportModal: React.FC<TestingReportModalProps> = ({
             borderBottom: '2px solid #1890ff',
           }}
         >
-          <Row gutter={[16, 16]}>
-            <Col span={8}>
-              <Text type="secondary">ID Sampel:</Text>
-              <br />
-              <Text strong style={{ fontSize: '16px' }}>
-                {record.sample_id}
-              </Text>
-            </Col>
-            <Col span={8}>
-              <Text type="secondary">Vessel:</Text>
-              <br />
-              <Text strong>{record.vessel_name}</Text>
-            </Col>
-            <Col span={8}>
-              <Text type="secondary">Tank:</Text>
-              <br />
-              <Text strong>{record.tank_number}</Text>
-            </Col>
-            <Col span={8}>
-              <Text type="secondary">Jenis Sampel:</Text>
-              <br />
-              <Text strong>{record.sample_type}</Text>
-            </Col>
-            <Col span={8}>
-              <Text type="secondary">Tanggal Diterima:</Text>
-              <br />
-              <Text strong>
-                {dayjs(record.received_date).format('DD MMMM YYYY, HH:mm')}
-              </Text>
-            </Col>
-            <Col span={8}>
-              <Text type="secondary">Teknisi:</Text>
-              <br />
-              <Text strong>{record.lab_technician}</Text>
-            </Col>
-          </Row>
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Nomor NPC">
+              {record.nomorNpc || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Order Number">
+              {record.order_number || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Jenis Sampel">
+              {record.sample_type || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Kategori Tes">
+              {record.categoryTestName ? (
+                <Tag color="blue">{record.categoryTestName}</Tag>
+              ) : (
+                '-'
+              )}
+            </Descriptions.Item>
+            <Descriptions.Item label="Kapal/Tangki">
+              {record.sample?.shipName || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Diterima">
+              {record.received_date && dayjs(record.received_date).isValid()
+                ? dayjs(record.received_date).format('DD/MM/YYYY')
+                : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Prioritas">
+              {record.priority ? (
+                <Tag color={getPriorityColor(record.priority)}>
+                  {record.priority.toUpperCase()}
+                </Tag>
+              ) : (
+                '-'
+              )}
+            </Descriptions.Item>
+            <Descriptions.Item label="Dibuat Pada">
+              {record.createdAt
+                ? dayjs(record.createdAt).format('DD/MM/YYYY HH:mm')
+                : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Catatan">
+              {record.notes || '-'}
+            </Descriptions.Item>
+          </Descriptions>
         </Card>
 
         <Divider orientation="left" orientationMargin="0">
@@ -196,20 +416,61 @@ const TestingReportModal: React.FC<TestingReportModalProps> = ({
           </Text>
         </Divider>
 
-        {/* Test Results Table */}
-        <Table
-          columns={reportColumns}
-          dataSource={reportData}
-          pagination={false}
-          bordered
-          size="middle"
-          scroll={{ x: 600 }}
-          style={{
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            borderRadius: '8px',
-            overflow: 'hidden',
-          }}
-        />
+        <Card
+          size="small"
+          bodyStyle={{ padding: 16 }}
+          style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginBottom: 16 }}
+        >
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '40px 1fr 140px 220px 1fr',
+              gap: '8px',
+              backgroundColor: '#fafafa',
+              padding: '10px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 600,
+              border: '1px solid #d9d9d9',
+              marginBottom: 8,
+            }}
+          >
+            <div>No.</div>
+            <div>Property</div>
+            <div>Units</div>
+            <div>Method</div>
+            <div>Results</div>
+          </div>
+          <Spin spinning={isLoading}>
+            {detailedResults.map((item, index) => (
+              <div
+                key={item.key}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '40px 1fr 140px 220px 1fr',
+                  gap: '8px',
+                  padding: '10px',
+                  borderBottom: '1px solid #f0f0f0',
+                  alignItems: 'center',
+                  fontSize: '12px',
+                }}
+              >
+                <div style={{ color: '#888' }}>{index + 1}</div>
+                <div style={{ fontWeight: 500 }}>{item.name}</div>
+                <div style={{ color: '#666' }}>{item.unit}</div>
+                <div style={{ color: '#666' }}>{item.method}</div>
+                <div style={{ fontWeight: 600 }}>{item.value}</div>
+              </div>
+            ))}
+            {!isLoading && !detailedResults.length && (
+              <div style={{ padding: '16px', textAlign: 'center' }}>
+                <Text type="secondary">
+                  Belum ada hasil pengujian yang tersedia.
+                </Text>
+              </div>
+            )}
+          </Spin>
+        </Card>
 
         {record.quality_notes && (
           <Card

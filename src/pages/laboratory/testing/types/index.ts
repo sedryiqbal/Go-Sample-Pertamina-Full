@@ -4,6 +4,7 @@ export interface TestingRecord {
   tanggalOrder?: string;
   nomorNpc?: string;
   categoryTestName?: string;
+  categoryTestId?: number | string;
   etaArival?: string;
   status?: number;
   priority?: 'normal' | 'urgent' | 'critical' | string;
@@ -49,6 +50,22 @@ export interface TestingRecord {
     satuanName?: string;
     status?: string;
   };
+  receivedAt?: string;
+  receivedBy?: string;
+  confirmedAt?: string;
+  confirmedBy?: string;
+  confirmedReason?: string;
+  registeredAt?: string;
+  registeredBy?: string;
+  registeredReason?: string;
+  testedAt?: string;
+  testedBy?: string;
+  completedAt?: string;
+  completedBy?: string;
+  completedReason?: string;
+  canceledAt?: string;
+  canceledBy?: string;
+  canceledReason?: string;
 }
 
 export interface AuditLog {
