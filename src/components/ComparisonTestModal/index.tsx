@@ -4,9 +4,11 @@ import {
   ExperimentOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
-import { Card, Col, Modal, Row, Statistic, Table, Tag, Typography } from 'antd';
+import { Card, Col, message, Modal, Row, Spin, Statistic, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
+import { fetchComparisonResult } from '../../services/comparison';
+import type { ComparisonResult } from '../../services/comparison';
 
 const { Text, Title } = Typography;
 
@@ -34,178 +36,80 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
   onClose,
   sampleData,
 }) => {
-  const [comparisonData, setComparisonData] = useState<ComparisonTestData[]>(
-    [],
-  );
+  const [comparisonData, setComparisonData] = useState<ComparisonTestData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [resultInfo, setResultInfo] = useState<ComparisonResult | null>(null);
 
-  // Mock comparison test data based on the image
+  // Fetch comparison result data
   useEffect(() => {
-    const mockData: ComparisonTestData[] = [
-      {
-        key: 'colour_saybolt',
-        properties: 'Colour Saybolt',
-        limits: 'Report',
-        avg_coq: 20.0,
-        tr_short_test: 19.0,
-        difference: 1.0,
-        allowable_difference: 'Referred to Limits',
-        status: 'onspec',
-      },
-      {
-        key: 'distillation_header',
-        properties: 'Distillation',
-        limits: '',
-        avg_coq: null,
-        tr_short_test: null,
-        difference: null,
-        allowable_difference: '',
-        status: 'onspec',
-        isHeader: true,
-      },
-      {
-        key: 'ibp',
-        properties: '- IBP',
-        limits: 'Report',
-        avg_coq: 154.0,
-        tr_short_test: 149.0,
-        difference: 4.9,
-        allowable_difference: '0',
-        status: 'onspec',
-      },
-      {
-        key: 'ten_percent',
-        properties: '- 10%',
-        limits: 'Max 203',
-        avg_coq: 204.0,
-        tr_short_test: 172.0,
-        difference: 32.0,
-        allowable_difference: 'Max 8',
-        status: 'offspec',
-      },
-      {
-        key: 'fifty_percent',
-        properties: '- 50%',
-        limits: 'Report',
-        avg_coq: 196.0,
-        tr_short_test: 195.0,
-        difference: 0.9,
-        allowable_difference: 'Max 8',
-        status: 'onspec',
-      },
-      {
-        key: 'ninety_percent',
-        properties: '- 90%',
-        limits: 'Report',
-        avg_coq: 228.5,
-        tr_short_test: 227.0,
-        difference: 1.5,
-        allowable_difference: 'Max 8',
-        status: 'onspec',
-      },
-      {
-        key: 'end_point',
-        properties: '- End point',
-        limits: 'Max 300',
-        avg_coq: 250.9,
-        tr_short_test: 245.0,
-        difference: 5.8,
-        allowable_difference: 'Max 8',
-        status: 'onspec',
-      },
-      {
-        key: 'residue',
-        properties: '- Residue',
-        limits: 'Max 1.5',
-        avg_coq: 1.0,
-        tr_short_test: 1.0,
-        difference: 4.0,
-        allowable_difference: '0',
-        status: 'onspec',
-      },
-      {
-        key: 'loss',
-        properties: '- Loss',
-        limits: 'Max 1.5',
-        avg_coq: 0.9,
-        tr_short_test: 0.3,
-        difference: 0.6,
-        allowable_difference: '0',
-        status: 'onspec',
-      },
-      {
-        key: 'flash_point',
-        properties: 'Flash Point',
-        limits: 'Min 38',
-        avg_coq: 40.3,
-        tr_short_test: 42.0,
-        difference: 1.8,
-        allowable_difference: 'Max 3',
-        status: 'onspec',
-      },
-      {
-        key: 'density_15',
-        properties: 'Density 15',
-        limits: 'Min 775.0 : Max 840.0',
-        avg_coq: 797.5,
-        tr_short_test: 797.1,
-        difference: 0.4,
-        allowable_difference: 'Max 3',
-        status: 'onspec',
-      },
-      {
-        key: 'freezing_point',
-        properties: 'Freezing Point',
-        limits: 'Max (-) 47.0',
-        avg_coq: -55.8,
-        tr_short_test: -56.2,
-        difference: 0.5,
-        allowable_difference: 'Max 3',
-        status: 'onspec',
-      },
-      {
-        key: 'msep',
-        properties: 'Msep',
-        limits: 'With SDA = Min 70 / W/O SDA = Min 85',
-        avg_coq: 98.0,
-        tr_short_test: 90.0,
-        difference: 8.0,
-        allowable_difference: 'Referred to Limits',
-        status: 'onspec',
-      },
-      {
-        key: 'corrosion_cs',
-        properties: 'Corrosion CS',
-        limits: 'Max no.1',
-        avg_coq: '1A',
-        tr_short_test: '1A',
-        difference: '1A',
-        allowable_difference: 'Referred to Limits',
-        status: 'onspec',
-      },
-      {
-        key: 'existent_gum',
-        properties: 'Existent Gum',
-        limits: 'Max 7',
-        avg_coq: 2.0,
-        tr_short_test: 2.0,
-        difference: 0.0,
-        allowable_difference: 'Referred to Limits',
-        status: 'onspec',
-      },
-    ];
+    const loadData = async () => {
+      if (!visible || !sampleData?.id) return;
 
-    setComparisonData(mockData);
-  }, []);
+      setLoading(true);
+      try {
+        const sampleOrderId = parseInt(sampleData.id, 10);
+        const result = await fetchComparisonResult(sampleOrderId);
 
-  // Calculate statistics
+        if (result) {
+          setResultInfo(result);
+          
+          // Map API result to table format
+          const tableData: ComparisonTestData[] = result.results.map((item) => ({
+            key: `property_${item.propertyTestId}`,
+            properties: item.propertyName,
+            limits: 'Report', // This could come from API if available
+            avg_coq: item.avgCoq,
+            tr_short_test: item.labTestingCoq,
+            difference: item.difference,
+            allowable_difference: 'Referred to Limits', // This could come from API if available
+            status: item.isOnSpecification ? 'onspec' : 'offspec',
+          }));
+
+          setComparisonData(tableData);
+        } else {
+          setComparisonData([]);
+          message.warning('Tidak ada data comparison result');
+        }
+      } catch (error) {
+        console.error('Failed to fetch comparison result:', error);
+        message.error('Gagal memuat data comparison result');
+        setComparisonData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [visible, sampleData?.id]);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!visible) {
+      setComparisonData([]);
+      setResultInfo(null);
+    }
+  }, [visible]);
+
+  // Calculate statistics from result info or fallback to calculated values
   const stats = {
-    total: comparisonData.filter((item) => !item.isHeader).length,
-    onspec: comparisonData.filter(
+    total: resultInfo?.totalParameters ?? comparisonData.filter((item) => !item.isHeader).length,
+    onspec: resultInfo?.onSpecification ?? comparisonData.filter(
       (item) => !item.isHeader && item.status === 'onspec',
     ).length,
-    offspec: comparisonData.filter(
+    offspec: resultInfo?.offSpecification ?? comparisonData.filter(
       (item) => !item.isHeader && item.status === 'offspec',
     ).length,
+  };
+
+  // Display info from API or sampleData
+  const displayInfo = {
+    sampleId: resultInfo?.sampleId || sampleData?.sample_id || '-',
+    orderNo: resultInfo?.orderNo || sampleData?.order_number || '-',
+    sampleType: resultInfo?.sampleType || sampleData?.sample_type || '-',
+    vesselName: resultInfo?.vesselName || sampleData?.vessel_name || '-',
+    labName: resultInfo?.labName || '-',
+    createdBy: resultInfo?.createdBy || '-',
+    createdAt: resultInfo?.createdAt || '-',
   };
 
   // Generate table columns
@@ -372,9 +276,7 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
               Comparison Test Results
             </Title>
             <Text type="secondary" style={{ fontSize: '12px' }}>
-              {sampleData
-                ? `${sampleData.sample_id} • ${sampleData.sample_type}`
-                : 'Hasil komparasi otomatis dari backend'}
+              {displayInfo.sampleId} • {displayInfo.sampleType}
             </Text>
           </div>
         </div>
@@ -385,9 +287,9 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
       style={{ top: 20 }}
       footer={null}
     >
-      <div style={{ maxHeight: '75vh', overflowY: 'auto', padding: '0 4px' }}>
-        {/* Sample Information Header */}
-        {sampleData && (
+      <Spin spinning={loading} tip="Memuat data...">
+        <div style={{ maxHeight: '75vh', overflowY: 'auto', padding: '0 4px' }}>
+          {/* Sample Information Header */}
           <Card
             size="small"
             style={{
@@ -402,7 +304,7 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
                   Sample ID:
                 </Text>
                 <div style={{ fontSize: '14px', fontWeight: 600 }}>
-                  {sampleData.sample_id}
+                  {displayInfo.sampleId}
                 </div>
               </Col>
               <Col span={6}>
@@ -410,7 +312,7 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
                   Order Number:
                 </Text>
                 <div style={{ fontSize: '14px', fontWeight: 600 }}>
-                  {sampleData.order_number}
+                  {displayInfo.orderNo}
                 </div>
               </Col>
               <Col span={6}>
@@ -418,7 +320,7 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
                   Sample Type:
                 </Text>
                 <div style={{ fontSize: '14px', fontWeight: 600 }}>
-                  {sampleData.sample_type}
+                  {displayInfo.sampleType}
                 </div>
               </Col>
               <Col span={6}>
@@ -426,12 +328,31 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
                   Vessel:
                 </Text>
                 <div style={{ fontSize: '14px', fontWeight: 600 }}>
-                  {sampleData.vessel_name}
+                  {displayInfo.vesselName}
                 </div>
               </Col>
             </Row>
+            {resultInfo && (
+              <Row gutter={16} style={{ marginTop: 12 }}>
+                <Col span={6}>
+                  <Text strong style={{ color: '#fa8c16' }}>
+                    Lab:
+                  </Text>
+                  <div style={{ fontSize: '14px', fontWeight: 600 }}>
+                    {displayInfo.labName}
+                  </div>
+                </Col>
+                <Col span={6}>
+                  <Text strong style={{ color: '#fa8c16' }}>
+                    Created By:
+                  </Text>
+                  <div style={{ fontSize: '14px', fontWeight: 600 }}>
+                    {displayInfo.createdBy}
+                  </div>
+                </Col>
+              </Row>
+            )}
           </Card>
-        )}
 
         {/* Statistics Cards */}
         <Row gutter={16} style={{ marginBottom: 16 }}>
@@ -605,7 +526,8 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
             </Col>
           </Row>
         </Card>
-      </div>
+        </div>
+      </Spin>
     </Modal>
   );
 };

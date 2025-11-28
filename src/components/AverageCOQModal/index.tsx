@@ -16,20 +16,33 @@ import {
   message,
   Row,
   Space,
+  Spin,
   Table,
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
+import {
+  fetchExistingComparisons,
+  fetchPropertyTestsBySampleOrder,
+  fetchSampleOrderDetail,
+  saveComparisons,
+} from '../../services/comparison';
+import type {
+  PropertyTest,
+  SampleOrderDetail,
+  SaveComparisonsRequest,
+} from '../../services/comparison';
 
 const { Text, Title } = Typography;
 
 // Interface untuk data parameter COQ
 interface COQParameterData {
   key: string;
+  propertyTestId: number;
   parameter: string;
-  tanks: { [tankNumber: string]: number | string | null };
-  average: number | string | null;
+  tanks: { [tankNumber: string]: number | null };
+  average: number | null;
 }
 
 interface AverageCOQModalProps {
@@ -46,72 +59,127 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
   onSubmit,
 }) => {
   const [_form] = Form.useForm();
-  const [tankNumbers, setTankNumbers] = useState<string[]>(['1201', '1203']);
+  const [tankNumbers, setTankNumbers] = useState<string[]>(['1001', '1002']);
   const [tableData, setTableData] = useState<COQParameterData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [sampleOrderDetail, setSampleOrderDetail] = useState<SampleOrderDetail | null>(null);
+  const [_propertyTests, setPropertyTests] = useState<PropertyTest[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
 
-  // Initialize table data with parameters
+  // Load data when modal opens
   useEffect(() => {
-    const initData: COQParameterData[] = [
-      {
-        key: 'colour_saybolt',
-        parameter: 'Colour Saybolt',
-        tanks: {},
-        average: null,
-      },
-      {
-        key: 'distillation',
-        parameter: 'Distillation',
-        tanks: {},
-        average: null,
-      },
-      { key: 'ibp', parameter: '- IBP', tanks: {}, average: null },
-      { key: 'ten_percent', parameter: '- 10%', tanks: {}, average: null },
-      { key: 'fifty_percent', parameter: '- 50%', tanks: {}, average: null },
-      { key: 'ninety_percent', parameter: '- 90%', tanks: {}, average: null },
-      { key: 'end_point', parameter: '- End point', tanks: {}, average: null },
-      { key: 'residue', parameter: '- Residue', tanks: {}, average: null },
-      { key: 'loss', parameter: '- Loss', tanks: {}, average: null },
-      {
-        key: 'flash_point',
-        parameter: 'Flash Point',
-        tanks: {},
-        average: null,
-      },
-      { key: 'density_15', parameter: 'Density 15', tanks: {}, average: null },
-      {
-        key: 'freezing_point',
-        parameter: 'Freezing Point',
-        tanks: {},
-        average: null,
-      },
-      { key: 'msep', parameter: 'Msep', tanks: {}, average: null },
-      {
-        key: 'corrosion_cs',
-        parameter: 'Corrosion CS',
-        tanks: {},
-        average: null,
-      },
-      {
-        key: 'existent_gum',
-        parameter: 'Existent Gum',
-        tanks: {},
-        average: null,
-      },
-    ];
+    const loadData = async () => {
+      if (!visible || !sampleData?.id) return;
 
-    // Initialize tanks for each parameter
-    tankNumbers.forEach((tankNum) => {
-      initData.forEach((param) => {
-        param.tanks[tankNum] = null;
-      });
-    });
+      setLoading(true);
+      try {
+        // Fetch property tests, sample order detail, and existing comparisons in parallel
+        const sampleOrderId = parseInt(sampleData.id, 10);
+        const [tests, detail, existingData] = await Promise.all([
+          fetchPropertyTestsBySampleOrder(sampleOrderId),
+          fetchSampleOrderDetail(sampleOrderId),
+          fetchExistingComparisons(sampleOrderId),
+        ]);
 
-    setTableData(initData);
-  }, [tankNumbers]);
+        setPropertyTests(tests);
+        setSampleOrderDetail(detail);
+
+        // Check if we have existing data
+        const hasExistingData = existingData && existingData.length > 0;
+        setIsEditMode(hasExistingData);
+
+        // Determine tank numbers - use existing data tanks or default
+        let tankNumbersToUse = ['1001', '1002'];
+        if (hasExistingData) {
+          const tankNumbersSet = new Set<string>();
+          existingData.forEach((item) => {
+            item.tankData.forEach((tank) => {
+              tankNumbersSet.add(String(tank.noTanki));
+            });
+          });
+          const existingTankNumbers = Array.from(tankNumbersSet).sort();
+          tankNumbersToUse = existingTankNumbers.length > 0 ? existingTankNumbers : ['1001', '1002'];
+        }
+        setTankNumbers(tankNumbersToUse);
+
+        // Create a map of existing data by propertyTestId for quick lookup
+        const existingDataMap = new Map<number, typeof existingData[0]>();
+        if (hasExistingData) {
+          existingData.forEach((item) => {
+            existingDataMap.set(item.propertyTestId, item);
+          });
+        }
+
+        // Always use property tests as the base and merge with existing data
+        const initData: COQParameterData[] = tests.map((test) => {
+          const existingItem = existingDataMap.get(test.id);
+          
+          // Initialize tanks object with all tank numbers
+          const tanks: { [tankNumber: string]: number | null } = {};
+          tankNumbersToUse.forEach((tankNum) => {
+            tanks[tankNum] = null; // Default to null
+          });
+
+          // If we have existing data for this property test, fill in the values
+          if (existingItem) {
+            existingItem.tankData.forEach((tank) => {
+              tanks[String(tank.noTanki)] = tank.coq;
+            });
+          }
+
+          // Calculate average from tank data
+          const values = Object.values(tanks).filter(
+            (v) => v !== null && v !== undefined,
+          ) as number[];
+          const average =
+            values.length > 0
+              ? values.reduce((sum, val) => sum + val, 0) / values.length
+              : null;
+
+          return {
+            key: `property_${test.id}`,
+            propertyTestId: test.id,
+            parameter: test.title,
+            tanks,
+            average,
+          };
+        });
+
+        setTableData(initData);
+      } catch (error) {
+        console.error('Failed to load COQ data:', error);
+        message.error('Gagal memuat data properti test');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [visible, sampleData?.id]);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!visible) {
+      setTableData([]);
+      setPropertyTests([]);
+      setSampleOrderDetail(null);
+      setTankNumbers(['1001', '1002']);
+      setIsEditMode(false);
+    }
+  }, [visible]);
 
   const handleAddTank = () => {
-    const newTankNumber = `12${(tankNumbers.length + 1).toString().padStart(2, '0')}`;
-    setTankNumbers([...tankNumbers, newTankNumber]);
+    const newTankNumber = `${1000 + tankNumbers.length + 1}`;
+    const newTankNumbers = [...tankNumbers, newTankNumber];
+    setTankNumbers(newTankNumbers);
+
+    // Update table data with new tank column
+    const updatedData = tableData.map((row) => ({
+      ...row,
+      tanks: { ...row.tanks, [newTankNumber]: null },
+    }));
+    setTableData(updatedData);
   };
 
   const handleRemoveTank = (tankNumber: string) => {
@@ -123,10 +191,20 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
     const newTankNumbers = tankNumbers.filter((num) => num !== tankNumber);
     setTankNumbers(newTankNumbers);
 
-    // Update table data by removing the tank column
+    // Update table data by removing the tank column and recalculate average
     const updatedData = tableData.map((row) => {
       const { [tankNumber]: _removed, ...restTanks } = row.tanks;
-      return { ...row, tanks: restTanks };
+      
+      // Recalculate average after removing tank
+      const values = Object.values(restTanks).filter(
+        (v) => v !== null && v !== undefined,
+      ) as number[];
+      const average =
+        values.length > 0
+          ? values.reduce((sum, val) => sum + val, 0) / values.length
+          : null;
+
+      return { ...row, tanks: restTanks, average };
     });
     setTableData(updatedData);
   };
@@ -160,7 +238,7 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
 
         // Calculate average
         const values = Object.values(newTanks).filter(
-          (v) => v !== null && v !== '',
+          (v) => v !== null && v !== undefined,
         ) as number[];
         const average =
           values.length > 0
@@ -174,9 +252,9 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
     setTableData(updatedData);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const hasData = tableData.some((row) =>
-      Object.values(row.tanks).some((value) => value !== null && value !== ''),
+      Object.values(row.tanks).some((value) => value !== null && value !== undefined),
     );
 
     if (!hasData) {
@@ -184,9 +262,43 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
       return;
     }
 
-    onSubmit(tableData);
-    message.success('Average COQ berhasil disimpan');
-    onClose();
+    setSaving(true);
+    try {
+      // Build the request payload
+      const comparisons = tableData
+        .filter((row) =>
+          Object.values(row.tanks).some((value) => value !== null && value !== undefined),
+        )
+        .map((row) => ({
+          propertyTestId: row.propertyTestId,
+          tankData: Object.entries(row.tanks)
+            .filter(([_, value]) => value !== null && value !== undefined)
+            .map(([tankNum, value]) => ({
+              noTanki: parseInt(tankNum, 10),
+              coq: value as number,
+            })),
+        }));
+
+      const requestData: SaveComparisonsRequest = {
+        sampleOrderId: parseInt(sampleData.id, 10),
+        comparisons,
+      };
+
+      const response = await saveComparisons(requestData);
+
+      if (response?.status) {
+        message.success('Average COQ berhasil disimpan');
+        onSubmit(tableData);
+        onClose();
+      } else {
+        message.error(response?.message || 'Gagal menyimpan data');
+      }
+    } catch (error) {
+      console.error('Failed to save comparisons:', error);
+      message.error('Gagal menyimpan Average COQ');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Generate table columns
@@ -305,6 +417,14 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
     onClose();
   };
 
+  // Display information - use API data if available, fall back to sampleData
+  const displayInfo = {
+    sampleId: sampleOrderDetail?.sampleId || sampleData?.sample_id || '-',
+    orderNo: sampleOrderDetail?.orderNo || sampleData?.order_number || '-',
+    sampleType: sampleOrderDetail?.sampleType || sampleData?.sample_type || '-',
+    vessel: sampleOrderDetail?.vessel || sampleData?.vessel_name || '-',
+  };
+
   return (
     <Modal
       title={
@@ -312,11 +432,11 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
           <ExperimentOutlined style={{ color: '#52c41a', fontSize: '18px' }} />
           <div>
             <Title level={4} style={{ margin: 0, color: '#262626' }}>
-              Average COQ Input
+              {isEditMode ? 'Edit Average COQ' : 'Average COQ Input'}
             </Title>
             <Text type="secondary" style={{ fontSize: '12px' }}>
               {sampleData
-                ? `${sampleData.sample_id} • ${sampleData.sample_type}`
+                ? `${displayInfo.sampleId} • ${displayInfo.sampleType}`
                 : 'Input nilai rata-rata COQ per tangki'}
             </Text>
           </div>
@@ -338,28 +458,31 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
             icon={<PlusOutlined />}
             onClick={handleAddTank}
             style={{ borderColor: '#52c41a', color: '#52c41a' }}
+            disabled={loading || saving}
           >
             Tambah Tangki
           </Button>
           <Space>
-            <Button icon={<CloseOutlined />} onClick={handleClose}>
+            <Button icon={<CloseOutlined />} onClick={handleClose} disabled={saving}>
               Batal
             </Button>
             <Button
               type="primary"
               icon={<SaveOutlined />}
               onClick={handleSubmit}
+              loading={saving}
+              disabled={loading || tableData.length === 0}
               style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
             >
-              Simpan Average COQ
+              {isEditMode ? 'Update Average COQ' : 'Simpan Average COQ'}
             </Button>
           </Space>
         </div>
       }
     >
-      <div style={{ maxHeight: '70vh', overflowY: 'auto', padding: '0 4px' }}>
-        {/* Sample Information Header */}
-        {sampleData && (
+      <Spin spinning={loading || saving} tip={loading ? 'Memuat data...' : 'Menyimpan...'}>
+        <div style={{ maxHeight: '70vh', overflowY: 'auto', padding: '0 4px' }}>
+          {/* Sample Information Header */}
           <Card
             size="small"
             style={{
@@ -374,7 +497,7 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
                   Sample ID:
                 </Text>
                 <div style={{ fontSize: '14px', fontWeight: 600 }}>
-                  {sampleData.sample_id}
+                  {displayInfo.sampleId}
                 </div>
               </Col>
               <Col span={6}>
@@ -382,7 +505,7 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
                   Order Number:
                 </Text>
                 <div style={{ fontSize: '14px', fontWeight: 600 }}>
-                  {sampleData.order_number}
+                  {displayInfo.orderNo}
                 </div>
               </Col>
               <Col span={6}>
@@ -390,7 +513,7 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
                   Sample Type:
                 </Text>
                 <div style={{ fontSize: '14px', fontWeight: 600 }}>
-                  {sampleData.sample_type}
+                  {displayInfo.sampleType}
                 </div>
               </Col>
               <Col span={6}>
@@ -398,12 +521,11 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
                   Vessel:
                 </Text>
                 <div style={{ fontSize: '14px', fontWeight: 600 }}>
-                  {sampleData.vessel_name}
+                  {displayInfo.vessel}
                 </div>
               </Col>
             </Row>
           </Card>
-        )}
 
         {/* COQ Table */}
         <Card
@@ -445,16 +567,24 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
               }
             `}
           </style>
-          <Table
-            columns={generateColumns()}
-            dataSource={tableData}
-            pagination={false}
-            size="small"
-            bordered
-            scroll={{ x: 'max-content' }}
-            rowKey="key"
-            className="coq-table"
-          />
+          {tableData.length > 0 ? (
+            <Table
+              columns={generateColumns()}
+              dataSource={tableData}
+              pagination={false}
+              size="small"
+              bordered
+              scroll={{ x: 'max-content' }}
+              rowKey="key"
+              className="coq-table"
+            />
+          ) : (
+            !loading && (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#8c8c8c' }}>
+                Tidak ada data property test tersedia
+              </div>
+            )
+          )}
         </Card>
 
         {/* Summary Information */}
@@ -496,7 +626,7 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
                     (sum, row) =>
                       sum +
                       Object.values(row.tanks).filter(
-                        (val) => val !== null && val !== '',
+                        (val) => val !== null && val !== undefined,
                       ).length,
                     0,
                   )}
@@ -524,7 +654,8 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
             </Col>
           </Row>
         </Card>
-      </div>
+        </div>
+      </Spin>
     </Modal>
   );
 };

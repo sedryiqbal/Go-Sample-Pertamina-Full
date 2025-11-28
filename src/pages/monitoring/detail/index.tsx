@@ -2,29 +2,22 @@ import {
   ArrowLeftOutlined,
   CarOutlined,
   ClockCircleOutlined,
-  EditOutlined,
-  EnvironmentOutlined,
-  MessageOutlined,
   PhoneOutlined,
   ReloadOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import { history, useParams } from '@umijs/max';
 import {
-  Alert,
-  Badge,
   Button,
   Card,
   Col,
   Descriptions,
-  Form,
-  Input,
-  Modal,
   message,
   Progress,
   Row,
-  Select,
   Space,
+  Spin,
   Statistic,
   Steps,
   Tag,
@@ -32,219 +25,58 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  getMonitoringSampleOrderDetail,
+  MonitoringStatus,
+} from '@/services/monitoring';
+import type { MonitoringSampleOrderDetail } from '@/services/monitoring';
 
 dayjs.extend(relativeTime);
 
-interface DetailMonitoringData {
-  id: string;
-  tracking_number: string;
-  sample_type: string;
-  vessel_name: string;
-  tank_number: string;
-  order_type: 'stock' | 'request';
-  order_number: string;
-  current_status: string;
-  current_location: string;
-  lab_destination: string;
-  sample_officer: string;
-  priority: 'normal' | 'urgent' | 'critical';
-  estimated_arrival: string;
-  actual_arrival?: string;
-  progress_percentage: number;
-  last_update: string;
-  contact_info: {
-    officer_phone: string;
-    lab_phone: string;
-    emergency_contact: string;
-  };
-  timeline_events: Array<{
-    timestamp: string;
-    status: string;
-    location: string;
-    description: string;
-    type: 'info' | 'success' | 'warning' | 'error';
-    details?: string;
-    updated_by?: string;
-  }>;
-  route_info: {
-    origin: string;
-    destination: string;
-    distance: string;
-    estimated_duration: string;
-    current_position: string;
-    traffic_condition: 'normal' | 'heavy' | 'jam';
-  };
-  sample_details: {
-    quantity: number;
-    unit: string;
-    category: string;
-    temperature_condition: string;
-    special_handling?: string;
-  };
-}
-
 const MonitoringDetail: React.FC = () => {
   const { id } = useParams();
-  const [updateModalVisible, setUpdateModalVisible] = useState(false);
-  const [contactModalVisible, setContactModalVisible] = useState(false);
-  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(true);
+  const [detailData, setDetailData] = useState<MonitoringSampleOrderDetail | null>(null);
 
-  // Mock data - in real app, this would be fetched based on ID
-  const detailData: DetailMonitoringData = {
-    id: id || '1',
-    tracking_number: 'TRK-20250806-001',
-    sample_type: 'JET A-1',
-    vessel_name: 'MT. Commodore One',
-    tank_number: 'T.107',
-    order_type: 'stock',
-    order_number: 'SO-20250806-001',
-    current_status: 'in_transit',
-    current_location: 'Jalan Tol Cikampek KM 15',
-    lab_destination: 'LPUJ - Priok',
-    sample_officer: 'Moch. Aby Gazal',
-    priority: 'urgent',
-    estimated_arrival: '2025-08-06 11:30',
-    progress_percentage: 65,
-    last_update: '2025-08-06 10:45:00',
-    contact_info: {
-      officer_phone: '+62-812-3456-7890',
-      lab_phone: '+62-21-1234-5678',
-      emergency_contact: '+62-811-9999-8888',
-    },
-    timeline_events: [
-      {
-        timestamp: '2025-08-06 08:30:00',
-        status: 'pending',
-        location: 'SHAFTI',
-        description: 'Pesanan stock dibuat',
-        type: 'info',
-        details: 'Pesanan dibuat melalui sistem kalender stock',
-        updated_by: 'System Auto',
-      },
-      {
-        timestamp: '2025-08-06 09:00:00',
-        status: 'picked_up',
-        location: 'SHAFTI',
-        description: 'Sampel diambil oleh Sample Officer',
-        type: 'success',
-        details:
-          'Sampel JET A-1 4 botol diambil dari storage. Kondisi normal, tidak ada kerusakan.',
-        updated_by: 'Moch. Aby Gazal',
-      },
-      {
-        timestamp: '2025-08-06 09:30:00',
-        status: 'in_transit',
-        location: 'Jalan Raya Jakarta-Cikampek',
-        description: 'Perjalanan menuju lab dimulai',
-        type: 'info',
-        details: 'Kondisi lalu lintas normal, estimasi tiba sesuai rencana',
-        updated_by: 'Moch. Aby Gazal',
-      },
-      {
-        timestamp: '2025-08-06 10:15:00',
-        status: 'in_transit',
-        location: 'Jalan Tol Cikampek KM 10',
-        description: 'Update lokasi otomatis',
-        type: 'info',
-        details: 'GPS tracking update',
-        updated_by: 'System Auto',
-      },
-      {
-        timestamp: '2025-08-06 10:45:00',
-        status: 'in_transit',
-        location: 'Jalan Tol Cikampek KM 15',
-        description: 'Lalu lintas mulai padat, kemungkinan terlambat 15 menit',
-        type: 'warning',
-        details: 'Terjadi kemacetan di KM 18-20, mencari rute alternatif',
-        updated_by: 'Moch. Aby Gazal',
-      },
-    ],
-    route_info: {
-      origin: 'SHAFTI - Soekarno Hatta',
-      destination: 'LPUJ - Tanjung Priok',
-      distance: '35 km',
-      estimated_duration: '2 jam 30 menit',
-      current_position: 'Jalan Tol Cikampek KM 15',
-      traffic_condition: 'heavy',
-    },
-    sample_details: {
-      quantity: 4,
-      unit: 'botol',
-      category: 'Import Sample',
-      temperature_condition: 'Room Temperature',
-      special_handling: 'Avoid direct sunlight, handle with care',
-    },
-  };
+  const fetchDetailData = useCallback(async () => {
+    if (!id) return;
+    
+    setLoading(true);
+    try {
+      const response = await getMonitoringSampleOrderDetail(id);
+      setDetailData(response.data);
+    } catch (error) {
+      console.error('Failed to fetch detail data:', error);
+      message.error('Gagal memuat detail monitoring');
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchDetailData();
+  }, [fetchDetailData]);
 
   const handleBack = () => {
-    history.goBack();
+    history.back();
   };
 
-  const handleUpdateLocation = async (_values: any) => {
-    try {
-      message.success('Lokasi berhasil diupdate');
-      setUpdateModalVisible(false);
-      form.resetFields();
-    } catch (_error) {
-      message.error('Gagal update lokasi');
-    }
+  const handleRefresh = async () => {
+    await fetchDetailData();
+    message.success('Data berhasil diperbarui');
   };
 
-  const handleEmergencyContact = (type: string) => {
-    Modal.confirm({
-      title: `Hubungi ${type}`,
-      content: 'Apakah Anda ingin menghubungi kontak ini?',
-      onOk() {
-        message.info(`Menghubungi ${type}...`);
-      },
-    });
-  };
-
-  const _getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'default';
-      case 'picked_up':
-        return 'processing';
-      case 'in_transit':
-        return 'warning';
-      case 'lab_received':
-        return 'processing';
-      case 'testing':
-        return 'warning';
-      case 'completed':
-        return 'success';
-      case 'cancelled':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'Pending';
-      case 'picked_up':
-        return 'Diambil';
-      case 'in_transit':
-        return 'Dalam Perjalanan';
-      case 'lab_received':
-        return 'Lab Terima';
-      case 'testing':
-        return 'Pengujian';
-      case 'completed':
-        return 'Selesai';
-      case 'cancelled':
-        return 'Dibatalkan';
-      default:
-        return status;
+  const handleContact = (type: string, phone?: string) => {
+    if (phone) {
+      window.open(`tel:${phone}`, '_self');
+    } else {
+      message.info(`Menghubungi ${type}...`);
     }
   };
 
   const getPriorityColor = (priority: string) => {
-    switch (priority) {
+    switch (priority?.toLowerCase()) {
       case 'normal':
         return 'default';
       case 'urgent':
@@ -256,84 +88,85 @@ const MonitoringDetail: React.FC = () => {
     }
   };
 
-  const getTrafficColor = (condition: string) => {
-    switch (condition) {
-      case 'normal':
-        return 'success';
-      case 'heavy':
-        return 'warning';
-      case 'jam':
-        return 'error';
-      default:
-        return 'default';
-    }
+  const getCurrentStep = (statusValue: number) => {
+    // Map status value to step
+    // 0: Pending, 1: WaitingPickupSample, 2: InTransit, 3: Delivered
+    // 4: ConfirmSampleInLab, 5: RegisteredLabSample, 6: StartTesting
+    // 7: CompletedTesting, 8: Comparation, 9: CompletedComparation, 10: Canceled
+    if (statusValue <= MonitoringStatus.Pending) return 0;
+    if (statusValue === MonitoringStatus.WaitingPickupSample) return 1;
+    if (statusValue === MonitoringStatus.InTransit) return 2;
+    if (statusValue === MonitoringStatus.Delivered) return 3;
+    if (statusValue <= MonitoringStatus.RegisteredLabSample) return 4;
+    if (statusValue <= MonitoringStatus.CompletedTesting) return 5;
+    if (statusValue >= MonitoringStatus.Comparation) return 6;
+    return 0;
   };
 
-  const getCurrentStep = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 0;
-      case 'picked_up':
-        return 1;
-      case 'in_transit':
-        return 2;
-      case 'lab_received':
-        return 3;
-      case 'testing':
-        return 4;
-      case 'completed':
-        return 5;
-      default:
-        return 0;
+  const getTimelineColor = (_oldStatus: string, newStatus: string) => {
+    // Determine color based on status transition
+    if (newStatus.toLowerCase().includes('completed') || 
+        newStatus.toLowerCase().includes('delivered') ||
+        newStatus.toLowerCase().includes('confirmed')) {
+      return 'green';
     }
+    if (newStatus.toLowerCase().includes('canceled')) {
+      return 'red';
+    }
+    if (newStatus.toLowerCase().includes('transit') || 
+        newStatus.toLowerCase().includes('testing')) {
+      return 'orange';
+    }
+    return 'blue';
   };
+
+  if (loading) {
+    return (
+      <PageContainer>
+        <div style={{ textAlign: 'center', padding: 100 }}>
+          <Spin size="large" />
+        </div>
+      </PageContainer>
+    );
+  }
+
+  if (!detailData) {
+    return (
+      <PageContainer>
+        <div style={{ textAlign: 'center', padding: 100 }}>
+          <p>Data tidak ditemukan</p>
+          <Button onClick={handleBack}>Kembali</Button>
+        </div>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer
-      title={`Detail Tracking: ${detailData.tracking_number}`}
-      content={`Monitoring real-time untuk sampel ${detailData.sample_type} dari ${detailData.vessel_name}`}
+      title={`Detail Tracking: ${detailData.sampleInfo.orderNumber}`}
+      content={`Monitoring real-time untuk sampel ${detailData.sampleInfo.sampleType}`}
       extra={[
         <Button key="back" icon={<ArrowLeftOutlined />} onClick={handleBack}>
           Kembali
         </Button>,
         <Button
-          key="update"
-          type="primary"
-          icon={<EditOutlined />}
-          onClick={() => setUpdateModalVisible(true)}
-          style={{ backgroundColor: '#fd0017', borderColor: '#fd0017' }}
+          key="refresh"
+          icon={<ReloadOutlined />}
+          onClick={handleRefresh}
         >
-          Update Lokasi
-        </Button>,
-        <Button
-          key="contact"
-          icon={<PhoneOutlined />}
-          onClick={() => setContactModalVisible(true)}
-        >
-          Kontak Darurat
+          Refresh
         </Button>,
       ]}
     >
-      {/* Alert for urgent updates */}
-      {detailData.priority === 'urgent' && (
-        <Alert
-          message="Prioritas Urgent"
-          description="Sampel ini memiliki prioritas urgent. Pastikan monitoring dilakukan secara intensif."
-          type="warning"
-          showIcon
-          style={{ marginBottom: 24 }}
-        />
-      )}
-
       {/* Status Overview */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
               title="Status Saat Ini"
-              value={getStatusLabel(detailData.current_status)}
+              value={detailData.information.currentStatus}
               prefix={<CarOutlined style={{ color: '#fd0017' }} />}
-              valueStyle={{ color: '#fd0017' }}
+              valueStyle={{ color: '#fd0017', fontSize: 16 }}
             />
           </Card>
         </Col>
@@ -341,7 +174,7 @@ const MonitoringDetail: React.FC = () => {
           <Card>
             <Statistic
               title="Progress"
-              value={detailData.progress_percentage}
+              value={detailData.information.progress}
               suffix="%"
               prefix={<ClockCircleOutlined style={{ color: '#9fe400' }} />}
               valueStyle={{ color: '#9fe400' }}
@@ -352,7 +185,7 @@ const MonitoringDetail: React.FC = () => {
           <Card>
             <Statistic
               title="ETA"
-              value={dayjs(detailData.estimated_arrival).format('HH:mm')}
+              value={detailData.sampleInfo.etaArival ? dayjs(detailData.sampleInfo.etaArival).format('DD/MM HH:mm') : '-'}
               prefix={<ClockCircleOutlined style={{ color: '#faad14' }} />}
               valueStyle={{ color: '#faad14' }}
             />
@@ -362,9 +195,9 @@ const MonitoringDetail: React.FC = () => {
           <Card>
             <Statistic
               title="Last Update"
-              value={dayjs(detailData.last_update).fromNow()}
+              value={detailData.information.lastUpdatedFormatted || dayjs(detailData.information.lastUpdated).fromNow()}
               prefix={<ReloadOutlined style={{ color: '#0073fe' }} />}
-              valueStyle={{ color: '#0073fe' }}
+              valueStyle={{ color: '#0073fe', fontSize: 14 }}
             />
           </Card>
         </Col>
@@ -376,7 +209,7 @@ const MonitoringDetail: React.FC = () => {
           {/* Progress Steps */}
           <Card title="Progress Tracking" style={{ marginBottom: 16 }}>
             <Progress
-              percent={detailData.progress_percentage}
+              percent={detailData.information.progress}
               strokeColor="#9fe400"
               trailColor="#f0f0f0"
               style={{ marginBottom: 16 }}
@@ -384,23 +217,27 @@ const MonitoringDetail: React.FC = () => {
             <Steps
               direction="vertical"
               size="small"
-              current={getCurrentStep(detailData.current_status)}
+              current={getCurrentStep(detailData.information.statusValue)}
               items={[
                 {
                   title: 'Pesanan Dibuat',
                   description: 'Pesanan stock/request dibuat',
                 },
                 {
-                  title: 'Sampel Diambil',
-                  description: 'Sample officer mengambil sampel',
+                  title: 'Menunggu Pickup',
+                  description: 'Menunggu pengambilan sampel',
                 },
                 {
                   title: 'Dalam Perjalanan',
                   description: 'Perjalanan menuju laboratorium',
                 },
                 {
-                  title: 'Lab Terima',
-                  description: 'Sampel diterima laboratorium',
+                  title: 'Terkirim',
+                  description: 'Sampel telah dikirim',
+                },
+                {
+                  title: 'Diterima Lab',
+                  description: 'Sampel diterima & terdaftar di lab',
                 },
                 {
                   title: 'Pengujian',
@@ -418,73 +255,99 @@ const MonitoringDetail: React.FC = () => {
           <Card title="Informasi Sampel" style={{ marginBottom: 16 }}>
             <Descriptions column={1} size="small">
               <Descriptions.Item label="Order Number">
-                {detailData.order_number}
+                {detailData.sampleInfo.orderNumber}
               </Descriptions.Item>
               <Descriptions.Item label="Sample Type">
-                {detailData.sample_type}
+                {detailData.sampleInfo.sampleType}
               </Descriptions.Item>
               <Descriptions.Item label="Vessel/Tank">
-                {detailData.vessel_name} • {detailData.tank_number}
+                {detailData.sampleInfo.vesselTank}
               </Descriptions.Item>
               <Descriptions.Item label="Quantity">
-                {detailData.sample_details.quantity}{' '}
-                {detailData.sample_details.unit}
+                {detailData.sampleInfo.quantity}
               </Descriptions.Item>
               <Descriptions.Item label="Category">
-                {detailData.sample_details.category}
+                {detailData.sampleInfo.category}
               </Descriptions.Item>
-              <Descriptions.Item label="Temperature">
-                {detailData.sample_details.temperature_condition}
+              <Descriptions.Item label="Nomor NPC">
+                {detailData.sampleInfo.nomorNpc || '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="Special Handling">
-                {detailData.sample_details.special_handling || '-'}
+              <Descriptions.Item label="Tanggal Order">
+                {detailData.sampleInfo.tanggalOrder 
+                  ? dayjs(detailData.sampleInfo.tanggalOrder).format('DD/MM/YYYY HH:mm')
+                  : '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="ETA Arrival">
+                {detailData.sampleInfo.etaArival 
+                  ? dayjs(detailData.sampleInfo.etaArival).format('DD/MM/YYYY HH:mm')
+                  : '-'}
               </Descriptions.Item>
               <Descriptions.Item label="Priority">
-                <Tag color={getPriorityColor(detailData.priority)}>
-                  {detailData.priority.toUpperCase()}
+                <Tag color={getPriorityColor(detailData.sampleInfo.priority)}>
+                  {detailData.sampleInfo.priority?.toUpperCase() || 'NORMAL'}
                 </Tag>
               </Descriptions.Item>
+              {detailData.sampleInfo.notes && (
+                <Descriptions.Item label="Notes">
+                  {detailData.sampleInfo.notes}
+                </Descriptions.Item>
+              )}
             </Descriptions>
           </Card>
 
-          {/* Route Information */}
-          <Card title="Informasi Rute" style={{ marginBottom: 16 }}>
-            <Descriptions column={1} size="small">
-              <Descriptions.Item label="Asal">
-                {detailData.route_info.origin}
-              </Descriptions.Item>
-              <Descriptions.Item label="Tujuan">
-                {detailData.route_info.destination}
-              </Descriptions.Item>
-              <Descriptions.Item label="Jarak">
-                {detailData.route_info.distance}
-              </Descriptions.Item>
-              <Descriptions.Item label="Estimasi Durasi">
-                {detailData.route_info.estimated_duration}
-              </Descriptions.Item>
-              <Descriptions.Item label="Posisi Saat Ini">
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <EnvironmentOutlined
-                    style={{ color: '#fd0017', marginRight: 4 }}
-                  />
-                  {detailData.route_info.current_position}
+          {/* Contact Information */}
+          <Card title="Informasi Kontak" style={{ marginBottom: 16 }}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              {/* Lab Info */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px 0',
+                  borderBottom: '1px solid #f0f0f0',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 500 }}>
+                    Lab: {detailData.contactInfo.labInfo.name}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    {detailData.contactInfo.labInfo.description}
+                  </div>
                 </div>
-              </Descriptions.Item>
-              <Descriptions.Item label="Kondisi Lalu Lintas">
-                <Badge
-                  status={getTrafficColor(
-                    detailData.route_info.traffic_condition,
-                  )}
-                  text={
-                    detailData.route_info.traffic_condition === 'normal'
-                      ? 'Normal'
-                      : detailData.route_info.traffic_condition === 'heavy'
-                        ? 'Padat'
-                        : 'Macet'
-                  }
-                />
-              </Descriptions.Item>
-            </Descriptions>
+              </div>
+
+              {/* Driver Info */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px 0',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 500 }}>
+                    <UserOutlined style={{ marginRight: 8 }} />
+                    Driver: {detailData.contactInfo.driverInfo.name}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    {detailData.contactInfo.driverInfo.email}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    {detailData.contactInfo.driverInfo.phone}
+                  </div>
+                </div>
+                <Button
+                  size="small"
+                  icon={<PhoneOutlined />}
+                  onClick={() => handleContact('Driver', detailData.contactInfo.driverInfo.phone)}
+                >
+                  Call
+                </Button>
+              </div>
+            </Space>
           </Card>
         </Col>
 
@@ -493,32 +356,14 @@ const MonitoringDetail: React.FC = () => {
           {/* Timeline */}
           <Card title="Timeline Real-Time" style={{ marginBottom: 16 }}>
             <Timeline>
-              {detailData.timeline_events.map((event) => (
+              {detailData.timeline.map((event, index) => (
                 <Timeline.Item
-                  key={event.timestamp}
-                  color={
-                    event.type === 'success'
-                      ? 'green'
-                      : event.type === 'warning'
-                        ? 'orange'
-                        : event.type === 'error'
-                          ? 'red'
-                          : 'blue'
-                  }
+                  key={`${event.timeValue}-${index}`}
+                  color={getTimelineColor(event.oldStatus, event.newStatus)}
                 >
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ fontWeight: 500, marginBottom: 4 }}>
-                      {event.description}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '12px',
-                        color: '#666',
-                        marginBottom: 4,
-                      }}
-                    >
-                      <EnvironmentOutlined style={{ marginRight: 4 }} />
-                      {event.location}
+                      {event.oldStatus} → {event.newStatus}
                     </div>
                     <div
                       style={{
@@ -528,9 +373,9 @@ const MonitoringDetail: React.FC = () => {
                       }}
                     >
                       <ClockCircleOutlined style={{ marginRight: 4 }} />
-                      {dayjs(event.timestamp).format('DD/MM/YYYY HH:mm')}
+                      {event.time}
                     </div>
-                    {event.details && (
+                    {event.comment && (
                       <div
                         style={{
                           fontSize: '12px',
@@ -541,10 +386,10 @@ const MonitoringDetail: React.FC = () => {
                           marginTop: 4,
                         }}
                       >
-                        {event.details}
+                        {event.comment}
                       </div>
                     )}
-                    {event.updated_by && (
+                    {event.userName && event.userName !== '-' && (
                       <div
                         style={{
                           fontSize: '11px',
@@ -552,7 +397,8 @@ const MonitoringDetail: React.FC = () => {
                           marginTop: 4,
                         }}
                       >
-                        Updated by: {event.updated_by}
+                        <UserOutlined style={{ marginRight: 4 }} />
+                        Updated by: {event.userName}
                       </div>
                     )}
                   </div>
@@ -560,167 +406,8 @@ const MonitoringDetail: React.FC = () => {
               ))}
             </Timeline>
           </Card>
-
-          {/* Contact Information */}
-          <Card title="Informasi Kontak" style={{ marginBottom: 16 }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 500 }}>Sample Officer</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>
-                    {detailData.sample_officer}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>
-                    {detailData.contact_info.officer_phone}
-                  </div>
-                </div>
-                <Button
-                  size="small"
-                  icon={<PhoneOutlined />}
-                  onClick={() => handleEmergencyContact('Sample Officer')}
-                >
-                  Call
-                </Button>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 500 }}>
-                    Lab {detailData.lab_destination}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>
-                    {detailData.contact_info.lab_phone}
-                  </div>
-                </div>
-                <Button
-                  size="small"
-                  icon={<PhoneOutlined />}
-                  onClick={() => handleEmergencyContact('Lab')}
-                >
-                  Call
-                </Button>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 500 }}>Emergency Contact</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>
-                    {detailData.contact_info.emergency_contact}
-                  </div>
-                </div>
-                <Button
-                  size="small"
-                  icon={<PhoneOutlined />}
-                  danger
-                  onClick={() => handleEmergencyContact('Emergency')}
-                >
-                  Emergency
-                </Button>
-              </div>
-            </Space>
-          </Card>
         </Col>
       </Row>
-
-      {/* Update Location Modal */}
-      <Modal
-        title="Update Lokasi"
-        open={updateModalVisible}
-        onCancel={() => setUpdateModalVisible(false)}
-        onOk={() => form.submit()}
-      >
-        <Form form={form} layout="vertical" onFinish={handleUpdateLocation}>
-          <Form.Item
-            name="location"
-            label="Lokasi Saat Ini"
-            rules={[{ required: true, message: 'Lokasi wajib diisi' }]}
-          >
-            <Input placeholder="Jalan Tol Cikampek KM 20" />
-          </Form.Item>
-          <Form.Item
-            name="status_update"
-            label="Update Status"
-            rules={[{ required: true, message: 'Status update wajib diisi' }]}
-          >
-            <Input.TextArea
-              rows={3}
-              placeholder="Deskripsi kondisi saat ini..."
-            />
-          </Form.Item>
-          <Form.Item name="traffic_condition" label="Kondisi Lalu Lintas">
-            <Select placeholder="Pilih kondisi">
-              <Select.Option value="normal">Normal</Select.Option>
-              <Select.Option value="heavy">Padat</Select.Option>
-              <Select.Option value="jam">Macet</Select.Option>
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Contact Modal */}
-      <Modal
-        title="Kontak Darurat"
-        open={contactModalVisible}
-        onCancel={() => setContactModalVisible(false)}
-        footer={null}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Button
-            block
-            size="large"
-            icon={<PhoneOutlined />}
-            onClick={() => handleEmergencyContact('Sample Officer')}
-          >
-            Call Sample Officer: {detailData.contact_info.officer_phone}
-          </Button>
-
-          <Button
-            block
-            size="large"
-            icon={<PhoneOutlined />}
-            onClick={() => handleEmergencyContact('Lab')}
-          >
-            Call Lab: {detailData.contact_info.lab_phone}
-          </Button>
-
-          <Button
-            block
-            size="large"
-            danger
-            icon={<PhoneOutlined />}
-            onClick={() => handleEmergencyContact('Emergency')}
-          >
-            Emergency: {detailData.contact_info.emergency_contact}
-          </Button>
-
-          <Button
-            block
-            size="large"
-            icon={<MessageOutlined />}
-            onClick={() => message.info('Opening WhatsApp...')}
-          >
-            WhatsApp Group Monitoring
-          </Button>
-        </Space>
-      </Modal>
     </PageContainer>
   );
 };

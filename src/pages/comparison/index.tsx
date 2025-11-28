@@ -1,7 +1,6 @@
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
-  ExperimentOutlined,
   EyeOutlined,
   FileTextOutlined,
   SettingOutlined,
@@ -20,19 +19,30 @@ import {
   Button,
   Card,
   Col,
+  DatePicker,
+  Input,
   message,
   Row,
+  Space,
+  Spin,
   Statistic,
   Tag,
   Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  fetchComparisonSampleOrders,
+  fetchComparisonSummary,
+  processComparisonResult,
+  type ComparisonSampleOrder,
+  type ComparisonSummary,
+} from '../../services/comparison';
 import AverageCOQModal from '../../components/AverageCOQModal';
 import ComparisonTestModal from '../../components/ComparisonTestModal';
 import DetailModal from '../../components/DetailModal';
 
-// Interface untuk data comparison records
+// Interface untuk data comparison records (untuk modal compatibility)
 interface ComparisonRecord {
   id: string;
   sample_id: string;
@@ -58,6 +68,41 @@ interface ComparisonRecord {
   release_date?: string;
 }
 
+// Helper to convert API status to comparison status
+const mapStatusToComparisonStatus = (status: string): ComparisonRecord['comparison_status'] => {
+  switch (status) {
+    case 'Ready':
+      return 'ready';
+    case 'InProgress':
+      return 'in_progress';
+    case 'Completed':
+    case 'CompletedTesting':
+      return 'completed';
+    default:
+      return 'pending';
+  }
+};
+
+// Helper to convert API data to ComparisonRecord for modal compatibility
+const mapApiToComparisonRecord = (order: ComparisonSampleOrder): ComparisonRecord => ({
+  id: String(order.id),
+  sample_id: order.nomorNpc,
+  order_number: order.orderNo,
+  sample_type: order.typeLoadName,
+  vessel_name: order.shipName || '-',
+  tank_number: order.tankiName,
+  lab_completion_date: order.updatedAt,
+  comparison_status: mapStatusToComparisonStatus(order.status),
+  product_qc_status: 'completed', // Based on workflow, not directly available
+  tank_value_status: order.workflow.averageCoq ? 'completed' : 'not_started',
+  lab_tester_status: order.workflow.labTester ? 'completed' : 'not_started',
+  comparison_test_status: order.workflow.comparationTest ? 'completed' : 'not_started',
+  test_category: order.categoryTestName as ComparisonRecord['test_category'],
+  priority: order.priority as 'normal' | 'urgent',
+  created_at: order.createdAt,
+  updated_at: order.updatedAt,
+});
+
 const Comparison: React.FC = () => {
   const actionRef = useRef<ActionType>(null);
   // Product QC action moved to Ship Management page
@@ -68,117 +113,50 @@ const Comparison: React.FC = () => {
     null,
   );
 
-  // Mock data untuk comparison records
-  const mockComparisonData: ComparisonRecord[] = [
-    {
-      id: '1',
-      sample_id: 'SMPL-20250906-001',
-      order_number: 'SO-20250906-001',
-      sample_type: 'JET A-1',
-      vessel_name: 'MT. Commodore One',
-      tank_number: 'T.107',
-      lab_completion_date: '',
-      comparison_status: 'pending',
-      product_qc_status: 'not_started',
-      tank_value_status: 'not_started',
-      lab_tester_status: 'not_started',
-      comparison_test_status: 'not_started',
-      test_category: 'Short Test',
-      priority: 'urgent',
-      created_at: '2025-09-06 10:00:00',
-      updated_at: '2025-09-06 15:30:00',
-    },
-    {
-      id: '2',
-      sample_id: 'SMPL-20250906-002',
-      order_number: 'SO-20250906-002',
-      sample_type: 'Avgas',
-      vessel_name: 'MT. Pioneer',
-      tank_number: 'T.203',
-      lab_completion_date: '2025-09-06 14:15:00',
-      comparison_status: 'ready',
-      product_qc_status: 'completed',
-      tank_value_status: 'completed',
-      lab_tester_status: 'completed',
-      comparison_test_status: 'not_started',
-      test_category: 'IBS',
-      priority: 'normal',
-      created_at: '2025-09-06 11:00:00',
-      updated_at: '2025-09-06 16:00:00',
-      comparison_technician: 'Drs. Wijaya Kusuma',
-      notes:
-        'Ready for comparison generation - QC, COQ, and Lab Test completed',
-    },
-    {
-      id: '3',
-      sample_id: 'SMPL-20250905-001',
-      order_number: 'SO-20250905-001',
-      sample_type: 'Diesel',
-      vessel_name: 'MT. Explorer',
-      tank_number: 'T.301',
-      lab_completion_date: '2025-09-05 16:30:00',
-      comparison_status: 'completed',
-      product_qc_status: 'completed',
-      tank_value_status: 'completed',
-      lab_tester_status: 'completed',
-      comparison_test_status: 'completed',
-      test_category: 'CoA',
-      priority: 'normal',
-      created_at: '2025-09-05 09:00:00',
-      updated_at: '2025-09-05 17:45:00',
-      comparison_technician: 'Dr. Sari Dewi',
-      notes:
-        'Comparison completed successfully, all parameters within acceptable range',
-      release_status: 'Success',
-      release_notes:
-        'All parameters within specification, released for distribution',
-      release_date: '2025-09-05 18:00:00',
-    },
-    {
-      id: '4',
-      sample_id: 'SMPL-20250904-003',
-      order_number: 'SO-20250904-003',
-      sample_type: 'Gasoline',
-      vessel_name: 'MT. Navigator',
-      tank_number: 'T.405',
-      lab_completion_date: '2025-09-04 13:20:00',
-      comparison_status: 'completed',
-      product_qc_status: 'completed',
-      tank_value_status: 'completed',
-      lab_tester_status: 'completed',
-      comparison_test_status: 'completed',
-      test_category: 'Soak Test',
-      priority: 'normal',
-      created_at: '2025-09-04 08:00:00',
-      updated_at: '2025-09-04 13:20:00',
-      release_status: 'Repeat',
-      release_notes:
-        'Density values slightly outside acceptable range, requires retesting',
-      release_date: '2025-09-04 14:30:00',
-    },
-    {
-      id: '5',
-      sample_id: 'SMPL-20250907-001',
-      order_number: 'SO-20250907-001',
-      sample_type: 'Kerosene',
-      vessel_name: 'MT. Atlantic Star',
-      tank_number: 'T.502',
-      lab_completion_date: '2025-09-07 11:45:00',
-      comparison_status: 'completed',
-      product_qc_status: 'completed',
-      tank_value_status: 'completed',
-      lab_tester_status: 'completed',
-      comparison_test_status: 'completed',
-      test_category: 'Short Test',
-      priority: 'urgent',
-      created_at: '2025-09-07 08:30:00',
-      updated_at: '2025-09-07 15:20:00',
-      comparison_technician: 'Dr. Ahmad Rizky',
-      notes:
-        'Comparison analysis completed, awaiting release decision based on quality parameters',
-      // Tidak ada release_status, release_notes, atau release_date - menunjukkan belum dirilis
-    },
-  ];
+  // API state
+  const [summary, setSummary] = useState<ComparisonSummary>({
+    totalRecords: 0,
+    ready: 0,
+    inProgress: 0,
+    completed: 0,
+  });
+  const [summaryLoading, setSummaryLoading] = useState(true);
+
+  // Search state with default date today
+  const [searchText, setSearchText] = useState('');
+  const [startDate, setStartDate] = useState<dayjs.Dayjs>(dayjs().startOf('day'));
+  const [endDate, setEndDate] = useState<dayjs.Dayjs>(dayjs().endOf('day'));
+
+  // Fetch summary on mount
+  useEffect(() => {
+    const loadSummary = async () => {
+      setSummaryLoading(true);
+      try {
+        const data = await fetchComparisonSummary();
+        setSummary(data);
+      } catch (error) {
+        console.error('Failed to fetch comparison summary:', error);
+        message.error('Gagal memuat summary data');
+      } finally {
+        setSummaryLoading(false);
+      }
+    };
+
+    loadSummary();
+  }, []);
+
+  // Refresh summary function
+  const refreshSummary = async () => {
+    setSummaryLoading(true);
+    try {
+      const data = await fetchComparisonSummary();
+      setSummary(data);
+    } catch (error) {
+      console.error('Failed to refresh comparison summary:', error);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
 
   // Handler functions
   // Product QC handlers removed (moved to Ship Management)
@@ -194,36 +172,10 @@ const Comparison: React.FC = () => {
     // Update the record status to completed
     message.success('Average COQ completed successfully!');
     actionRef.current?.reload();
+    refreshSummary();
   };
 
-  const handleLabTester = (record: ComparisonRecord) => {
-    // Simulate lab tester action
-    const loadingMessage = message.loading(
-      'Processing Lab Tester status...',
-      0,
-    );
-
-    setTimeout(() => {
-      loadingMessage();
-      message.success('Lab Tester status updated successfully!');
-
-      // Update record status - in real app, this would come from backend
-      const _updatedData = mockComparisonData.map((item) =>
-        item.id === record.id
-          ? {
-              ...item,
-              lab_tester_status: 'completed',
-              updated_at: new Date().toISOString(),
-            }
-          : item,
-      );
-
-      // Trigger table reload
-      actionRef.current?.reload();
-    }, 1500);
-  };
-
-  const handleGenerateComparison = (record: ComparisonRecord) => {
+  const handleGenerateComparison = async (record: ComparisonRecord) => {
     // Check if prerequisites are completed (Product QC moved to Ship Management)
     if (
       record.tank_value_status !== 'completed' ||
@@ -241,35 +193,29 @@ const Comparison: React.FC = () => {
       0,
     );
 
-    // Simulate backend API call for generating comparison
-    setTimeout(() => {
+    try {
+      const response = await processComparisonResult({
+        sampleOrderId: parseInt(record.id, 10),
+      });
+
       loadingMessage();
-      message.success('Comparison results berhasil di-generate!');
 
-      // Update record status - in real app, this would come from backend
-      const _updatedData = mockComparisonData.map((item) =>
-        item.id === record.id
-          ? {
-              ...item,
-              comparison_test_status: 'completed',
-              comparison_status: 'completed',
-              updated_at: new Date().toISOString(),
-            }
-          : item,
-      );
-
-      // Trigger table reload
-      actionRef.current?.reload();
-    }, 2000);
+      if (response?.status) {
+        message.success('Comparison results berhasil di-generate!');
+        // Trigger table reload
+        actionRef.current?.reload();
+        refreshSummary();
+      } else {
+        message.error(response?.message || 'Gagal generate comparison results');
+      }
+    } catch (error) {
+      loadingMessage();
+      console.error('Failed to generate comparison:', error);
+      message.error('Gagal generate comparison results');
+    }
   };
 
   const handleViewComparison = (record: ComparisonRecord) => {
-    if (record.comparison_test_status !== 'completed') {
-      message.warning(
-        'Comparison test belum di-generate. Silakan generate terlebih dahulu.',
-      );
-      return;
-    }
     setSelectedRecord(record);
     setComparisonTestVisible(true);
   };
@@ -288,22 +234,9 @@ const Comparison: React.FC = () => {
       `Sample ${releaseData.status === 'Success' ? 'successfully released' : 'marked for repeat'}!`,
     );
 
-    // Update record status in real app, this would be sent to backend
-    // For now, we'll just simulate the update
-    const recordIndex = mockComparisonData.findIndex(
-      (item) => item.id === selectedRecord?.id,
-    );
-    if (recordIndex !== -1) {
-      mockComparisonData[recordIndex] = {
-        ...mockComparisonData[recordIndex],
-        release_status: releaseData.status,
-        release_notes: releaseData.notes,
-        release_date: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-    }
-
+    // In real app, this would be sent to backend
     actionRef.current?.reload();
+    refreshSummary();
   };
 
   // Get status color functions
@@ -402,29 +335,6 @@ const Comparison: React.FC = () => {
     } else {
       return { text: 'Pending Prerequisites', color: '#8c8c8c' };
     }
-  };
-
-  // Calculate summary statistics
-  const summary = {
-    total: mockComparisonData.length,
-    pending: mockComparisonData.filter(
-      (item) => item.comparison_status === 'pending',
-    ).length,
-    ready: mockComparisonData.filter(
-      (item) => item.comparison_status === 'ready',
-    ).length,
-    in_progress: mockComparisonData.filter(
-      (item) => item.comparison_status === 'in_progress',
-    ).length,
-    completed: mockComparisonData.filter(
-      (item) => item.comparison_status === 'completed',
-    ).length,
-    released_success: mockComparisonData.filter(
-      (item) => item.release_status === 'Success',
-    ).length,
-    released_repeat: mockComparisonData.filter(
-      (item) => item.release_status === 'Repeat',
-    ).length,
   };
 
   // Table columns
@@ -593,63 +503,6 @@ const Comparison: React.FC = () => {
       },
     },
     {
-      title: 'Comparison Status',
-      dataIndex: 'comparison_status',
-      key: 'comparison_status',
-      width: 140,
-      render: (_, record) => (
-        <Tag
-          color={getComparisonStatusColor(record.comparison_status)}
-          style={{
-            fontSize: '12px',
-            fontWeight: 500,
-            padding: '6px 12px',
-            borderRadius: 8,
-            border: 'none',
-          }}
-        >
-          {getComparisonStatusText(record.comparison_status)}
-        </Tag>
-      ),
-      filters: [
-        { text: 'Pending', value: 'pending' },
-        { text: 'Ready', value: 'ready' },
-        { text: 'In Progress', value: 'in_progress' },
-        { text: 'Completed', value: 'completed' },
-      ],
-    },
-    {
-      title: 'Release Status',
-      key: 'release_status',
-      width: 120,
-      render: (_, record) => {
-        if (
-          !record.release_status ||
-          record.comparison_test_status !== 'completed'
-        ) {
-          return <span style={{ color: '#8c8c8c', fontSize: '12px' }}>-</span>;
-        }
-
-        return (
-          <Tag
-            color={record.release_status === 'Success' ? 'success' : 'warning'}
-            style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              padding: '4px 8px',
-              borderRadius: 6,
-            }}
-          >
-            {record.release_status}
-          </Tag>
-        );
-      },
-      filters: [
-        { text: 'Success', value: 'Success' },
-        { text: 'Repeat', value: 'Repeat' },
-      ],
-    },
-    {
       title: 'Actions',
       key: 'actions',
       width: 200,
@@ -659,7 +512,13 @@ const Comparison: React.FC = () => {
           {/* Primary Action Buttons */}
           <div style={{ display: 'flex', gap: 4 }}>
             {/* Product QC action moved to Ship Management */}
-            <Tooltip title="Average COQ">
+            <Tooltip title={
+              record.comparison_test_status === 'completed'
+                ? 'Tidak dapat edit COQ setelah Comparison Result di-generate'
+                : record.tank_value_status === 'completed'
+                  ? 'Edit Average COQ'
+                  : 'Input Average COQ'
+            }>
               <Button
                 type={
                   record.tank_value_status === 'completed'
@@ -669,21 +528,22 @@ const Comparison: React.FC = () => {
                 size="small"
                 icon={<SettingOutlined />}
                 onClick={() => handleInputTankValue(record)}
+                disabled={record.comparison_test_status === 'completed'}
                 style={{
                   flex: 1,
                   fontSize: '11px',
                   height: 28,
                   backgroundColor:
-                    record.tank_value_status === 'completed'
+                    record.comparison_test_status === 'completed'
                       ? '#f0f0f0'
-                      : '#52c41a',
+                        : '#52c41a',
                   borderColor:
-                    record.tank_value_status === 'completed'
+                    record.comparison_test_status === 'completed'
                       ? '#d9d9d9'
                       : '#52c41a',
                   color:
-                    record.tank_value_status === 'completed'
-                      ? '#8c8c8c'
+                    record.comparison_test_status === 'completed'
+                      ? '#bfbfbf'
                       : '#fff',
                 }}
               >
@@ -753,22 +613,6 @@ const Comparison: React.FC = () => {
               </Button>
             </Tooltip>
           )}
-
-          {/* Detail Button */}
-          <Button
-            type="dashed"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDetail(record)}
-            style={{
-              fontSize: '11px',
-              height: 28,
-              color: '#595959',
-              borderColor: '#d9d9d9',
-            }}
-          >
-            View Detail
-          </Button>
         </div>
       ),
     },
@@ -780,80 +624,135 @@ const Comparison: React.FC = () => {
       content="Kelola proses komparasi sampel setelah selesai pengujian laboratorium"
     >
       {/* Summary Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={6} md={4}>
-          <Card>
-            <Statistic
-              title="Total Records"
-              value={summary.total}
-              prefix={<FileTextOutlined style={{ color: '#0073fe' }} />}
-              valueStyle={{ color: '#0073fe', fontSize: '20px' }}
+      <Spin spinning={summaryLoading}>
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={6} md={6}>
+            <Card>
+              <Statistic
+                title="Total Records"
+                value={summary.totalRecords}
+                prefix={<FileTextOutlined style={{ color: '#0073fe' }} />}
+                valueStyle={{ color: '#0073fe', fontSize: '20px' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6} md={6}>
+            <Card>
+              <Statistic
+                title="Ready"
+                value={summary.ready}
+                prefix={<SyncOutlined style={{ color: '#52c41a' }} />}
+                valueStyle={{ color: '#52c41a', fontSize: '20px' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6} md={6}>
+            <Card>
+              <Statistic
+                title="In Progress"
+                value={summary.inProgress}
+                prefix={<TagsOutlined style={{ color: '#faad14' }} />}
+                valueStyle={{ color: '#faad14', fontSize: '20px' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6} md={6}>
+            <Card>
+              <Statistic
+                title="Completed"
+                value={summary.completed}
+                prefix={<CheckCircleOutlined style={{ color: '#722ed1' }} />}
+                valueStyle={{ color: '#722ed1', fontSize: '20px' }}
+              />
+            </Card>
+          </Col>
+        </Row>
+      </Spin>
+
+      {/* Search Card */}
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap size="middle">
+          <Space>
+            <span>Search:</span>
+            <Input.Search
+              placeholder="Cari NPC, Order No..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onSearch={() => actionRef.current?.reload()}
+              style={{ width: 250 }}
+              allowClear
             />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6} md={4}>
-          <Card>
-            <Statistic
-              title="Ready"
-              value={summary.ready}
-              prefix={<SyncOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a', fontSize: '20px' }}
+          </Space>
+          <Space>
+            <span>Start:</span>
+            <DatePicker
+              showTime
+              value={startDate}
+              onChange={(date) => setStartDate(date || dayjs().startOf('day'))}
+              format="YYYY-MM-DD HH:mm"
+              placeholder="Start Date"
+              style={{ width: 180 }}
             />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6} md={4}>
-          <Card>
-            <Statistic
-              title="In Progress"
-              value={summary.in_progress}
-              prefix={<TagsOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: '#faad14', fontSize: '20px' }}
+          </Space>
+          <Space>
+            <span>End:</span>
+            <DatePicker
+              showTime
+              value={endDate}
+              onChange={(date) => setEndDate(date || dayjs().endOf('day'))}
+              format="YYYY-MM-DD HH:mm"
+              placeholder="End Date"
+              style={{ width: 180 }}
             />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6} md={4}>
-          <Card>
-            <Statistic
-              title="Completed"
-              value={summary.completed}
-              prefix={<CheckCircleOutlined style={{ color: '#722ed1' }} />}
-              valueStyle={{ color: '#722ed1', fontSize: '20px' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6} md={4}>
-          <Card>
-            <Statistic
-              title="Released Success"
-              value={summary.released_success}
-              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a', fontSize: '20px' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6} md={4}>
-          <Card>
-            <Statistic
-              title="Need Repeat"
-              value={summary.released_repeat}
-              prefix={<ExperimentOutlined style={{ color: '#fa8c16' }} />}
-              valueStyle={{ color: '#fa8c16', fontSize: '20px' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+          </Space>
+          <Button type="primary" onClick={() => actionRef.current?.reload()}>
+            Cari
+          </Button>
+          <Button onClick={() => {
+            setSearchText('');
+            setStartDate(dayjs().startOf('day'));
+            setEndDate(dayjs().endOf('day'));
+            actionRef.current?.reload();
+          }}>
+            Reset
+          </Button>
+        </Space>
+      </Card>
 
       {/* Main Table */}
       <ProTable<ComparisonRecord>
         actionRef={actionRef}
         rowKey="id"
-        search={{
-          labelWidth: 'auto',
-          searchText: 'Cari',
-          resetText: 'Reset',
-        }}
+        search={false}
         columns={columns}
-        dataSource={mockComparisonData}
+        request={async (params) => {
+          try {
+            const response = await fetchComparisonSampleOrders({
+              page: params.current ?? 1,
+              pageSize: params.pageSize ?? 10,
+              search: searchText || undefined,
+              startDate: startDate.format('YYYY-MM-DD'),
+              endDate: endDate.format('YYYY-MM-DD'),
+            });
+
+            // Map API response to ComparisonRecord format
+            const data = (response?.data ?? []).map(mapApiToComparisonRecord);
+
+            return {
+              data,
+              success: response?.status ?? true,
+              total: response?.meta?.pagination?.totalData ?? 0,
+            };
+          } catch (error) {
+            console.error('Failed to fetch comparison data:', error);
+            message.error('Gagal memuat data komparasi');
+            return {
+              data: [],
+              success: false,
+              total: 0,
+            };
+          }
+        }}
         pagination={{
           pageSize: 10,
           showSizeChanger: true,
@@ -864,7 +763,10 @@ const Comparison: React.FC = () => {
         dateFormatter="string"
         headerTitle="Daftar Komparasi Sampel"
         toolBarRender={() => [
-          <Button key="refresh" onClick={() => actionRef.current?.reload()}>
+          <Button key="refresh" onClick={() => {
+            actionRef.current?.reload();
+            refreshSummary();
+          }}>
             Refresh
           </Button>,
           <Button key="export" type="default">
