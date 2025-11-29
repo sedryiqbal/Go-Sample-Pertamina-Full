@@ -111,8 +111,37 @@ export default [
   {
     path: '/laboratory',
     name: 'laboratory',
-    icon: 'experiment',
-    component: './laboratory/testing',
+    icon: 'ExperimentOutlined',
+    routes: [
+      {
+        path: '/laboratory',
+        redirect: '/laboratory/testing',
+      },
+      {
+        path: '/laboratory/testing',
+        name: 'testing',
+        icon: 'ExperimentOutlined',
+        component: './laboratory/testing',
+      },
+      {
+        path: '/laboratory/testing/detail/:id',
+        name: 'testing-detail',
+        component: './laboratory/testing/detail',
+        hideInMenu: true,
+      },
+      {
+        path: '/laboratory/syringe',
+        name: 'syringe',
+        icon: 'MedicineBoxOutlined',
+        component: './laboratory/syringe',
+      },
+      {
+        path: '/laboratory/harga',
+        name: 'harga',
+        icon: 'DollarOutlined',
+        component: './laboratory/harga',
+      },
+    ],
   },
   {
     path: '/comparison',
