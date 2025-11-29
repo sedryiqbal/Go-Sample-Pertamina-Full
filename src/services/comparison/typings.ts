@@ -86,6 +86,10 @@ export interface SampleOrderDetail {
   orderNo: string;
   sampleType: string;
   vessel: string;
+  nomorNpc?: string;
+  tanggalOrder?: string;
+  typeLoadName?: string;
+  shipName?: string;
 }
 
 // COQ Comparison types for saving

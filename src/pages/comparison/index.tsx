@@ -47,6 +47,7 @@ interface ComparisonRecord {
   id: string;
   sample_id: string;
   order_number: string;
+  order_date?: string;
   sample_type: string;
   vessel_name: string;
   tank_number: string;
@@ -67,6 +68,9 @@ interface ComparisonRecord {
   release_notes?: string;
   release_date?: string;
 }
+
+const getDefaultStartDate = () => dayjs().subtract(1, 'month').startOf('day');
+const getDefaultEndDate = () => dayjs().add(1, 'month').endOf('day');
 
 // Helper to convert API status to comparison status
 const mapStatusToComparisonStatus = (status: string): ComparisonRecord['comparison_status'] => {
@@ -89,6 +93,7 @@ const mapApiToComparisonRecord = (order: ComparisonSampleOrder): ComparisonRecor
   sample_id: order.nomorNpc,
   order_number: order.orderNo,
   sample_type: order.typeLoadName,
+  order_date: order.tanggalOrder,
   vessel_name: order.shipName || '-',
   tank_number: order.tankiName,
   lab_completion_date: order.updatedAt,
@@ -124,8 +129,8 @@ const Comparison: React.FC = () => {
 
   // Search state with default date today
   const [searchText, setSearchText] = useState('');
-  const [startDate, setStartDate] = useState<dayjs.Dayjs>(dayjs().startOf('day'));
-  const [endDate, setEndDate] = useState<dayjs.Dayjs>(dayjs().endOf('day'));
+  const [startDate, setStartDate] = useState<dayjs.Dayjs>(getDefaultStartDate());
+  const [endDate, setEndDate] = useState<dayjs.Dayjs>(getDefaultEndDate());
 
   // Fetch summary on mount
   useEffect(() => {
@@ -237,6 +242,13 @@ const Comparison: React.FC = () => {
     // In real app, this would be sent to backend
     actionRef.current?.reload();
     refreshSummary();
+  };
+
+  const handleResetFilters = () => {
+    setSearchText('');
+    setStartDate(getDefaultStartDate());
+    setEndDate(getDefaultEndDate());
+    actionRef.current?.reload();
   };
 
   // Get status color functions
@@ -688,7 +700,7 @@ const Comparison: React.FC = () => {
             <DatePicker
               showTime
               value={startDate}
-              onChange={(date) => setStartDate(date || dayjs().startOf('day'))}
+              onChange={(date) => setStartDate(date || getDefaultStartDate())}
               format="YYYY-MM-DD HH:mm"
               placeholder="Start Date"
               style={{ width: 180 }}
@@ -699,7 +711,7 @@ const Comparison: React.FC = () => {
             <DatePicker
               showTime
               value={endDate}
-              onChange={(date) => setEndDate(date || dayjs().endOf('day'))}
+              onChange={(date) => setEndDate(date || getDefaultEndDate())}
               format="YYYY-MM-DD HH:mm"
               placeholder="End Date"
               style={{ width: 180 }}
@@ -708,12 +720,7 @@ const Comparison: React.FC = () => {
           <Button type="primary" onClick={() => actionRef.current?.reload()}>
             Cari
           </Button>
-          <Button onClick={() => {
-            setSearchText('');
-            setStartDate(dayjs().startOf('day'));
-            setEndDate(dayjs().endOf('day'));
-            actionRef.current?.reload();
-          }}>
+          <Button onClick={handleResetFilters}>
             Reset
           </Button>
         </Space>

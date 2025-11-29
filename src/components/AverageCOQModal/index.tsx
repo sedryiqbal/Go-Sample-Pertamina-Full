@@ -21,6 +21,7 @@ import {
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import {
   fetchExistingComparisons,
@@ -417,13 +418,45 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
     onClose();
   };
 
-  // Display information - use API data if available, fall back to sampleData
-  const displayInfo = {
-    sampleId: sampleOrderDetail?.sampleId || sampleData?.sample_id || '-',
-    orderNo: sampleOrderDetail?.orderNo || sampleData?.order_number || '-',
-    sampleType: sampleOrderDetail?.sampleType || sampleData?.sample_type || '-',
-    vessel: sampleOrderDetail?.vessel || sampleData?.vessel_name || '-',
+  const headerInfo = {
+    sampleId:
+      sampleOrderDetail?.sampleId !== undefined && sampleOrderDetail?.sampleId !== null
+        ? String(sampleOrderDetail.sampleId)
+        : sampleData?.sample_id || '-',
+    sampleType:
+      sampleOrderDetail?.sampleType || sampleData?.sample_type || '-',
   };
+
+  const coqInfo = {
+    orderNo: sampleOrderDetail?.orderNo || sampleData?.order_number || '-',
+    nomorNpc: sampleOrderDetail?.nomorNpc || sampleData?.sample_id || '-',
+    orderDate:
+      sampleOrderDetail?.tanggalOrder || sampleData?.order_date || null,
+    productType:
+      sampleOrderDetail?.typeLoadName ||
+      sampleOrderDetail?.sampleType ||
+      sampleData?.sample_type ||
+      '-',
+    shipName:
+      sampleOrderDetail?.shipName ||
+      sampleOrderDetail?.vessel ||
+      sampleData?.vessel_name ||
+      '-',
+  };
+
+  const infoItems = [
+    { key: 'orderNo', label: 'Order No', value: coqInfo.orderNo },
+    { key: 'nomorNpc', label: 'Nomor NPC', value: coqInfo.nomorNpc },
+    {
+      key: 'tanggalOrder',
+      label: 'Tanggal Order',
+      value: coqInfo.orderDate
+        ? dayjs(coqInfo.orderDate).format('DD MMM YYYY HH:mm')
+        : '-',
+    },
+    { key: 'typeLoadName', label: 'Jenis Muatan', value: coqInfo.productType },
+    { key: 'shipName', label: 'Nama Kapal', value: coqInfo.shipName },
+  ];
 
   return (
     <Modal
@@ -436,7 +469,7 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
             </Title>
             <Text type="secondary" style={{ fontSize: '12px' }}>
               {sampleData
-                ? `${displayInfo.sampleId} • ${displayInfo.sampleType}`
+                ? `${headerInfo.sampleId} • ${headerInfo.sampleType}`
                 : 'Input nilai rata-rata COQ per tangki'}
             </Text>
           </div>
@@ -491,39 +524,17 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
               border: '1px solid #b7eb8f',
             }}
           >
-            <Row gutter={16}>
-              <Col span={6}>
-                <Text strong style={{ color: '#389e0d' }}>
-                  Sample ID:
-                </Text>
-                <div style={{ fontSize: '14px', fontWeight: 600 }}>
-                  {displayInfo.sampleId}
-                </div>
-              </Col>
-              <Col span={6}>
-                <Text strong style={{ color: '#389e0d' }}>
-                  Order Number:
-                </Text>
-                <div style={{ fontSize: '14px', fontWeight: 600 }}>
-                  {displayInfo.orderNo}
-                </div>
-              </Col>
-              <Col span={6}>
-                <Text strong style={{ color: '#389e0d' }}>
-                  Sample Type:
-                </Text>
-                <div style={{ fontSize: '14px', fontWeight: 600 }}>
-                  {displayInfo.sampleType}
-                </div>
-              </Col>
-              <Col span={6}>
-                <Text strong style={{ color: '#389e0d' }}>
-                  Vessel:
-                </Text>
-                <div style={{ fontSize: '14px', fontWeight: 600 }}>
-                  {displayInfo.vessel}
-                </div>
-              </Col>
+            <Row gutter={[16, 12]}>
+              {infoItems.map((item) => (
+                <Col xs={24} sm={12} md={8} lg={8} xl={6} key={item.key}>
+                  <Text strong style={{ color: '#389e0d' }}>
+                    {item.label}
+                  </Text>
+                  <div style={{ fontSize: '14px', fontWeight: 600 }}>
+                    {item.value}
+                  </div>
+                </Col>
+              ))}
             </Row>
           </Card>
 
