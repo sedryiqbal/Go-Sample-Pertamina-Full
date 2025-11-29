@@ -41,6 +41,8 @@
     "antd-style": "^3.7.0",
     "classnames": "^2.5.1",
     "dayjs": "^1.11.13",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.2",
     "numeral": "^2.0.6",
     "rc-util": "^5.44.4",
     "react": "^19.1.0",

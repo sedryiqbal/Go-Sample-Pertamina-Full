@@ -39,8 +39,8 @@ type PropertyTestOption = {
 };
 
 type PropertyPrice = {
-  id: string;
-  categoryId: number;
+  id: number | string;
+  categoryId?: number;
   categoryName: string;
   propertyTestId: number;
   propertyName: string;
@@ -196,6 +196,31 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
+const extractServerMessage = (error: any, fallback: string) => {
+  const baseMessage =
+    error?.data?.Message ||
+    error?.data?.message ||
+    error?.message ||
+    fallback;
+  const detailMap = error?.data?.data;
+  if (detailMap && typeof detailMap === 'object') {
+    const detailMessages = Object.values(detailMap)
+      .filter((item) => typeof item === 'string' && item.trim().length)
+      .join(', ');
+    if (detailMessages) return detailMessages;
+  }
+  return baseMessage;
+};
+
+const resolvePriceTestId = (entryId: number | string | undefined) => {
+  if (typeof entryId === 'number') return entryId;
+  if (!entryId) return undefined;
+  const directNumber = Number(entryId);
+  if (!Number.isNaN(directNumber) && directNumber > 0) return directNumber;
+  const digits = String(entryId).match(/\d+/);
+  return digits ? Number(digits[0]) : undefined;
+};
+
 const LaboratoryHarga: React.FC = () => {
   const [properties, setProperties] = useState<PropertyPrice[]>(defaultProperties);
   const [categories, setCategories] = useState<CategoryTest[]>([]);
@@ -203,10 +228,65 @@ const LaboratoryHarga: React.FC = () => {
   const [propertyOptionsLoading, setPropertyOptionsLoading] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [editingProperty, setEditingProperty] = useState<PropertyPrice | null>(null);
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<'all' | number>('all');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<'all' | string>('all');
   const [searchValue, setSearchValue] = useState('');
   const [selectedFormCategory, setSelectedFormCategory] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [tableLoading, setTableLoading] = useState(false);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: defaultProperties.length,
+  });
   const [form] = Form.useForm<PropertyPriceFormValues>();
+
+  const loadPriceTests = async (page = pagination.current, pageSize = pagination.pageSize) => {
+    setTableLoading(true);
+    try {
+      const response = await request('/api/PriceTests/', {
+        method: 'GET',
+        params: { page, pageSize },
+      });
+      const responseData = Array.isArray(response?.data) ? response.data : [];
+      const mapped: PropertyPrice[] = responseData.map((item: any) => {
+        const matchedCategory =
+          categories.find(
+            (cat) =>
+              typeof item?.categoryTestName === 'string' &&
+              typeof cat.name === 'string' &&
+              cat.name.toLowerCase() === item.categoryTestName.toLowerCase(),
+          ) || null;
+
+        return {
+          id: item.id ?? `price-${item.propertyTestId}`,
+          categoryId: matchedCategory?.id,
+          categoryName: item.categoryTestName || matchedCategory?.name || '-',
+          propertyTestId: item.propertyTestId,
+          propertyName: item.propertyTestTitle,
+          propertyDescription: undefined,
+          price: Number(item.price) || 0,
+          notes: item.description,
+        };
+      });
+
+      const totalData =
+        response?.meta?.pagination?.totalData ??
+        response?.meta?.pagination?.total ??
+        mapped.length;
+
+      setProperties(mapped);
+      setPagination({
+        current: page,
+        pageSize,
+        total: totalData,
+      });
+    } catch (error) {
+      console.error('Failed to fetch price tests', error);
+      message.error('Gagal memuat harga property');
+    } finally {
+      setTableLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -221,6 +301,17 @@ const LaboratoryHarga: React.FC = () => {
 
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    loadPriceTests(1, pagination.pageSize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!categories.length) return;
+    loadPriceTests(1, pagination.pageSize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories.length]);
 
   const fetchPropertyTests = async (categoryId: number) => {
     if (!categoryId) return;
@@ -250,20 +341,25 @@ const LaboratoryHarga: React.FC = () => {
     }
   };
 
-  const categoryOptionsForFilter = useMemo(() => {
-    if (categories.length) return categories;
-    const uniqueFromData = Array.from(
-      new Map(properties.map((item) => [item.categoryId, item.categoryName])).entries(),
-    ).map(([id, name]) => ({ id: Number(id), name }));
-    return uniqueFromData;
+  const categoryFilterOptions = useMemo(() => {
+    const names = new Set<string>();
+    categories.forEach((cat) => {
+      if (cat.name) names.add(cat.name);
+    });
+    properties.forEach((item) => {
+      if (item.categoryName) names.add(item.categoryName);
+    });
+    return Array.from(names);
   }, [categories, properties]);
 
-  const formCategoryOptions = categories.length ? categories : categoryOptionsForFilter;
+  const formCategoryOptions = categories;
 
   const filteredProperties = useMemo(() => {
     const keyword = searchValue.toLowerCase();
     return properties.filter((prop) => {
-      const matchesCategory = selectedCategoryFilter === 'all' || prop.categoryId === selectedCategoryFilter;
+      const matchesCategory =
+        selectedCategoryFilter === 'all' ||
+        (prop.categoryName || '').toLowerCase() === selectedCategoryFilter.toLowerCase();
       const matchesSearch =
         prop.propertyName.toLowerCase().includes(keyword) ||
         (prop.propertyDescription || '').toLowerCase().includes(keyword) ||
@@ -284,9 +380,25 @@ const LaboratoryHarga: React.FC = () => {
       okButtonProps: { danger: true },
       okText: 'Hapus',
       cancelText: 'Batal',
-      onOk: () => {
-        setProperties((prev) => prev.filter((item) => item.id !== record.id));
-        message.success('Harga property berhasil dihapus');
+      onOk: async () => {
+        const priceTestId = resolvePriceTestId(record.id);
+
+        if (!priceTestId) {
+          setProperties((prev) => prev.filter((item) => item.id !== record.id));
+          message.success('Harga property berhasil dihapus');
+          return;
+        }
+
+        try {
+          await request(`/api/PriceTests/${priceTestId}`, {
+            method: 'DELETE',
+          });
+          message.success('Harga property berhasil dihapus');
+          loadPriceTests(pagination.current, pagination.pageSize);
+        } catch (error) {
+          const serverMessage = extractServerMessage(error, 'Gagal menghapus harga property');
+          message.error(serverMessage);
+        }
       },
     });
   };
@@ -310,14 +422,37 @@ const LaboratoryHarga: React.FC = () => {
   const openDrawerForEdit = (record: PropertyPrice) => {
     setEditingProperty(record);
     setDrawerVisible(true);
-    setSelectedFormCategory(record.categoryId);
+    const resolvedCategoryId =
+      record.categoryId ||
+      categories.find(
+        (cat) =>
+          cat.name &&
+          record.categoryName &&
+          cat.name.toLowerCase() === record.categoryName.toLowerCase(),
+      )?.id ||
+      null;
+
+    setSelectedFormCategory(resolvedCategoryId);
     form.setFieldsValue({
-      categoryId: record.categoryId,
+      categoryId: resolvedCategoryId || undefined,
       propertyTestId: record.propertyTestId,
       price: record.price,
       notes: record.notes,
     });
-    fetchPropertyTests(record.categoryId);
+
+    if (resolvedCategoryId) {
+      fetchPropertyTests(resolvedCategoryId);
+    } else {
+      setPropertyOptions([
+        {
+          id: record.propertyTestId,
+          title: record.propertyName,
+          description: record.propertyDescription,
+          categoryId: record.categoryId || 0,
+          categoryName: record.categoryName,
+        },
+      ]);
+    }
   };
 
   const handleCategoryChange = (value: number) => {
@@ -348,28 +483,74 @@ const LaboratoryHarga: React.FC = () => {
         return;
       }
 
-      const payload: PropertyPrice = {
-        id: editingProperty ? editingProperty.id : `prop-${Date.now()}`,
-        categoryId: values.categoryId!,
-        categoryName: categoryInfo?.name || propertyInfo.categoryName || '-',
-        propertyTestId: values.propertyTestId!,
-        propertyName: propertyInfo.title,
-        propertyDescription: propertyInfo.description,
-        price: values.price || 0,
-        notes: values.notes,
-      };
+      setSaving(true);
 
       if (editingProperty) {
-        setProperties((prev) => prev.map((item) => (item.id === editingProperty.id ? payload : item)));
-        message.success('Harga property berhasil diperbarui');
-      } else {
-        setProperties((prev) => [payload, ...prev]);
-        message.success('Harga property berhasil ditambahkan');
-      }
+        const priceTestId = resolvePriceTestId(editingProperty.id);
 
-      resetDrawerState();
-    } catch (error) {
+        if (!priceTestId || Number.isNaN(priceTestId)) {
+          message.error('ID harga tidak valid');
+          setSaving(false);
+          return;
+        }
+
+        try {
+          await request(`/api/PriceTests/${priceTestId}`, {
+            method: 'PUT',
+            data: {
+              price: values.price,
+              description: values.notes || '',
+            },
+          });
+
+          message.success('Harga property berhasil diperbarui');
+          resetDrawerState();
+          loadPriceTests(pagination.current, pagination.pageSize);
+        } catch (error) {
+          const serverMessage = extractServerMessage(
+            error,
+            'Gagal memperbarui harga property',
+          );
+          message.error(serverMessage);
+        }
+      } else {
+        try {
+          const response = await request('/api/PriceTests/', {
+            method: 'POST',
+            data: {
+              propertyTestId: values.propertyTestId,
+              price: values.price,
+              description: values.notes || '',
+            },
+          });
+
+          const serverData = response?.data;
+          const payload: PropertyPrice = {
+            id: serverData?.id ? `price-${serverData.id}` : `prop-${Date.now()}`,
+            categoryId: values.categoryId!,
+            categoryName: categoryInfo?.name || propertyInfo.categoryName || '-',
+            propertyTestId: values.propertyTestId!,
+            propertyName: propertyInfo.title,
+            propertyDescription: propertyInfo.description,
+            price: values.price || 0,
+            notes: values.notes,
+          };
+
+          message.success('Harga property berhasil ditambahkan');
+          resetDrawerState();
+          loadPriceTests(1, pagination.pageSize);
+        } catch (error) {
+          const serverMessage = extractServerMessage(
+            error,
+            'Gagal menambahkan harga property',
+          );
+          message.error(serverMessage);
+        }
+      }
+    } catch (_error) {
       // Validation handled by AntD
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -425,6 +606,17 @@ const LaboratoryHarga: React.FC = () => {
     },
   ];
 
+  const handleTableChange = (pager: { current?: number; pageSize?: number }) => {
+    const current = pager?.current || 1;
+    const pageSize = pager?.pageSize || pagination.pageSize;
+    setPagination((prev) => ({
+      ...prev,
+      current,
+      pageSize,
+    }));
+    loadPriceTests(current, pageSize);
+  };
+
   return (
     <PageContainer
       header={{
@@ -476,12 +668,12 @@ const LaboratoryHarga: React.FC = () => {
             <Select
               value={selectedCategoryFilter}
               style={{ width: 200 }}
-              onChange={(value) => setSelectedCategoryFilter(value as 'all' | number)}
+              onChange={(value) => setSelectedCategoryFilter(value as 'all' | string)}
               options={[
                 { value: 'all', label: 'Semua Kategori' },
-                ...categoryOptionsForFilter.map((cat) => ({
-                  value: cat.id,
-                  label: cat.name,
+                ...categoryFilterOptions.map((name) => ({
+                  value: name,
+                  label: name,
                 })),
               ]}
             />
@@ -495,7 +687,14 @@ const LaboratoryHarga: React.FC = () => {
           columns={columns}
           dataSource={filteredProperties}
           rowKey="id"
-          pagination={{ pageSize: 10, showSizeChanger: false }}
+          loading={tableLoading}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showSizeChanger: true,
+          }}
+          onChange={handleTableChange}
           size="middle"
         />
       </Card>
@@ -508,10 +707,10 @@ const LaboratoryHarga: React.FC = () => {
         destroyOnClose
         footer={
           <div style={{ textAlign: 'right' }}>
-            <Button style={{ marginRight: 8 }} onClick={resetDrawerState}>
+            <Button style={{ marginRight: 8 }} onClick={resetDrawerState} disabled={saving}>
               Batal
             </Button>
-            <Button type="primary" onClick={handleSubmit}>
+            <Button type="primary" onClick={handleSubmit} loading={saving}>
               Simpan
             </Button>
           </div>
