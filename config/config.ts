@@ -186,6 +186,6 @@ export default defineConfig({
   define: {
     'process.env.CI': process.env.CI,
     'process.env.API_BASE_URL':
-      process.env.API_BASE_URL || 'https://apidev-gosample.kiyora.dev',
+      process.env.API_BASE_URL || 'https://apidev-gosample.kiyora.dev', // URL DEV
   },
 });
