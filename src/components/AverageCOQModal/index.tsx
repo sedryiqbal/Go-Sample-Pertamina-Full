@@ -275,7 +275,7 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
           tankData: Object.entries(row.tanks)
             .filter(([_, value]) => value !== null && value !== undefined)
             .map(([tankNum, value]) => ({
-              noTanki: parseInt(tankNum, 10),
+              noTanki: tankNum,
               coq: value as number,
             })),
         }));

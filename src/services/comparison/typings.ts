@@ -98,7 +98,7 @@ export interface SampleOrderDetail {
 
 // COQ Comparison types for saving
 export interface TankData {
-  noTanki: number;
+  noTanki: string;
   coq: number;
 }
 
