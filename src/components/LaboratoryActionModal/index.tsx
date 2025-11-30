@@ -317,19 +317,6 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
       : defaultUnitOptions) ?? []),
   ];
 
-  // Method options for dropdown
-  const methodOptions = [
-    emptySelectOption,
-    { label: 'ASTM D86-17', value: 'ASTM D86-17' },
-    { label: 'BS EN ISO 13736:2008', value: 'BS EN ISO 13736:2008' },
-    { label: 'ASTM D4052-22', value: 'ASTM D4052-22' },
-    { label: 'ASTM D2386-19', value: 'ASTM D2386-19' },
-    { label: 'ASTM D5006-22', value: 'ASTM D5006-22' },
-    { label: 'ASTM D130-19', value: 'ASTM D130-19' },
-    { label: 'ASTM D381-22', value: 'ASTM D381-22' },
-    { label: 'Custom Method', value: 'custom' },
-  ];
-
   const normalizePropertyTests = (data: any[]) =>
     data
       .slice()
@@ -1207,12 +1194,10 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
                         style={{ margin: 0 }}
                         initialValue=""
                       >
-                        <Select
+                        <Input
                           placeholder="Method"
                           size="small"
                           style={{ width: '100%', fontSize: '11px' }}
-                          options={methodOptions}
-                          dropdownMatchSelectWidth
                         />
                       </Form.Item>
                       <Form.Item
