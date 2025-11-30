@@ -33,6 +33,25 @@ export interface ProfileResponse {
   [key: string]: any;
 }
 
+export interface AuthMenuItem {
+  id: number | string;
+  nama?: string;
+  deskripsi?: string;
+  icon?: string;
+  url?: string;
+  order?: number;
+  [key: string]: any;
+}
+
+export interface AuthMenuResponse {
+  code: string;
+  status: boolean;
+  message: string;
+  data?: AuthMenuItem[];
+  timestamp?: string;
+  [key: string]: any;
+}
+
 export const fetchProfile = async (): Promise<ProfileItems | undefined> => {
   const response = await request<ProfileResponse>('/api/Auth/me', {
     method: 'GET',
@@ -54,6 +73,18 @@ export const fetchProfile = async (): Promise<ProfileItems | undefined> => {
     status: profileData.status,
     username: profileData.email,
   };
+};
+
+export const fetchUserMenus = async (): Promise<AuthMenuItem[]> => {
+  const response = await request<AuthMenuResponse>('/api/Auth/menus', {
+    method: 'GET',
+  });
+
+  if (!response?.status) {
+    throw new Error(response?.message || 'Gagal memuat menu pengguna');
+  }
+
+  return response?.data ?? [];
 };
 
 export interface ChangePasswordPayload {

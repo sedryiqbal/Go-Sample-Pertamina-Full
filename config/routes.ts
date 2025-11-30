@@ -51,13 +51,13 @@ export default [
     icon: 'setting',
     routes: [
       {
-        name: 'users',
+        name: 'Pengguna',
         icon: 'user',
         path: '/management/users',
         component: './management/users',
       },
       {
-        name: 'roles',
+        name: 'Jabatan',
         icon: 'safety',
         path: '/management/roles',
         component: './management/roles',
@@ -66,7 +66,7 @@ export default [
   },
   {
     path: '/ships',
-    name: 'ships',
+    name: 'Kapal',
     icon: 'RocketOutlined',
     component: './ships',
   },
@@ -98,7 +98,7 @@ export default [
 
   {
     path: '/shipping',
-    name: 'Shipping',
+    name: 'Pengiriman Sample',
     icon: 'car',
     component: './shipping',
   },
@@ -110,7 +110,7 @@ export default [
   // },
   {
     path: '/laboratory',
-    name: 'laboratory',
+    name: 'Laboratorium',
     icon: 'ExperimentOutlined',
     routes: [
       {
@@ -119,7 +119,7 @@ export default [
       },
       {
         path: '/laboratory/testing',
-        name: 'testing',
+        name: 'Pengujian Sample',
         icon: 'ExperimentOutlined',
         component: './laboratory/testing',
       },
@@ -137,7 +137,7 @@ export default [
       // },
       {
         path: '/laboratory/harga',
-        name: 'harga',
+        name: 'Harga Pengujian',
         icon: 'DollarOutlined',
         component: './laboratory/harga',
       },
@@ -145,7 +145,7 @@ export default [
   },
   {
     path: '/comparison',
-    name: 'comparison',
+    name: 'Komparasi Hasil',
     icon: 'diff',
     component: './comparison',
   },
