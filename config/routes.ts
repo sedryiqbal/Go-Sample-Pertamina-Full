@@ -70,12 +70,12 @@ export default [
     icon: 'RocketOutlined',
     component: './ships',
   },
-  {
-    path: '/stadis',
-    name: 'stadis',
-    icon: 'BgColorsOutlined',
-    component: './stadis',
-  },
+  // {
+  //   path: '/stadis',
+  //   name: 'stadis',
+  //   icon: 'BgColorsOutlined',
+  //   component: './stadis',
+  // },
   {
     path: '/sample',
     name: 'Sample',
@@ -129,12 +129,12 @@ export default [
         component: './laboratory/testing/detail',
         hideInMenu: true,
       },
-      {
-        path: '/laboratory/syringe',
-        name: 'syringe',
-        icon: 'MedicineBoxOutlined',
-        component: './laboratory/syringe',
-      },
+      // {
+      //   path: '/laboratory/syringe',
+      //   name: 'syringe',
+      //   icon: 'MedicineBoxOutlined',
+      //   component: './laboratory/syringe',
+      // },
       {
         path: '/laboratory/harga',
         name: 'harga',
@@ -166,12 +166,12 @@ export default [
       },
     ],
   },
-  {
-    path: '/reports',
-    name: 'reports',
-    icon: 'download',
-    component: './reports',
-  },
+  // {
+  //   path: '/reports',
+  //   name: 'reports',
+  //   icon: 'download',
+  //   component: './reports',
+  // },
   {
     path: '/',
     redirect: '/dashboard',
