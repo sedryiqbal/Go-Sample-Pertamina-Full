@@ -164,12 +164,12 @@ const RoleManagement: React.FC = () => {
       setEditingRecord((prev) =>
         prev
           ? {
-              ...prev,
-              name: permissions.name || record.name,
-              description: permissions.description ?? record.description,
-              menuPermissions: permissions.permissions,
-              totalPermissions: permissions.totalPermissions,
-            }
+            ...prev,
+            name: permissions.name || record.name,
+            description: permissions.description ?? record.description,
+            menuPermissions: permissions.permissions,
+            totalPermissions: permissions.totalPermissions,
+          }
           : prev,
       );
     } catch (error: any) {
@@ -315,14 +315,14 @@ const RoleManagement: React.FC = () => {
             setViewingRecord((prev) =>
               prev && prev.id === editingRecord.id
                 ? {
-                    ...prev,
-                    name: updatedRole.name,
-                    description: updatedRole.description,
-                    menuPermissions: refreshedPermissions.permissions,
-                    totalPermissions: refreshedPermissions.totalPermissions,
-                    createdAt: refreshedPermissions.createdAt ?? prev.createdAt,
-                    updatedAt: updatedRole.updatedAt ?? prev.updatedAt,
-                  }
+                  ...prev,
+                  name: updatedRole.name,
+                  description: updatedRole.description,
+                  menuPermissions: refreshedPermissions.permissions,
+                  totalPermissions: refreshedPermissions.totalPermissions,
+                  createdAt: refreshedPermissions.createdAt ?? prev.createdAt,
+                  updatedAt: updatedRole.updatedAt ?? prev.updatedAt,
+                }
                 : prev,
             );
           }
@@ -375,9 +375,9 @@ const RoleManagement: React.FC = () => {
       title="Manajemen Role"
       content="Kelola role dan permissions pengguna sistem Go Sample"
       extra={[
-        <Button key="export" icon={<ExportOutlined />} onClick={handleExport}>
-          Export
-        </Button>,
+        // <Button key="export" icon={<ExportOutlined />} onClick={handleExport}>
+        //   Export
+        // </Button>,
         <Button
           key="refresh"
           icon={<ReloadOutlined />}

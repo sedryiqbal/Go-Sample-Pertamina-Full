@@ -197,13 +197,22 @@ const formatCurrency = (value: number) =>
   }).format(value);
 
 const extractServerMessage = (error: any, fallback: string) => {
+  const serverData = error?.data || error?.response?.data;
+  const messageCandidates = [
+    serverData?.Message,
+    serverData?.message,
+    serverData?.error,
+    error?.message,
+    fallback,
+  ];
   const baseMessage =
-    error?.data?.Message ||
-    error?.data?.message ||
-    error?.message ||
-    fallback;
-  const detailMap = error?.data?.data;
-  if (detailMap && typeof detailMap === 'object') {
+    messageCandidates.find(
+      (candidate) => typeof candidate === 'string' && candidate.trim().length,
+    ) || fallback;
+  const detailMap =
+    (serverData?.data && typeof serverData.data === 'object' && serverData.data) ||
+    (serverData?.errors && typeof serverData.errors === 'object' && serverData.errors);
+  if (detailMap) {
     const detailMessages = Object.values(detailMap)
       .filter((item) => typeof item === 'string' && item.trim().length)
       .join(', ');
@@ -282,7 +291,14 @@ const LaboratoryHarga: React.FC = () => {
       });
     } catch (error) {
       console.error('Failed to fetch price tests', error);
-      message.error('Gagal memuat harga property');
+      const serverMessage = extractServerMessage(error, 'Gagal memuat harga property');
+      message.error(serverMessage);
+      setProperties([]);
+      setPagination({
+        current: 1,
+        pageSize,
+        total: 0,
+      });
     } finally {
       setTableLoading(false);
     }

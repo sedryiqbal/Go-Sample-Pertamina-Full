@@ -26,8 +26,11 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import ProductQCListModal from '@/components/ProductQCListModal';
 import ProductQCModal, {
+  type CalculatedResults,
   type CoqDetail,
   type PortStarboardRecord,
   type ProductQCData,
@@ -70,6 +73,360 @@ const normalizeTextParam = (value: unknown): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+type ProductQcFormState = ProductQCData & {
+  calculatedResults?: CalculatedResults | null;
+  __calc?: CalculatedResults | null;
+};
+
+interface ProductQCPdfDocumentProps {
+  ship: ShipTableRecord;
+  data: ProductQcFormState;
+}
+
+const ProductQCPdfDocument = React.forwardRef<
+  HTMLDivElement,
+  ProductQCPdfDocumentProps
+>(({ ship, data }, ref) => {
+  const calculations = data.calculatedResults || data.__calc || undefined;
+  const portRecords = data.port_data || [];
+  const starboardRecords = data.starboard_data || [];
+  const coqDetails = data.coq_details || [];
+
+  const baseCellStyle: React.CSSProperties = {
+    border: '1px solid #e8e8e8',
+    padding: '6px 8px',
+    textAlign: 'center',
+    fontSize: 12,
+  };
+
+  const headerCellStyle: React.CSSProperties = {
+    ...baseCellStyle,
+    backgroundColor: '#fafafa',
+    fontWeight: 600,
+  };
+
+  const formatNumber = (value: unknown, fractionDigits = 3) => {
+    if (value === null || value === undefined || value === '') {
+      return '-';
+    }
+
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) {
+      return '-';
+    }
+
+    return numeric.toLocaleString(undefined, {
+      maximumFractionDigits: fractionDigits,
+    });
+  };
+
+  const renderCompartmentRows = (records: PortStarboardRecord[]) =>
+    records.map((record, index) => (
+      <tr key={`${record.id ?? index}-${index}`}>
+        <td style={{ ...baseCellStyle, fontWeight: 600 }}>{index + 1}</td>
+        <td style={baseCellStyle}>{record.free_water || '-'}</td>
+        <td style={baseCellStyle}>{record.suspended_water || '-'}</td>
+        <td style={baseCellStyle}>
+          {formatNumber(record.electrical_conductivity, 0)}
+        </td>
+        <td style={baseCellStyle}>
+          {formatNumber(record.temperature_observed, 1)}
+        </td>
+        <td style={baseCellStyle}>
+          {formatNumber(record.density_observed, 4)}
+        </td>
+        <td style={baseCellStyle}>{formatNumber(record.density_15c, 4)}</td>
+        <td style={baseCellStyle}>{formatNumber(record.volume_liters, 3)}</td>
+        <td style={baseCellStyle}>
+          {formatNumber(record.dens_15c_x_volume, 3)}
+        </td>
+      </tr>
+    ));
+
+  const hasCoqDetail = coqDetails.some(
+    (detail) => detail.coq_no || detail.issuance_date,
+  );
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        width: '210mm',
+        minHeight: '297mm',
+        padding: '20mm',
+        backgroundColor: '#ffffff',
+        color: '#262626',
+        fontFamily:
+          'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+        lineHeight: 1.4,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid #e8e8e8',
+          paddingBottom: 12,
+          marginBottom: 16,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#111' }}>
+            PRODUCT QUALITY CHECK – BEFORE DISCHARGE
+          </div>
+          <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+            Kapal: <strong>{safeText(ship.name)}</strong>{' '}
+            {ship.code ? `(${safeText(ship.code)})` : ''} • Muatan:{' '}
+            <strong>{safeText(ship.cargoType)}</strong>
+          </div>
+          <div style={{ fontSize: 12, color: '#666' }}>
+            Kedatangan: {formatDateTime(ship.arrivalDate ?? undefined)} •
+            Lokasi: {safeText(ship.portLocation)}
+          </div>
+        </div>
+        <div style={{ fontSize: 12, color: '#666', textAlign: 'right' }}>
+          Generated at {formatDateTime(new Date().toISOString())}
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 16,
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ border: '1px solid #e8e8e8', borderRadius: 8 }}>
+          <div
+            style={{
+              padding: '10px 12px',
+              borderBottom: '1px solid #e8e8e8',
+              fontWeight: 600,
+            }}
+          >
+            Informasi Kapal
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            {[{
+              label: 'Nama Kapal',
+              value: safeText(ship.name),
+            },
+            {
+              label: 'Tanggal Kedatangan',
+              value: formatDateTime(ship.arrivalDate ?? undefined),
+            },
+            {
+              label: 'Kapasitas',
+              value: `${formatNumber(ship.capacity, 0)} KL`,
+            },
+            {
+              label: 'Bendera',
+              value: safeText(ship.flag),
+            },
+            {
+              label: 'Perusahaan',
+              value: safeText(ship.company),
+            },
+            {
+              label: 'Kapten',
+              value: safeText(ship.captainName),
+            },
+            {
+              label: 'Pelabuhan Asal',
+              value: safeText(ship.originPort),
+            },
+            {
+              label: 'Pelabuhan Tujuan',
+              value: safeText(ship.destinationPort),
+            }].map((row) => (
+              <tr key={row.label}>
+                <td
+                  style={{
+                    ...baseCellStyle,
+                    textAlign: 'left',
+                    width: '45%',
+                    backgroundColor: '#fafafa',
+                    fontWeight: 600,
+                  }}
+                >
+                  {row.label}
+                </td>
+                <td style={{ ...baseCellStyle, textAlign: 'left' }}>
+                  {row.value}
+                </td>
+              </tr>
+            ))}
+          </table>
+        </div>
+
+        <div style={{ border: '1px solid #e8e8e8', borderRadius: 8 }}>
+          <div
+            style={{
+              padding: '10px 12px',
+              borderBottom: '1px solid #e8e8e8',
+              fontWeight: 600,
+            }}
+          >
+            Ringkasan Perhitungan
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            {[{
+              label: 'Total (Dens@15°C × Volume)',
+              value: formatNumber(calculations?.total_volume_dens_15c, 3),
+            },
+            {
+              label: 'Total Volume',
+              value: `${formatNumber(calculations?.total_volume, 3)} L`,
+            },
+            {
+              label: 'Expected Density',
+              value: `${formatNumber(calculations?.expected_density, 1)} kg/m³`,
+            },
+            {
+              label: 'Refinery Certificate Density',
+              value: `${formatNumber(
+                calculations?.refinery_certificate_density,
+                1,
+              )} kg/m³`,
+            },
+            {
+              label: 'Difference (Max 3)',
+              value: `${formatNumber(calculations?.density_difference, 1)} kg/m³`,
+            }].map((row) => (
+              <tr key={row.label}>
+                <td
+                  style={{
+                    ...baseCellStyle,
+                    textAlign: 'left',
+                    width: '65%',
+                    backgroundColor: '#fafafa',
+                    fontWeight: 600,
+                  }}
+                >
+                  {row.label}
+                </td>
+                <td style={{ ...baseCellStyle, textAlign: 'left' }}>
+                  {row.value}
+                </td>
+              </tr>
+            ))}
+          </table>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+          Port Compartment
+        </div>
+        <table
+          style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}
+        >
+          <thead>
+            <tr>
+              {[ '#', 'Free Water', 'Suspended Water', 'EC (µS/m)', 'Temp (°C)', 'Density Obs', 'Density @15°C', 'Volume (L)', 'D15 × V' ].map(
+                (header) => (
+                  <th key={header} style={headerCellStyle}>
+                    {header}
+                  </th>
+                ),
+              )}
+            </tr>
+          </thead>
+          <tbody>{renderCompartmentRows(portRecords)}</tbody>
+        </table>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+          Starboard Compartment
+        </div>
+        <table
+          style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}
+        >
+          <thead>
+            <tr>
+              {[ '#', 'Free Water', 'Suspended Water', 'EC (µS/m)', 'Temp (°C)', 'Density Obs', 'Density @15°C', 'Volume (L)', 'D15 × V' ].map(
+                (header) => (
+                  <th key={header} style={headerCellStyle}>
+                    {header}
+                  </th>
+                ),
+              )}
+            </tr>
+          </thead>
+          <tbody>{renderCompartmentRows(starboardRecords)}</tbody>
+        </table>
+      </div>
+
+      {hasCoqDetail ? (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+            Certificate of Quality
+          </div>
+          <table
+            style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}
+          >
+            <thead>
+              <tr>
+                <th style={headerCellStyle}>No</th>
+                <th style={headerCellStyle}>COQ Number</th>
+                <th style={headerCellStyle}>Issuance Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {coqDetails.map((detail, index) => (
+                <tr key={`coq-${index}`}>
+                  <td style={baseCellStyle}>{index + 1}</td>
+                  <td style={baseCellStyle}>{detail.coq_no || '-'}</td>
+                  <td style={baseCellStyle}>
+                    {detail.issuance_date
+                      ? formatDateTime(detail.issuance_date)
+                      : '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      <div style={{ display: 'flex', gap: 16 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+            Catatan Port
+          </div>
+          <div
+            style={{
+              border: '1px solid #e8e8e8',
+              minHeight: 80,
+              padding: 8,
+            }}
+          >
+            {safeText(data.port_note) || '-'}
+          </div>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+            Catatan Starboard
+          </div>
+          <div
+            style={{
+              border: '1px solid #e8e8e8',
+              minHeight: 80,
+              padding: 8,
+            }}
+          >
+            {safeText(data.starboard_note) || '-'}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+ProductQCPdfDocument.displayName = 'ProductQCPdfDocument';
+
 const Ships: React.FC = () => {
   const [form] = Form.useForm<ShipFormValues>();
   const actionRef = useRef<ActionType | null>(null);
@@ -92,7 +449,7 @@ const Ships: React.FC = () => {
   const [qcModalVisible, setQcModalVisible] = useState(false);
   const [qcShip, setQcShip] = useState<ShipTableRecord | null>(null);
   const [qcDataByShip, setQcDataByShip] = useState<
-    Record<string, ProductQCData>
+    Record<string, ProductQcFormState>
   >({});
   const [qcListVisible, setQcListVisible] = useState(false);
   const [qcRecords, setQcRecords] = useState<ProductQcRecord[]>([]);
@@ -108,6 +465,13 @@ const Ships: React.FC = () => {
   const [deletingQcId, setDeletingQcId] = useState<string | number | null>(
     null,
   );
+  const [pdfPreviewState, setPdfPreviewState] = useState<
+    { ship: ShipTableRecord; data: ProductQcFormState } | null
+  >(null);
+  const pdfPreviewRef = useRef<HTMLDivElement | null>(null);
+  const [pdfGeneratingShipId, setPdfGeneratingShipId] = useState<
+    string | number | null
+  >(null);
 
   const handleFormApiError = useCallback(
     (error: unknown) => {
@@ -219,7 +583,7 @@ const Ships: React.FC = () => {
     return Number.isFinite(numeric) ? numeric : null;
   }, []);
 
-  const mapProductQcRecordToSampleData = useCallback(
+const mapProductQcRecordToSampleData = useCallback(
     (record: ProductQcRecord): ProductQCSampleData => {
       const portRecords: Partial<PortStarboardRecord>[] = [];
       const starboardRecords: Partial<PortStarboardRecord>[] = [];
@@ -274,6 +638,64 @@ const Ships: React.FC = () => {
     [convertWaterFlag, toNullableNumber],
   );
 
+  const mapProductQcRecordToFormState = useCallback(
+    (record: ProductQcRecord): ProductQcFormState => {
+      const portRecords: PortStarboardRecord[] = [];
+      const starboardRecords: PortStarboardRecord[] = [];
+
+      (record.compartmentData ?? []).forEach((item, index) => {
+        const normalized: PortStarboardRecord = {
+          id: item.id ?? index + 1,
+          free_water: convertWaterFlag(item.freeWater),
+          suspended_water: convertWaterFlag(item.suspendedWater),
+          electrical_conductivity: toNullableNumber(
+            item.electricalConductivity,
+          ),
+          temperature_observed: toNullableNumber(item.temperatureObserved),
+          density_observed: toNullableNumber(item.densityObserved),
+          density_15c: toNullableNumber(item.densityAt15C),
+          batch_density_15c: toNullableNumber(item.batchDensity),
+          diff: toNullableNumber(item.diff),
+          volume_liters: null,
+          dens_15c_x_volume: null,
+          notes: item.notes ?? null,
+        };
+
+        if (item.type === 0) {
+          portRecords.push(normalized);
+        } else {
+          starboardRecords.push(normalized);
+        }
+      });
+
+      const coqDetails: CoqDetail[] = (record.rCoQs ?? []).map((coq) => ({
+        coq_no: coq.no ?? '',
+        issuance_date: coq.date ?? '',
+      }));
+
+      return {
+        name_of_tanker: record.shipName
+          ? `MT. ${record.shipName}`
+          : record.shipName ?? '',
+        arrival_date: record.arrivalDate ?? '',
+        quantity_in_batch:
+          typeof record.quantityInBatch === 'number'
+            ? record.quantityInBatch
+            : 0,
+        refinery_terminal: record.refineryTerminal ?? '',
+        grade_of_product: record.gradeOfProduct ?? '',
+        coq_details: coqDetails,
+        port_note: '',
+        starboard_note: '',
+        port_data: portRecords,
+        starboard_data: starboardRecords,
+        calculatedResults: undefined,
+        __calc: undefined,
+      };
+    },
+    [convertWaterFlag, toNullableNumber],
+  );
+
   const convertWaterToNumeric = useCallback(
     (value: 'P' | 'N' | '' | null | undefined): number =>
       value === 'P' ? 1 : 0,
@@ -281,7 +703,7 @@ const Ships: React.FC = () => {
   );
 
   const toNumberOrZero = useCallback((value: number | null | undefined) => {
-    if (value === null || value === undefined || value === '') {
+    if (value === null || value === undefined) {
       return 0;
     }
 
@@ -510,11 +932,19 @@ const Ships: React.FC = () => {
     [qcShip, buildCreateProductQcPayload, loadProductQcRecords],
   );
 
-  const handleSelectExistingQc = useCallback((record: ProductQcRecord) => {
-    setSelectedQcRecord(record);
-    setQcListVisible(false);
-    setQcModalVisible(true);
-  }, []);
+  const handleSelectExistingQc = useCallback(
+    (record: ProductQcRecord) => {
+      setSelectedQcRecord(record);
+      setQcListVisible(false);
+      setQcModalVisible(true);
+      const shipKey = String(record.shipID);
+      setQcDataByShip((prev) => ({
+        ...prev,
+        [shipKey]: mapProductQcRecordToFormState(record),
+      }));
+    },
+    [mapProductQcRecordToFormState],
+  );
 
   const handleCreateQcFromList = useCallback(() => {
     if (!qcShip) {
@@ -570,196 +1000,103 @@ const Ships: React.FC = () => {
     [qcShip, selectedQcRecord],
   );
 
-  const openQCPdfWindow = useCallback((ship: ShipTableRecord, data: any) => {
-    if (typeof window === 'undefined') {
-      return;
-    }
+  const fetchLatestProductQcData = useCallback(
+    async (ship: ShipTableRecord): Promise<ProductQcFormState | undefined> => {
+      try {
+        const records = await fetchProductQcByShip(ship.id);
+        if (!records.length) {
+          message.warning('Belum ada Product QC untuk kapal ini');
+          return undefined;
+        }
 
-    const win = window.open('', '_blank');
-    if (!win) {
-      message.error('Popup diblokir. Izinkan popup untuk generate PDF.');
-      return;
-    }
+        const latestRecord = records[0];
+        const mapped = mapProductQcRecordToFormState(latestRecord);
+        const shipKey = String(ship.id);
+        setQcDataByShip((prev) => ({ ...prev, [shipKey]: mapped }));
+        setQcAvailabilityByShip((prev) => ({ ...prev, [shipKey]: true }));
+        return mapped;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Gagal memuat Product QC';
+        message.error(errorMessage);
+        return undefined;
+      }
+    },
+    [mapProductQcRecordToFormState],
+  );
 
-    const style = `
-      <style>
-        * { box-sizing: border-box; }
-        body { font-family: -apple-system, Segoe UI, Roboto, Arial; color: #262626; margin: 24px; }
-        .header { display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid #e8e8e8; padding-bottom:12px; margin-bottom:16px; }
-        .title { font-size:18px; font-weight:700; color:#111; }
-        .meta { font-size:12px; color:#666; }
-        .section { margin-top:16px; }
-        .section h3 { margin:0 0 8px 0; font-size:14px; color:#111; }
-        table { width:100%; border-collapse: collapse; font-size:12px; }
-        th, td { border:1px solid #e8e8e8; padding:6px 8px; text-align:center; }
-        th { background:#fafafa; font-weight:600; }
-        .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-        .card { border:1px solid #e8e8e8; border-radius:8px; padding:12px; }
-        .muted { color:#666; }
-        .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-        @media print {.noprint{ display:none; }}
-      </style>
-    `;
-
-    const formatNumber = (value: unknown, fractionDigits = 3) => {
-      if (value === null || value === undefined || value === '') {
-        return '-';
+  const handleDownloadProductQcPdf = useCallback(
+    async (ship: ShipTableRecord, data?: ProductQcFormState) => {
+      if (typeof window === 'undefined') {
+        return;
       }
 
-      const numeric = Number(value);
-      if (Number.isNaN(numeric)) {
-        return '-';
+      const waitForNextFrame = () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => resolve());
+          });
+        });
+
+      try {
+        setPdfGeneratingShipId(ship.id);
+        let productQcData = data;
+
+        if (!productQcData) {
+          productQcData = await fetchLatestProductQcData(ship);
+          if (!productQcData) {
+            return;
+          }
+        }
+
+        setPdfPreviewState({ ship, data: productQcData });
+        await waitForNextFrame();
+
+        if (!pdfPreviewRef.current) {
+          throw new Error('Konten PDF belum siap');
+        }
+
+        const canvas = await html2canvas(pdfPreviewRef.current, {
+          scale: 2,
+          useCORS: true,
+        });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        let heightLeft = pdfHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pdf.internal.pageSize.getHeight();
+
+        while (heightLeft > 0) {
+          position = heightLeft - pdfHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+          heightLeft -= pdf.internal.pageSize.getHeight();
+        }
+
+        const normalizedName = safeText(ship.name || '')
+          .toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/[^a-z0-9\-]/g, '');
+        const filename = `product-qc-${normalizedName || ship.id}.pdf`;
+
+        pdf.save(filename);
+        message.success('Product QC berhasil diekspor ke PDF');
+      } catch (error) {
+        console.error('Failed to generate Product QC PDF', error);
+        message.error('Gagal mengekspor Product QC ke PDF');
+      } finally {
+        setPdfGeneratingShipId((current) =>
+          current === ship.id ? null : current,
+        );
+        setPdfPreviewState(null);
       }
-
-      return numeric.toLocaleString(undefined, {
-        maximumFractionDigits: fractionDigits,
-      });
-    };
-
-    const rows = (records: any[]) =>
-      records
-        .map(
-          (recordItem, index) => `
-          <tr>
-            <td><b>${index + 1}</b></td>
-            <td>${recordItem.free_water || '-'}</td>
-            <td>${recordItem.suspended_water || '-'}</td>
-            <td>${formatNumber(recordItem.electrical_conductivity, 0)}</td>
-            <td>${formatNumber(recordItem.temperature_observed, 1)}</td>
-            <td>${formatNumber(recordItem.density_observed, 4)}</td>
-            <td>${formatNumber(recordItem.density_15c, 4)}</td>
-            <td>${formatNumber(recordItem.volume_liters, 3)}</td>
-            <td>${formatNumber(recordItem.dens_15c_x_volume, 3)}</td>
-          </tr>
-        `,
-        )
-        .join('');
-
-    if (!data.__calc && data.calculatedResults) {
-      data.__calc = data.calculatedResults;
-    }
-
-    const html = `
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Product QC - ${ship.name}</title>
-          ${style}
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <div class="title">PRODUCT QUALITY CHECK – BEFORE DISCHARGE</div>
-              <div class="meta">Kapal: <b>${safeText(ship.name)} (${safeText(
-                ship.code,
-              )})</b> &nbsp;•&nbsp; Muatan: <b>${safeText(
-                ship.cargoType,
-              )}</b></div>
-              <div class="meta">Kedatangan: ${formatDateTime(
-                ship.arrivalDate ?? undefined,
-              )} &nbsp;•&nbsp; Lokasi: ${safeText(ship.portLocation)}</div>
-            </div>
-            <div class="muted">Generated at ${new Date().toLocaleString()}</div>
-          </div>
-
-          <div class="section grid">
-            <div class="card">
-              <h3>Informasi Kapal</h3>
-              <table>
-                <tr><th style="text-align:left;">Nama Kapal</th><td style="text-align:left;">${safeText(
-                  ship.name,
-                )}</td></tr>
-                <tr><th style="text-align:left;">Tanggal Kedatangan</th><td style="text-align:left;">${formatDateTime(
-                  ship.arrivalDate ?? undefined,
-                )}</td></tr>
-                <tr><th style="text-align:left;">Kapasitas</th><td style="text-align:left;">${formatNumber(
-                  ship.capacity,
-                  0,
-                )} KL</td></tr>
-                <tr><th style="text-align:left;">Bendera</th><td style="text-align:left;">${safeText(
-                  ship.flag,
-                )}</td></tr>
-                <tr><th style="text-align:left;">Perusahaan</th><td style="text-align:left;">${safeText(
-                  ship.company,
-                )}</td></tr>
-                <tr><th style="text-align:left;">Kapten</th><td style="text-align:left;">${safeText(
-                  ship.captainName,
-                )}</td></tr>
-                <tr><th style="text-align:left;">Pelabuhan Asal</th><td style="text-align:left;">${safeText(
-                  ship.originPort,
-                )}</td></tr>
-                <tr><th style="text-align:left;">Pelabuhan Tujuan</th><td style="text-align:left;">${safeText(
-                  ship.destinationPort,
-                )}</td></tr>
-              </table>
-            </div>
-            <div class="card">
-              <h3>Ringkasan Perhitungan</h3>
-              <table>
-                <tr><th style="text-align:left;">Total (Dens@15°C × Volume)</th><td style="text-align:left;" class="kbd">${formatNumber(data.__calc?.total_volume_dens_15c ?? '-', 3)}</td></tr>
-                <tr><th style="text-align:left;">Total Volume</th><td style="text-align:left;" class="kbd">${formatNumber(data.__calc?.total_volume ?? '-', 3)} L</td></tr>
-                <tr><th style="text-align:left;">Expected Density</th><td style="text-align:left;" class="kbd">${formatNumber(data.__calc?.expected_density ?? '-', 1)} kg/m³</td></tr>
-                <tr><th style="text-align:left;">Refinery Certificate</th><td style="text-align:left;" class="kbd">${formatNumber(data.__calc?.refinery_certificate_density ?? '-', 0)} kg/m³</td></tr>
-                <tr><th style="text-align:left;">Difference (Max 3)</th><td style="text-align:left;" class="kbd">${formatNumber(data.__calc?.density_difference ?? '-', 1)} kg/m³</td></tr>
-              </table>
-            </div>
-          </div>
-
-          <div class="section">
-            <h3>Port Compartment</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Free Water</th>
-                  <th>Suspended Water</th>
-                  <th>EC (µS/m)</th>
-                  <th>Temp (°C)</th>
-                  <th>Density Obs</th>
-                  <th>Density @15°C</th>
-                  <th>Volume (L)</th>
-                  <th>D15 × V</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${rows(data.port_data || [])}
-              </tbody>
-            </table>
-          </div>
-
-          <div class="section" style="page-break-inside: avoid;">
-            <h3>Starboard Compartment</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Free Water</th>
-                  <th>Suspended Water</th>
-                  <th>EC (µS/m)</th>
-                  <th>Temp (°C)</th>
-                  <th>Density Obs</th>
-                  <th>Density @15°C</th>
-                  <th>Volume (L)</th>
-                  <th>D15 × V</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${rows(data.starboard_data || [])}
-              </tbody>
-            </table>
-          </div>
-
-          <div class="section noprint" style="text-align:right; margin-top:16px;">
-            <button onclick="window.print()" style="padding:8px 12px; border:1px solid #d9d9d9; background:#fafafa; border-radius:6px; cursor:pointer;">Print / Save as PDF</button>
-          </div>
-        </body>
-      </html>
-    `;
-
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-  }, []);
+    },
+    [fetchLatestProductQcData],
+  );
 
   const qcModalSampleData = useMemo<ProductQCSampleData | undefined>(() => {
     if (selectedQcRecord) {
@@ -986,6 +1323,8 @@ const Ships: React.FC = () => {
           const shipKey = String(record.id);
           const hasQcRecords = qcAvailabilityByShip[shipKey] ?? false;
           const hasLocalQcData = !!qcDataByShip[shipKey];
+          const canGeneratePdf =
+            hasLocalQcData || hasQcRecords || !!record.isQCCompleted;
           return (
             <Space size={8} wrap={false}>
               <Button
@@ -1026,17 +1365,11 @@ const Ships: React.FC = () => {
               <Button
                 size="small"
                 icon={<FileTextOutlined />}
-                disabled={!hasLocalQcData}
-                onClick={() => {
-                  const qcData = qcDataByShip[shipKey];
-                  if (!qcData) {
-                    message.warning(
-                      'Silakan simpan Product QC terlebih dahulu',
-                    );
-                    return;
-                  }
-                  openQCPdfWindow(record, qcData);
-                }}
+                disabled={!canGeneratePdf}
+                loading={pdfGeneratingShipId === record.id}
+                onClick={() =>
+                  handleDownloadProductQcPdf(record, qcDataByShip[shipKey])
+                }
                 style={{ borderRadius: 16 }}
               >
                 PDF
@@ -1051,9 +1384,10 @@ const Ships: React.FC = () => {
       handleEdit,
       handleOpenQC,
       handleShowDetail,
-      openQCPdfWindow,
+      handleDownloadProductQcPdf,
       qcDataByShip,
       qcAvailabilityByShip,
+      pdfGeneratingShipId,
     ],
   );
 
@@ -1195,6 +1529,26 @@ const Ships: React.FC = () => {
         ship={qcShip}
         shipId={qcShip?.id ?? null}
       />
+
+      {pdfPreviewState ? (
+        <div
+          style={{
+            position: 'fixed',
+            top: -9999,
+            left: -9999,
+            opacity: 0,
+            pointerEvents: 'none',
+            zIndex: -1,
+          }}
+          aria-hidden
+        >
+          <ProductQCPdfDocument
+            ref={pdfPreviewRef}
+            ship={pdfPreviewState.ship}
+            data={pdfPreviewState.data}
+          />
+        </div>
+      ) : null}
     </PageContainer>
   );
 };
