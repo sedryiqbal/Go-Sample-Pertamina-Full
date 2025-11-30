@@ -19,6 +19,7 @@ import {
   Select,
   Spin,
   Statistic,
+  Tag,
 } from 'antd';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -132,31 +133,31 @@ const Monitoring: React.FC = () => {
     }
   };
 
-  const getStatusColor = (statusValue: number) => {
+  const getStatusBadgeColor = (statusValue: number) => {
     switch (statusValue) {
       case MonitoringStatus.Pending:
-        return 'default';
+        return '#d9d9d9';
       case MonitoringStatus.WaitingPickupSample:
-        return 'processing';
+        return '#1890ff';
       case MonitoringStatus.InTransit:
-        return 'warning';
+        return '#faad14';
       case MonitoringStatus.Delivered:
-        return 'success';
+        return '#52c41a';
       case MonitoringStatus.ConfirmSampleInLab:
       case MonitoringStatus.RegisteredLabSample:
-        return 'processing';
+        return '#1890ff';
       case MonitoringStatus.StartTesting:
-        return 'warning';
+        return '#faad14';
       case MonitoringStatus.CompletedTesting:
-        return 'success';
+        return '#52c41a';
       case MonitoringStatus.Comparation:
-        return 'processing';
+        return '#722ed1';
       case MonitoringStatus.CompletedComparation:
-        return 'success';
+        return '#52c41a';
       case MonitoringStatus.Canceled:
-        return 'error';
+        return '#ff4d4f';
       default:
-        return 'default';
+        return '#d9d9d9';
     }
   };
 
@@ -171,6 +172,36 @@ const Monitoring: React.FC = () => {
     if (percentage >= 60) return '#faad14';
     if (percentage >= 40) return '#1890ff';
     return '#fd0017';
+  };
+
+  const mapStatusToProgress = (statusValue: number) => {
+    switch (statusValue) {
+      case 0:
+        return 10;
+      case 1:
+        return 20;
+      case 2:
+        return 30;
+      case 3:
+        return 40;
+      case 4:
+        return 50;
+      case 5:
+        return 60;
+      case 6:
+        return 70;
+      case 7:
+        return 80;
+      case 8:
+      case 9:
+        return 90;
+      case 10:
+      case 11:
+      case 12:
+        return 100;
+      default:
+        return 0;
+    }
   };
 
   const columns: ProColumns<MonitoringSampleOrder>[] = [
@@ -194,19 +225,22 @@ const Monitoring: React.FC = () => {
       title: 'Progress',
       dataIndex: 'progress',
       key: 'progress',
-      render: (_, record) => (
-        <div>
-          <Progress
-            percent={record.progress}
-            size="small"
-            strokeColor={getProgressColor(record.progress, record.statusValue)}
-            showInfo={false}
-          />
-          <div style={{ fontSize: '12px', color: '#666', marginTop: 2 }}>
-            {record.progress}%
+      render: (_, record) => {
+        const percent = mapStatusToProgress(record.statusValue);
+        return (
+          <div>
+            <Progress
+              percent={percent}
+              size="small"
+              strokeColor={getProgressColor(percent, record.statusValue)}
+              showInfo={false}
+            />
+            <div style={{ fontSize: '12px', color: '#666', marginTop: 2 }}>
+              {percent}%
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
       sorter: true,
     },
     {
@@ -214,14 +248,19 @@ const Monitoring: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       render: (_, record) => (
-        <Badge
-          status={getStatusColor(record.statusValue) as any}
-          text={
-            record.status ||
+        <Tag
+          color={getStatusBadgeColor(record.statusValue)}
+          style={{
+            fontWeight: 600,
+            borderRadius: 16,
+            padding: '2px 12px',
+            textTransform: 'capitalize',
+          }}
+        >
+          {record.status ||
             MonitoringStatusLabels[record.statusValue] ||
-            'Unknown'
-          }
-        />
+            'Unknown'}
+        </Tag>
       ),
       filters: statusOptions
         .slice(1)
@@ -366,11 +405,11 @@ const Monitoring: React.FC = () => {
               Status: selectedStatus !== 'all' ? selectedStatus : undefined,
               ShipId: selectedShipId,
               Search: params.keyword,
-              SortBy: sort && Object.keys(sort).length > 0 
-                ? Object.keys(sort)[0] 
+              SortBy: sort && Object.keys(sort).length > 0
+                ? Object.keys(sort)[0]
                 : undefined,
-              SortDescending: sort && Object.keys(sort).length > 0 
-                ? Object.values(sort)[0] === 'descend' 
+              SortDescending: sort && Object.keys(sort).length > 0
+                ? Object.values(sort)[0] === 'descend'
                 : undefined,
             });
 

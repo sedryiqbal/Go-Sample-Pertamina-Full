@@ -4,7 +4,21 @@ import {
   ExperimentOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
-import { Card, Col, message, Modal, Row, Spin, Statistic, Table, Tag, Typography } from 'antd';
+import {
+  Button,
+  Card,
+  Col,
+  Input,
+  message,
+  Modal,
+  Row,
+  Space,
+  Spin,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+} from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 import { fetchComparisonResult } from '../../services/comparison';
@@ -29,16 +43,35 @@ interface ComparisonTestModalProps {
   visible: boolean;
   onClose: () => void;
   sampleData: any;
+  onRelease?: (
+    payload: { status: 'Success' | 'Repeat'; notes: string; sampleOrderId: string | number },
+  ) => Promise<boolean | void> | boolean | void;
 }
+
+const getReleaseLabelFromCode = (
+  statusCode?: number | null,
+): 'Success' | 'Repeat' | undefined => {
+  if (statusCode === 11) return 'Success';
+  if (statusCode === 12) return 'Repeat';
+  return undefined;
+};
 
 const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
   visible,
   onClose,
   sampleData,
+  onRelease,
 }) => {
   const [comparisonData, setComparisonData] = useState<ComparisonTestData[]>([]);
   const [loading, setLoading] = useState(false);
   const [resultInfo, setResultInfo] = useState<ComparisonResult | null>(null);
+  const [releaseStatus, setReleaseStatus] = useState<'Success' | 'Repeat'>('Success');
+  const [releaseNotes, setReleaseNotes] = useState('');
+  const lockedStatusLabel =
+    getReleaseLabelFromCode(sampleData?.release_status_code) ||
+    (sampleData?.release_status as 'Success' | 'Repeat' | undefined);
+  const isReleaseLocked = Boolean(lockedStatusLabel);
+  const lockedStatusColor = lockedStatusLabel === 'Repeat' ? '#ff4d4f' : '#52c41a';
 
   // Fetch comparison result data
   useEffect(() => {
@@ -52,7 +85,7 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
 
         if (result) {
           setResultInfo(result);
-          
+
           // Map API result to table format
           const tableData: ComparisonTestData[] = result.results.map((item) => ({
             key: `property_${item.propertyTestId}`,
@@ -87,8 +120,47 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
     if (!visible) {
       setComparisonData([]);
       setResultInfo(null);
+      setReleaseStatus('Success');
+      setReleaseNotes('');
+    } else if (visible) {
+      const presetStatus =
+        getReleaseLabelFromCode(sampleData?.release_status_code) ||
+        sampleData?.release_status ||
+        'Success';
+      setReleaseStatus(presetStatus);
+      setReleaseNotes(sampleData?.release_notes || '');
     }
-  }, [visible]);
+  }, [
+    visible,
+    sampleData?.release_status,
+    sampleData?.release_status_code,
+    sampleData?.release_notes,
+  ]);
+
+  const handleReleaseSubmit = async () => {
+    if (isReleaseLocked) {
+      message.info('Status hasil sudah ditetapkan dan tidak dapat diubah dari sini.');
+      return;
+    }
+    if (!sampleData?.id) {
+      message.error('Sample order ID tidak ditemukan.');
+      return;
+    }
+    const trimmedNotes = releaseNotes.trim();
+    if (!trimmedNotes.length) {
+      message.warning('Mohon isi alasan sebelum menyimpan status hasil.');
+      return;
+    }
+    const payload = { status: releaseStatus, notes: trimmedNotes };
+    if (onRelease) {
+      const result = await onRelease({
+        ...payload,
+        sampleOrderId: sampleData.id,
+      });
+      if (result === false) return;
+    }
+    onClose();
+  };
 
   // Calculate statistics from result info or fallback to calculated values
   const stats = {
@@ -354,110 +426,110 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
             )}
           </Card>
 
-        {/* Statistics Cards */}
-        <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col span={8}>
-            <Card
-              size="small"
-              style={{
-                textAlign: 'center',
-                background: '#f6ffed',
-                border: '1px solid #b7eb8f',
-              }}
-            >
-              <Statistic
-                title="Total Parameters"
-                value={stats.total}
-                prefix={<InfoCircleOutlined style={{ color: '#52c41a' }} />}
-                valueStyle={{
-                  color: '#52c41a',
-                  fontSize: '20px',
-                  fontWeight: 700,
+          {/* Statistics Cards */}
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={8}>
+              <Card
+                size="small"
+                style={{
+                  textAlign: 'center',
+                  background: '#f6ffed',
+                  border: '1px solid #b7eb8f',
                 }}
-              />
-            </Card>
-          </Col>
-          <Col span={8}>
-            <Card
-              size="small"
-              style={{
-                textAlign: 'center',
-                background: '#f6ffed',
-                border: '1px solid #b7eb8f',
-              }}
-            >
-              <Statistic
-                title="On Specification"
-                value={stats.onspec}
-                prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-                valueStyle={{
-                  color: '#52c41a',
-                  fontSize: '20px',
-                  fontWeight: 700,
+              >
+                <Statistic
+                  title="Total Parameters"
+                  value={stats.total}
+                  prefix={<InfoCircleOutlined style={{ color: '#52c41a' }} />}
+                  valueStyle={{
+                    color: '#52c41a',
+                    fontSize: '20px',
+                    fontWeight: 700,
+                  }}
+                />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card
+                size="small"
+                style={{
+                  textAlign: 'center',
+                  background: '#f6ffed',
+                  border: '1px solid #b7eb8f',
                 }}
-                suffix={
-                  <span style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                    /{stats.total}
-                  </span>
-                }
-              />
-            </Card>
-          </Col>
-          <Col span={8}>
-            <Card
-              size="small"
-              style={{
-                textAlign: 'center',
-                background: stats.offspec > 0 ? '#fff2f0' : '#f6ffed',
-                border: `1px solid ${stats.offspec > 0 ? '#ffccc7' : '#b7eb8f'}`,
-              }}
-            >
-              <Statistic
-                title="Off Specification"
-                value={stats.offspec}
-                prefix={
-                  <CloseCircleOutlined
-                    style={{ color: stats.offspec > 0 ? '#ff4d4f' : '#52c41a' }}
-                  />
-                }
-                valueStyle={{
-                  color: stats.offspec > 0 ? '#ff4d4f' : '#52c41a',
-                  fontSize: '20px',
-                  fontWeight: 700,
+              >
+                <Statistic
+                  title="On Specification"
+                  value={stats.onspec}
+                  prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                  valueStyle={{
+                    color: '#52c41a',
+                    fontSize: '20px',
+                    fontWeight: 700,
+                  }}
+                  suffix={
+                    <span style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                      /{stats.total}
+                    </span>
+                  }
+                />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card
+                size="small"
+                style={{
+                  textAlign: 'center',
+                  background: stats.offspec > 0 ? '#fff2f0' : '#f6ffed',
+                  border: `1px solid ${stats.offspec > 0 ? '#ffccc7' : '#b7eb8f'}`,
                 }}
-                suffix={
-                  <span style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                    /{stats.total}
-                  </span>
-                }
-              />
-            </Card>
-          </Col>
-        </Row>
+              >
+                <Statistic
+                  title="Off Specification"
+                  value={stats.offspec}
+                  prefix={
+                    <CloseCircleOutlined
+                      style={{ color: stats.offspec > 0 ? '#ff4d4f' : '#52c41a' }}
+                    />
+                  }
+                  valueStyle={{
+                    color: stats.offspec > 0 ? '#ff4d4f' : '#52c41a',
+                    fontSize: '20px',
+                    fontWeight: 700,
+                  }}
+                  suffix={
+                    <span style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                      /{stats.total}
+                    </span>
+                  }
+                />
+              </Card>
+            </Col>
+          </Row>
 
-        {/* Comparison Results Table */}
-        <Card
-          size="small"
-          title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <ExperimentOutlined style={{ color: '#fa8c16' }} />
-              <span style={{ fontWeight: 600, color: '#262626' }}>
-                Detailed Comparison Results
-              </span>
-            </div>
-          }
-          style={{
-            borderRadius: 8,
-            border: '1px solid #d9d9d9',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          }}
-          headStyle={{
-            background: 'linear-gradient(135deg, #fff7e6 0%, #f6ffed 100%)',
-            borderBottom: '1px solid #e8e8e8',
-          }}
-        >
-          <style>
-            {`
+          {/* Comparison Results Table */}
+          <Card
+            size="small"
+            title={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ExperimentOutlined style={{ color: '#fa8c16' }} />
+                <span style={{ fontWeight: 600, color: '#262626' }}>
+                  Detailed Comparison Results
+                </span>
+              </div>
+            }
+            style={{
+              borderRadius: 8,
+              border: '1px solid #d9d9d9',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            }}
+            headStyle={{
+              background: 'linear-gradient(135deg, #fff7e6 0%, #f6ffed 100%)',
+              borderBottom: '1px solid #e8e8e8',
+            }}
+          >
+            <style>
+              {`
               .comparison-table .ant-table-thead > tr > th {
                 background: linear-gradient(135deg, #95d475 0%, #7cb46c 100%) !important;
                 font-weight: 600;
@@ -479,53 +551,155 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
                 cursor: default;
               }
             `}
-          </style>
-          <Table
-            columns={columns}
-            dataSource={comparisonData}
-            pagination={false}
-            size="small"
-            bordered
-            scroll={{ x: 'max-content' }}
-            rowKey="key"
-            className="comparison-table"
-            rowClassName={(record) => (record.isHeader ? 'header-row' : '')}
-          />
-        </Card>
+            </style>
+            <Table
+              columns={columns}
+              dataSource={comparisonData}
+              pagination={false}
+              size="small"
+              bordered
+              scroll={{ x: 'max-content' }}
+              rowKey="key"
+              className="comparison-table"
+              rowClassName={(record) => (record.isHeader ? 'header-row' : '')}
+            />
+          </Card>
 
-        {/* Summary Information */}
-        <Card
-          size="small"
-          style={{
-            marginTop: 16,
-            background: stats.offspec > 0 ? '#fff2f0' : '#f6ffed',
-            border: `1px solid ${stats.offspec > 0 ? '#ffccc7' : '#b7eb8f'}`,
-          }}
-        >
-          <Row justify="center">
-            <Col>
-              <div style={{ textAlign: 'center' }}>
+          {/* Summary Information */}
+          <Card
+            size="small"
+            style={{
+              marginTop: 16,
+              background: stats.offspec > 0 ? '#fff2f0' : '#f6ffed',
+              border: `1px solid ${stats.offspec > 0 ? '#ffccc7' : '#b7eb8f'}`,
+            }}
+          >
+            <Row justify="center">
+              <Col>
+                <div style={{ textAlign: 'center' }}>
+                  <div
+                    style={{
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      color: stats.offspec > 0 ? '#ff4d4f' : '#52c41a',
+                      marginBottom: 4,
+                    }}
+                  >
+                    {stats.offspec > 0
+                      ? '⚠️ SAMPLE NOT ACCEPTABLE'
+                      : '✅ SAMPLE ACCEPTABLE'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                    {stats.offspec > 0
+                      ? `${stats.offspec} parameter(s) out of specification`
+                      : 'All parameters within specification limits'}
+                  </div>
+                </div>
+              </Col>
+            </Row>
+          </Card>
+
+        {/* Release Controls */}
+        {isReleaseLocked ? (
+          <Card
+            size="small"
+            style={{
+              marginTop: 16,
+              border: `1px solid ${lockedStatusColor}`,
+              background:
+                lockedStatusLabel === 'Repeat'
+                  ? 'rgba(255, 77, 79, 0.08)'
+                  : 'rgba(82, 196, 26, 0.08)',
+            }}
+            title="Release Status"
+          >
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Tag
+                color={lockedStatusColor}
+                style={{
+                  fontWeight: 600,
+                  fontSize: '12px',
+                  alignSelf: 'flex-start',
+                  padding: '4px 12px',
+                }}
+              >
+                {lockedStatusLabel}
+              </Tag>
+              <Text style={{ color: '#595959' }}>
+                Status hasil sudah ditetapkan sehingga tidak dapat diubah dari modal ini.
+              </Text>
+              {sampleData?.release_notes && (
                 <div
                   style={{
-                    fontSize: '16px',
-                    fontWeight: 600,
-                    color: stats.offspec > 0 ? '#ff4d4f' : '#52c41a',
-                    marginBottom: 4,
+                    background: '#fff',
+                    borderRadius: 6,
+                    padding: '10px 12px',
+                    border: '1px dashed #d9d9d9',
+                    color: '#595959',
+                    fontSize: '13px',
                   }}
                 >
-                  {stats.offspec > 0
-                    ? '⚠️ SAMPLE NOT ACCEPTABLE'
-                    : '✅ SAMPLE ACCEPTABLE'}
+                  <strong>Reason:</strong> {sampleData.release_notes}
                 </div>
-                <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                  {stats.offspec > 0
-                    ? `${stats.offspec} parameter(s) out of specification`
-                    : 'All parameters within specification limits'}
-                </div>
+              )}
+            </Space>
+          </Card>
+        ) : (
+          <Card
+            size="small"
+            style={{ marginTop: 16, border: '1px solid #d9d9d9' }}
+            title="Finalize Result"
+          >
+            <Space
+              direction="vertical"
+              size="middle"
+              style={{ width: '100%' }}
+            >
+              <Space.Compact block>
+                <Button
+                  icon={<CheckCircleOutlined />}
+                  onClick={() => setReleaseStatus('Success')}
+                  style={{
+                    flex: 1,
+                    backgroundColor: releaseStatus === 'Success' ? '#52c41a' : undefined,
+                    borderColor: releaseStatus === 'Success' ? '#52c41a' : undefined,
+                    color: releaseStatus === 'Success' ? '#fff' : undefined,
+                  }}
+                >
+                  Set Success
+                </Button>
+                <Button
+                  icon={<CloseCircleOutlined />}
+                  onClick={() => setReleaseStatus('Repeat')}
+                  style={{
+                    flex: 1,
+                    backgroundColor: releaseStatus === 'Repeat' ? '#ff4d4f' : undefined,
+                    borderColor: releaseStatus === 'Repeat' ? '#ff4d4f' : undefined,
+                    color: releaseStatus === 'Repeat' ? '#fff' : undefined,
+                  }}
+                >
+                  Set Repeat
+                </Button>
+              </Space.Compact>
+              <Input.TextArea
+                rows={3}
+                placeholder="Isi alasan atau tindak lanjut (wajib diisi)"
+                value={releaseNotes}
+                onChange={(e) => setReleaseNotes(e.target.value)}
+                maxLength={300}
+                showCount
+              />
+              <div style={{ textAlign: 'right' }}>
+                <Button onClick={onClose} style={{ marginRight: 8 }}>
+                  Batal
+                </Button>
+                <Button type="primary" onClick={handleReleaseSubmit}>
+                  Simpan Status
+                </Button>
               </div>
-            </Col>
-          </Row>
-        </Card>
+            </Space>
+          </Card>
+        )}
         </div>
       </Spin>
     </Modal>

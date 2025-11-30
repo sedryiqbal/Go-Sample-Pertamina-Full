@@ -16,6 +16,7 @@ import type {
 const COMPARISON_ENDPOINT = '/api/LabComparison';
 const COMPARISON_RESULT_ENDPOINT = '/api/LabComparisonResult';
 const PROPERTY_TESTS_ENDPOINT = '/api/PropertyTests';
+const SAMPLE_ORDERS_ENDPOINT = '/api/SampleOrders';
 
 /**
  * Fetch comparison summary statistics
@@ -163,4 +164,19 @@ export const fetchComparisonResult = async (
   );
 
   return response?.data ?? null;
+};
+
+export const setSampleOrderFinalStatus = async (
+  sampleOrderId: number,
+  payload: { status: number; comment: string },
+) => {
+  const response = await request<ApiResponse<any>>(
+    `${SAMPLE_ORDERS_ENDPOINT}/${sampleOrderId}/final-status`,
+    {
+      method: 'POST',
+      data: payload,
+    },
+  );
+
+  return response;
 };

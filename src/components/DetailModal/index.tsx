@@ -38,10 +38,13 @@ interface DetailModalProps {
   visible: boolean;
   onClose: () => void;
   sampleData: any;
-  onRelease?: (releaseData: {
-    status: 'Success' | 'Repeat';
-    notes: string;
-  }) => void;
+  onRelease?: (
+    releaseData: {
+      status: 'Success' | 'Repeat';
+      notes: string;
+      sampleOrderId: string | number;
+    },
+  ) => Promise<boolean | void> | boolean | void;
 }
 
 const DetailModal: React.FC<DetailModalProps> = ({
@@ -137,23 +140,24 @@ const DetailModal: React.FC<DetailModalProps> = ({
   const handleRelease = async () => {
     try {
       const values = await form.validateFields();
+      if (!onRelease) return;
+      if (!sampleData?.id) {
+        message.error('Sample order ID tidak ditemukan');
+        return;
+      }
       setLoading(true);
-
-      // Simulate API call
-      setTimeout(() => {
-        message.success(
-          `Sample ${releaseStatus === 'Success' ? 'successfully released' : 'marked for repeat'}!`,
-        );
-        onRelease?.({
-          status: releaseStatus,
-          notes: values.notes || '',
-        });
-        setLoading(false);
-        onClose();
-        form.resetFields();
-      }, 1500);
+      const result = await onRelease({
+        status: releaseStatus,
+        notes: values.notes || '',
+        sampleOrderId: sampleData.id,
+      });
+      if (result === false) return;
+      onClose();
+      form.resetFields();
     } catch (error) {
       console.log('Validation failed:', error);
+    } finally {
+      setLoading(false);
     }
   };
 

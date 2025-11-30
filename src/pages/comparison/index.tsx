@@ -35,6 +35,7 @@ import {
   fetchComparisonSampleOrders,
   fetchComparisonSummary,
   processComparisonResult,
+  setSampleOrderFinalStatus,
   type ComparisonSampleOrder,
   type ComparisonSummary,
 } from '../../services/comparison';
@@ -64,6 +65,7 @@ interface ComparisonRecord {
   lab_technician?: string;
   comparison_technician?: string;
   notes?: string;
+  release_status_code?: number | null;
   release_status?: 'Success' | 'Repeat';
   release_notes?: string;
   release_date?: string;
@@ -73,40 +75,103 @@ const getDefaultStartDate = () => dayjs().subtract(1, 'month').startOf('day');
 const getDefaultEndDate = () => dayjs().add(1, 'month').endOf('day');
 
 // Helper to convert API status to comparison status
-const mapStatusToComparisonStatus = (status: string): ComparisonRecord['comparison_status'] => {
-  switch (status) {
+const mapStatusToComparisonStatus = (status: string | number): ComparisonRecord['comparison_status'] => {
+  const normalized =
+    typeof status === 'number'
+      ? status
+      : typeof status === 'string'
+        ? status.trim()
+        : '';
+
+  if (normalized === 11 || normalized === 12) return 'completed';
+
+  switch (normalized) {
     case 'Ready':
+    case 5:
       return 'ready';
     case 'InProgress':
+    case 6:
       return 'in_progress';
     case 'Completed':
     case 'CompletedTesting':
+    case 7:
       return 'completed';
     default:
       return 'pending';
   }
 };
 
+const resolveReleaseStatusMeta = (
+  status?: number | string | null,
+): { code: number; label: 'Success' | 'Repeat'; color: string; background: string } | null => {
+  if (status === undefined || status === null) return null;
+  const numeric =
+    typeof status === 'number'
+      ? status
+      : typeof status === 'string' && status.trim().length
+        ? Number(status)
+        : NaN;
+
+  if (numeric === 11) {
+    return { code: 11, label: 'Success', color: '#52c41a', background: 'rgba(82, 196, 26, 0.12)' };
+  }
+  if (numeric === 12) {
+    return { code: 12, label: 'Repeat', color: '#ff4d4f', background: 'rgba(255, 77, 79, 0.12)' };
+  }
+
+  if (typeof status === 'string') {
+    const normalized = status.trim().toLowerCase();
+    if (normalized === 'success') {
+      return { code: 11, label: 'Success', color: '#52c41a', background: 'rgba(82, 196, 26, 0.12)' };
+    }
+    if (normalized === 'repeat') {
+      return { code: 12, label: 'Repeat', color: '#ff4d4f', background: 'rgba(255, 77, 79, 0.12)' };
+    }
+  }
+
+  return null;
+};
+
+const getStatusCodeFromLabel = (label: 'Success' | 'Repeat') =>
+  label === 'Success' ? 11 : 12;
+
+const extractServerMessage = (error: any, fallback: string) =>
+  error?.data?.message ||
+  error?.response?.data?.message ||
+  error?.data?.Message ||
+  error?.message ||
+  fallback;
+
 // Helper to convert API data to ComparisonRecord for modal compatibility
-const mapApiToComparisonRecord = (order: ComparisonSampleOrder): ComparisonRecord => ({
-  id: String(order.id),
-  sample_id: order.nomorNpc,
-  order_number: order.orderNo,
-  sample_type: order.typeLoadName,
-  order_date: order.tanggalOrder,
-  vessel_name: order.shipName || '-',
-  tank_number: order.tankiName,
-  lab_completion_date: order.updatedAt,
-  comparison_status: mapStatusToComparisonStatus(order.status),
-  product_qc_status: 'completed', // Based on workflow, not directly available
-  tank_value_status: order.workflow.averageCoq ? 'completed' : 'not_started',
-  lab_tester_status: order.workflow.labTester ? 'completed' : 'not_started',
-  comparison_test_status: order.workflow.comparationTest ? 'completed' : 'not_started',
-  test_category: order.categoryTestName as ComparisonRecord['test_category'],
-  priority: order.priority as 'normal' | 'urgent',
-  created_at: order.createdAt,
-  updated_at: order.updatedAt,
-});
+const mapApiToComparisonRecord = (order: ComparisonSampleOrder): ComparisonRecord => {
+  const releaseMeta = resolveReleaseStatusMeta(
+    order.releaseStatusId ?? order.status ?? order.releaseStatusName,
+  );
+
+  return {
+    id: String(order.id),
+    sample_id: order.nomorNpc,
+    order_number: order.orderNo,
+    sample_type: order.typeLoadName,
+    order_date: order.tanggalOrder,
+    vessel_name: order.shipName || '-',
+    tank_number: order.tankiName,
+    lab_completion_date: order.updatedAt,
+    comparison_status: mapStatusToComparisonStatus(order.status),
+    product_qc_status: 'completed', // Based on workflow, not directly available
+    tank_value_status: order.workflow.averageCoq ? 'completed' : 'not_started',
+    lab_tester_status: order.workflow.labTester ? 'completed' : 'not_started',
+    comparison_test_status: order.workflow.comparationTest ? 'completed' : 'not_started',
+    test_category: order.categoryTestName as ComparisonRecord['test_category'],
+    priority: order.priority as 'normal' | 'urgent',
+    created_at: order.createdAt,
+    updated_at: order.updatedAt,
+    release_status_code: releaseMeta?.code ?? null,
+    release_status: releaseMeta?.label ?? undefined,
+    release_notes: order.releaseNotes ?? undefined,
+    release_date: order.releaseDate ?? undefined,
+  };
+};
 
 const Comparison: React.FC = () => {
   const actionRef = useRef<ActionType>(null);
@@ -230,18 +295,36 @@ const Comparison: React.FC = () => {
     setDetailModalVisible(true);
   };
 
-  const handleRelease = (releaseData: {
+  const handleRelease = async (releaseData: {
     status: 'Success' | 'Repeat';
     notes: string;
+    sampleOrderId?: string | number;
   }) => {
-    console.log('Release Data:', releaseData);
-    message.success(
-      `Sample ${releaseData.status === 'Success' ? 'successfully released' : 'marked for repeat'}!`,
-    );
+    const sampleOrderId = releaseData.sampleOrderId ?? selectedRecord?.id;
+    if (!sampleOrderId) {
+      message.error('Sample order ID tidak ditemukan.');
+      return false;
+    }
 
-    // In real app, this would be sent to backend
-    actionRef.current?.reload();
-    refreshSummary();
+    const hide = message.loading('Menyimpan status hasil...', 0);
+    try {
+      await setSampleOrderFinalStatus(Number(sampleOrderId), {
+        status: getStatusCodeFromLabel(releaseData.status),
+        comment: releaseData.notes,
+      });
+      hide();
+      message.success(
+        `Sample ${releaseData.status === 'Success' ? 'successfully released' : 'marked for repeat'}!`,
+      );
+      actionRef.current?.reload();
+      refreshSummary();
+      return true;
+    } catch (error) {
+      hide();
+      const serverMessage = extractServerMessage(error, 'Gagal menyimpan status sample');
+      message.error(serverMessage);
+      return false;
+    }
   };
 
   const handleResetFilters = () => {
@@ -515,6 +598,47 @@ const Comparison: React.FC = () => {
       },
     },
     {
+      title: 'Status',
+      dataIndex: 'release_status_code',
+      key: 'release_status_code',
+      width: 140,
+      render: (_, record) => {
+        const statusMeta = resolveReleaseStatusMeta(
+          record.release_status_code ?? record.release_status,
+        );
+        if (!statusMeta) {
+          return (
+            <Tag
+              color="default"
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '2px 10px',
+                borderRadius: 6,
+              }}
+            >
+              Pending
+            </Tag>
+          );
+        }
+        return (
+          <Tag
+            style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              padding: '2px 10px',
+              borderRadius: 6,
+              background: statusMeta.background,
+              border: `1px solid ${statusMeta.color}`,
+              color: statusMeta.color,
+            }}
+          >
+            {statusMeta.label}
+          </Tag>
+        );
+      },
+    },
+    {
       title: 'Actions',
       key: 'actions',
       width: 200,
@@ -776,9 +900,9 @@ const Comparison: React.FC = () => {
           }}>
             Refresh
           </Button>,
-          <Button key="export" type="default">
-            Export Excel
-          </Button>,
+          // <Button key="export" type="default">
+          //   Export Excel
+          // </Button>,
           // <Button key="report" type="primary">
           //   Generate Report
           // </Button>,
@@ -813,6 +937,7 @@ const Comparison: React.FC = () => {
           setSelectedRecord(null);
         }}
         sampleData={selectedRecord}
+        onRelease={handleRelease}
       />
 
       {/* Detail Modal */}

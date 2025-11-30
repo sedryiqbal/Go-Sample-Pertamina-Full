@@ -53,9 +53,13 @@ export interface ComparisonSampleOrder {
   satuanName: string;
   priority: 'normal' | 'urgent' | 'critical';
   workflow: ComparisonSampleOrderWorkflow;
-  status: string;
+  status: string | number;
   createdAt: string;
   updatedAt: string;
+  releaseStatusId?: number | null;
+  releaseStatusName?: string | null;
+  releaseNotes?: string | null;
+  releaseDate?: string | null;
 }
 
 // Query params for fetching sample orders
