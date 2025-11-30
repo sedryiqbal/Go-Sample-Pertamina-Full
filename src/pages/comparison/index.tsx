@@ -505,7 +505,7 @@ const Comparison: React.FC = () => {
                 {record.comparison_test_status === 'completed'
                   ? 'Click View Results'
                   : record.tank_value_status === 'completed' &&
-                      record.lab_tester_status === 'completed'
+                    record.lab_tester_status === 'completed'
                     ? 'Click Generate'
                     : 'Complete tasks first'}
               </div>
@@ -548,7 +548,7 @@ const Comparison: React.FC = () => {
                   backgroundColor:
                     record.comparison_test_status === 'completed'
                       ? '#f0f0f0'
-                        : '#52c41a',
+                      : '#52c41a',
                   borderColor:
                     record.comparison_test_status === 'completed'
                       ? '#d9d9d9'
@@ -587,7 +587,7 @@ const Comparison: React.FC = () => {
             <Tooltip
               title={
                 record.tank_value_status !== 'completed' ||
-                record.lab_tester_status !== 'completed'
+                  record.lab_tester_status !== 'completed'
                   ? 'Selesaikan Average COQ dan Lab Tester terlebih dahulu'
                   : 'Generate hasil komparasi otomatis'
               }
@@ -606,17 +606,17 @@ const Comparison: React.FC = () => {
                   height: 28,
                   backgroundColor:
                     record.tank_value_status !== 'completed' ||
-                    record.lab_tester_status !== 'completed'
+                      record.lab_tester_status !== 'completed'
                       ? '#f0f0f0'
                       : '#fa8c16',
                   borderColor:
                     record.tank_value_status !== 'completed' ||
-                    record.lab_tester_status !== 'completed'
+                      record.lab_tester_status !== 'completed'
                       ? '#d9d9d9'
                       : '#fa8c16',
                   color:
                     record.tank_value_status !== 'completed' ||
-                    record.lab_tester_status !== 'completed'
+                      record.lab_tester_status !== 'completed'
                       ? '#8c8c8c'
                       : '#fff',
                 }}
@@ -779,9 +779,9 @@ const Comparison: React.FC = () => {
           <Button key="export" type="default">
             Export Excel
           </Button>,
-          <Button key="report" type="primary">
-            Generate Report
-          </Button>,
+          // <Button key="report" type="primary">
+          //   Generate Report
+          // </Button>,
         ]}
         scroll={{ x: 'max-content' }}
         size="small"
