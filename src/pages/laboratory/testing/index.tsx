@@ -499,8 +499,8 @@ const LaboratoryTesting: React.FC = () => {
                 if (statusCode === 4) return 50;
                 if (statusCode === 5) return 60;
                 if (statusCode === 6) return 80;
-                if (statusCode >= 7 && statusCode <= 9) return 100;
                 if (statusCode === 10) return 0;
+                if (statusCode >= 7) return 100;
                 return 0;
               };
 

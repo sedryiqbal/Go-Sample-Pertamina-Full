@@ -28,6 +28,8 @@ import type {
   RoleListItem,
   UserListItem,
 } from '@/services/users/typings';
+import { fetchUnits } from '@/services/units/api';
+import type { UnitReference } from '@/services/units/typings';
 
 const resolveErrorMessage = (error: unknown, fallback: string) => {
   if (!error || typeof error !== 'object') {
@@ -89,6 +91,8 @@ const Users: React.FC = () => {
   const [loadingRoles, setLoadingRoles] = useState(false);
   const [labs, setLabs] = useState<LabReference[]>([]);
   const [loadingLabs, setLoadingLabs] = useState(false);
+  const [units, setUnits] = useState<UnitReference[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
   const [editingUser, setEditingUser] = useState<UserListItem | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
@@ -98,8 +102,9 @@ const Users: React.FC = () => {
     const fetchRoleList = async () => {
       setLoadingRoles(true);
       setLoadingLabs(true);
+      setLoadingUnits(true);
       try {
-        const [roleList, labList] = await Promise.all([
+        const [roleList, labList, unitList] = await Promise.all([
           fetchRoles().catch(() => {
             if (isMounted) {
               message.error('Gagal memuat daftar role');
@@ -112,16 +117,24 @@ const Users: React.FC = () => {
             }
             return [];
           }),
+          fetchUnits().catch(() => {
+            if (isMounted) {
+              message.error('Gagal memuat daftar unit');
+            }
+            return [];
+          }),
         ]);
 
         if (isMounted) {
           setRoles(roleList);
           setLabs(labList);
+          setUnits(unitList);
         }
       } finally {
         if (isMounted) {
           setLoadingRoles(false);
           setLoadingLabs(false);
+          setLoadingUnits(false);
         }
       }
     };
@@ -139,6 +152,7 @@ const Users: React.FC = () => {
       isSuperadmin: false,
       status: 'active',
       labId: undefined,
+      unitId: undefined,
     });
     setEditingUser(null);
     setFormModalVisible(true);
@@ -153,6 +167,7 @@ const Users: React.FC = () => {
         password: '',
         roleId: record.roleId ?? undefined,
         labId: record.labId ?? undefined,
+        unitId: record.unitId ?? undefined,
         isSuperadmin: record.isSuperadmin ?? false,
         phone: record.phone ?? '',
         status: record.status ?? 'active',
@@ -188,6 +203,9 @@ const Users: React.FC = () => {
 
       if (values.labId !== undefined && values.labId !== null) {
         payload.labId = Number(values.labId);
+      }
+      if (values.unitId !== undefined && values.unitId !== null) {
+        payload.unitId = Number(values.unitId);
       }
 
       if (includePassword && values.password) {
@@ -563,6 +581,19 @@ const Users: React.FC = () => {
               allowClear={false}
             />
           </Form.Item>
+          <Form.Item name="unitId" label="Unit">
+            <Select
+              placeholder="Pilih unit"
+              options={units.map((unit) => ({
+                label: unit.name,
+                value: unit.id,
+              }))}
+              loading={loadingUnits}
+              allowClear
+              showSearch
+              optionFilterProp="label"
+            />
+          </Form.Item>
           <Form.Item name="labId" label="Laboratorium">
             <Select
               placeholder="Pilih laboratorium"
@@ -596,6 +627,7 @@ interface CreateUserFormValues {
   email: string;
   password?: string;
   roleId: number;
+  unitId?: number | null;
   labId?: number | null;
   isSuperadmin?: boolean;
   phone: string;
