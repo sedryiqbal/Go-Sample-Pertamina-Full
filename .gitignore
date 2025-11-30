@@ -9,6 +9,7 @@ _roadhog-api-doc
 # production
 /dist
 dist.zip
+dist*.zip
 # misc
 .DS_Store
 npm-debug.log*
