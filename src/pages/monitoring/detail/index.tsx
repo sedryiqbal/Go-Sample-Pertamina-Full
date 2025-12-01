@@ -38,6 +38,7 @@ const MonitoringDetail: React.FC = () => {
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
   const [detailData, setDetailData] = useState<MonitoringSampleOrderDetail | null>(null);
+  const driverInfo = detailData?.contactInfo?.driverInfo;
 
   const fetchDetailData = useCallback(async () => {
     if (!id) return;
@@ -327,25 +328,34 @@ const MonitoringDetail: React.FC = () => {
                   padding: '8px 0',
                 }}
               >
-                <div>
-                  <div style={{ fontWeight: 500 }}>
-                    <UserOutlined style={{ marginRight: 8 }} />
-                    Driver: {detailData.contactInfo.driverInfo.name}
+                {driverInfo ? (
+                  <>
+                    <div>
+                      <div style={{ fontWeight: 500 }}>
+                        <UserOutlined style={{ marginRight: 8 }} />
+                        Driver: {driverInfo.name || '-'}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>
+                        {driverInfo.email || 'Email belum tersedia'}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>
+                        {driverInfo.phone || 'Telepon belum tersedia'}
+                      </div>
+                    </div>
+                    <Button
+                      size="small"
+                      icon={<PhoneOutlined />}
+                      disabled={!driverInfo.phone}
+                      onClick={() => handleContact('Driver', driverInfo.phone)}
+                    >
+                      Call
+                    </Button>
+                  </>
+                ) : (
+                  <div style={{ fontStyle: 'italic', color: '#999' }}>
+                    Informasi driver belum tersedia
                   </div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>
-                    {detailData.contactInfo.driverInfo.email}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>
-                    {detailData.contactInfo.driverInfo.phone}
-                  </div>
-                </div>
-                <Button
-                  size="small"
-                  icon={<PhoneOutlined />}
-                  onClick={() => handleContact('Driver', detailData.contactInfo.driverInfo.phone)}
-                >
-                  Call
-                </Button>
+                )}
               </div>
             </Space>
           </Card>
