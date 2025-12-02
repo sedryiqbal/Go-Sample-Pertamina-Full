@@ -66,6 +66,7 @@ export interface TestingRecord {
   canceledAt?: string;
   canceledBy?: string;
   canceledReason?: string;
+  documentTest?: string;
 }
 
 export interface AuditLog {

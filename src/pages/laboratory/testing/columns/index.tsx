@@ -1,6 +1,6 @@
-import { EyeOutlined, FileTextOutlined } from '@ant-design/icons';
+import { EyeOutlined } from '@ant-design/icons';
 import type { ProColumns } from '@ant-design/pro-components';
-import { Badge, Space, Tag, Tooltip, Typography } from 'antd';
+import { Badge, Button, Tag, Tooltip, Typography } from 'antd';
 import dayjs from 'dayjs';
 import React from 'react';
 import type { TestingRecord } from '../types';
@@ -19,6 +19,7 @@ export const getTableColumns = (
   handleViewReport: (record: TestingRecord) => void,
   handleConfirmSample: (record: TestingRecord) => void,
   handleStartTesting: (record: TestingRecord) => void,
+  handlePreviewDocument: (record: TestingRecord) => void,
 ): ProColumns<TestingRecord>[] => [
     {
       title: 'ID Sampel',
@@ -180,6 +181,31 @@ export const getTableColumns = (
                 : '-'}
             </div>
           </div>
+        );
+      },
+    },
+    {
+      title: 'Dokumen',
+      dataIndex: 'documentTest',
+      key: 'documentTest',
+      width: 120,
+      render: (_, record: TestingRecord) => {
+        if (!record.documentTest) {
+          return <Text type="secondary">-</Text>;
+        }
+
+        return (
+          <Tooltip title="Preview dokumen pengujian">
+            <Button
+              size="small"
+              type="primary"
+              ghost
+              icon={<EyeOutlined />}
+              onClick={() => handlePreviewDocument(record)}
+            >
+              Preview
+            </Button>
+          </Tooltip>
         );
       },
     },

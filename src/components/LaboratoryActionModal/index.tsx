@@ -6,6 +6,7 @@ import {
   FileTextOutlined,
   InfoCircleOutlined,
   SyncOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import {
   Alert,
@@ -19,6 +20,8 @@ import {
   Form,
   Input,
   InputNumber,
+  Upload,
+  type UploadProps,
   message,
   Row,
   Select,
@@ -29,10 +32,13 @@ import {
   Tag,
   Typography,
 } from 'antd';
+import type { UploadFile } from 'antd/es/upload/interface';
 import { createStyles } from 'antd-style';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import { request } from '@umijs/max';
+
+import { uploadAttachment } from '@/services/sample-estimations/api';
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
@@ -222,6 +228,7 @@ export interface TestingRecord {
     qty?: number;
     satuanName?: string;
   };
+  documentTest?: string;
 }
 
 interface LaboratoryActionModalProps {
@@ -283,6 +290,7 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
   >({});
   const [resultsLoading, setResultsLoading] = useState(false);
   const [hasInitializedResults, setHasInitializedResults] = useState(false);
+  const [documentFileList, setDocumentFileList] = useState<UploadFile[]>([]);
 
   // Equipment options with availability status
   const equipmentOptions = [
@@ -526,6 +534,92 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
         };
       })
       .filter((payload): payload is TestPayload => Boolean(payload));
+  };
+
+  const extractDocumentName = (url: string) => {
+    if (!url) return 'Dokumen Hasil Pengujian';
+    try {
+      const decoded = decodeURIComponent(url);
+      const parts = decoded.split('/');
+      const lastPart = parts[parts.length - 1];
+      return lastPart || 'Dokumen Hasil Pengujian';
+    } catch (_error) {
+      return 'Dokumen Hasil Pengujian';
+    }
+  };
+
+  const buildFileItem = (url: string): UploadFile => ({
+    uid: url,
+    name: extractDocumentName(url),
+    status: 'done',
+    url,
+  });
+
+  const handleDocumentUpload: UploadProps['customRequest'] = async (options) => {
+    const { file, onError, onSuccess } = options;
+    const uploadFile = file as File;
+    const hide = message.loading('Mengunggah dokumen...', 0);
+
+    try {
+      const uploaded = await uploadAttachment(uploadFile);
+      hide();
+      const fileUrl = uploaded.fileUrl;
+      const fileName =
+        uploaded.fileName || uploadFile.name || extractDocumentName(fileUrl);
+      const fileItem: UploadFile = {
+        uid: `${Date.now()}`,
+        name: fileName,
+        status: 'done',
+        url: fileUrl,
+        originFileObj: uploadFile,
+      };
+      setDocumentFileList([fileItem]);
+      form.setFieldsValue({ documentTest: fileUrl });
+      onSuccess?.({ url: fileUrl }, uploadFile as any);
+      message.success('Dokumen berhasil diunggah');
+    } catch (error) {
+      hide();
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Upload dokumen gagal. Mohon coba kembali.';
+      message.error(errorMessage);
+      onError?.(error as Error);
+    }
+  };
+
+  const getFileUrl = (file?: UploadFile) => {
+    if (!file) return undefined;
+    return (
+      file.url ||
+      (typeof file.thumbUrl === 'string' ? file.thumbUrl : undefined) ||
+      (file.response as any)?.url ||
+      (file.response as any)?.fileUrl ||
+      undefined
+    );
+  };
+
+  const handleDocumentPreview = async (file: UploadFile) => {
+    const url = getFileUrl(file);
+    if (!url) {
+      message.warning('Dokumen belum tersedia untuk pratinjau.');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDocumentDownload = async (file: UploadFile) => {
+    const url = getFileUrl(file);
+    if (!url) {
+      message.warning('Dokumen tidak ditemukan untuk diunduh.');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDocumentRemove = () => {
+    setDocumentFileList([]);
+    form.setFieldsValue({ documentTest: undefined });
   };
 
   const handleSave = async () => {
@@ -868,6 +962,24 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
   }, [visible, actionType, record?.id, missingPropertyTests]);
 
   useEffect(() => {
+    if (!visible || actionType !== 'input_result') {
+      setDocumentFileList([]);
+      form.setFieldsValue({ documentTest: undefined });
+      return;
+    }
+  }, [visible, actionType, form]);
+
+  useEffect(() => {
+    if (!visible || actionType !== 'input_result') return;
+    if (record?.documentTest) {
+      setDocumentFileList([buildFileItem(record.documentTest)]);
+      form.setFieldsValue({ documentTest: record.documentTest });
+    } else if (!form.getFieldValue('documentTest')) {
+      setDocumentFileList([]);
+    }
+  }, [visible, actionType, record?.documentTest, form]);
+
+  useEffect(() => {
     if (!visible || actionType !== 'input_result') return;
     if (hasInitializedResults) return;
     if (!Object.keys(existingTestResults).length) return;
@@ -1042,6 +1154,9 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
           certification_status: 'passed',
         }}
       >
+        <Form.Item name="documentTest" hidden>
+          <Input />
+        </Form.Item>
         {/* Common Description Field */}
         {config.fields.includes('description') && (
           <Form.Item
@@ -1273,6 +1388,40 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
               showCount
               maxLength={400}
             />
+          </Form.Item>
+        )}
+
+        {actionType === 'input_result' && (
+          <Form.Item
+            label="Dokumen Hasil Pengujian"
+            tooltip="Upload dokumen resmi hasil laboratorium untuk dibagikan atau diunduh kembali"
+          >
+            <Upload
+              fileList={documentFileList}
+              maxCount={1}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+              customRequest={handleDocumentUpload}
+              onRemove={() => {
+                handleDocumentRemove();
+                return true;
+              }}
+              onPreview={handleDocumentPreview}
+              onDownload={handleDocumentDownload}
+              showUploadList={{
+                showPreviewIcon: true,
+                showDownloadIcon: true,
+                showRemoveIcon: true,
+              }}
+              disabled={isInputResultDisabled}
+            >
+              <Button icon={<UploadOutlined />}>Upload Dokumen</Button>
+            </Upload>
+            <div style={{ marginTop: 8 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Format yang didukung: PDF, DOCX, XLSX, JPG, PNG. Maksimal 1
+                dokumen.
+              </Text>
+            </div>
           </Form.Item>
         )}
 
