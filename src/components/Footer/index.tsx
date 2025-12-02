@@ -7,7 +7,7 @@ const Footer: React.FC = () => {
       style={{
         background: 'none',
       }}
-      copyright="Powered by Me"
+      copyright="Powered by Pertamina SHAFTHI 2025"
       links={[]}
     />
   );

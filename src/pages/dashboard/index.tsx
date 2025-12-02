@@ -102,12 +102,12 @@ const Dashboard: React.FC = () => {
 
           {/* Weekly Results Chart */}
           <Col xs={24}>
-            <WeeklyTestResults />
+            {/* <WeeklyTestResults /> */}
           </Col>
 
           {/* Recent Activities */}
           <Col xs={24}>
-            <RecentActivities />
+            {/* <RecentActivities /> */}
           </Col>
         </Row>
       </Spin>
