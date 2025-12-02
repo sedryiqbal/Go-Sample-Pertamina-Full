@@ -34,7 +34,7 @@ const MENU_PATH_ALIASES: Record<string, string[]> = {
   '/samples': ['/sample', '/sample/estimation', '/sample/order'],
   '/orders': ['/sample/order'],
   '/settings': ['/account/change-password'],
-  '/stadiumstock': ['/stadis'],
+  '/stadis': ['/stadis'],
 };
 
 const normalizePath = (path?: string) => {
@@ -250,11 +250,11 @@ export const layout: RunTimeLayoutConfig = ({
     ],
     links: isDev
       ? [
-          <Link key="openapi" to="/umi/plugin/openapi" target="_blank">
-            <LinkOutlined />
-            <span>OpenAPI 文档</span>
-          </Link>,
-        ]
+        <Link key="openapi" to="/umi/plugin/openapi" target="_blank">
+          <LinkOutlined />
+          <span>OpenAPI 文档</span>
+        </Link>,
+      ]
       : [],
     menuHeaderRender: undefined,
     menuDataRender: (menuData: MenuDataItem[] = []) =>
