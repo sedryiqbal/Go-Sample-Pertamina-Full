@@ -34,7 +34,5 @@ export const getDashboardSummary =
         response?.message || 'Gagal memuat ringkasan dashboard',
       );
     }
-
     return response.data;
   };
-

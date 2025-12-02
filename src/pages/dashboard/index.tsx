@@ -22,18 +22,20 @@ import {
 
 const Dashboard: React.FC = () => {
   const { message } = App.useApp();
-  const { data: summaryData, loading: summaryLoading } = useRequest(
-    getDashboardSummary,
-    {
-      onError: (error: any) => {
-        const errorMessage =
-          error?.response?.data?.message ||
-          error?.message ||
-          'Gagal memuat ringkasan dashboard';
-        message.error(errorMessage);
-      },
+  const { data: summaryData, loading: summaryLoading } = useRequest<
+    DashboardSummaryData
+  >(getDashboardSummary, {
+    formatResult: (result) => result,
+    onError: (error: any) => {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Gagal memuat ringkasan dashboard';
+      message.error(errorMessage);
     },
-  );
+  });
+
+  console.log('Summary Data:', summaryData);
 
   const summary: DashboardSummaryData = {
     totalSamplePengujianLab: summaryData?.totalSamplePengujianLab ?? 0,
@@ -114,4 +116,3 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
-
