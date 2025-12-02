@@ -1,5 +1,6 @@
 import { request } from '@umijs/max';
 import type {
+  AdditionalComparisonData,
   ApiResponse,
   ComparisonResult,
   ComparisonSampleOrder,
@@ -17,6 +18,7 @@ const COMPARISON_ENDPOINT = '/api/LabComparison';
 const COMPARISON_RESULT_ENDPOINT = '/api/LabComparisonResult';
 const PROPERTY_TESTS_ENDPOINT = '/api/PropertyTests';
 const SAMPLE_ORDERS_ENDPOINT = '/api/SampleOrders';
+const ADDITIONAL_DATA_ENDPOINT = '/api/LabComparison/additional-data';
 
 /**
  * Fetch comparison summary statistics
@@ -129,6 +131,23 @@ export const fetchExistingComparisons = async (
   );
 
   return response?.data ?? [];
+};
+
+/**
+ * Fetch additional comparison data (document info, etc.)
+ * GET /api/LabComparison/additional-data/by-sample-order/:sampleOrderId
+ */
+export const fetchComparisonAdditionalData = async (
+  sampleOrderId: number,
+): Promise<AdditionalComparisonData | null> => {
+  const response = await request<ApiResponse<AdditionalComparisonData>>(
+    `${ADDITIONAL_DATA_ENDPOINT}/by-sample-order/${sampleOrderId}`,
+    {
+      method: 'GET',
+    },
+  );
+
+  return response?.data ?? null;
 };
 
 /**

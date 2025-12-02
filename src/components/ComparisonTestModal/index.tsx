@@ -1,7 +1,9 @@
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
+  DownloadOutlined,
   ExperimentOutlined,
+  EyeOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import {
@@ -21,7 +23,10 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
-import { fetchComparisonResult } from '../../services/comparison';
+import {
+  fetchComparisonAdditionalData,
+  fetchComparisonResult,
+} from '../../services/comparison';
 import type { ComparisonResult } from '../../services/comparison';
 
 const { Text, Title } = Typography;
@@ -67,6 +72,7 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
   const [resultInfo, setResultInfo] = useState<ComparisonResult | null>(null);
   const [releaseStatus, setReleaseStatus] = useState<'Success' | 'Repeat'>('Success');
   const [releaseNotes, setReleaseNotes] = useState('');
+  const [comparisonDocUrl, setComparisonDocUrl] = useState<string | undefined>();
   const lockedStatusLabel =
     getReleaseLabelFromCode(sampleData?.release_status_code) ||
     (sampleData?.release_status as 'Success' | 'Repeat' | undefined);
@@ -81,7 +87,10 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
       setLoading(true);
       try {
         const sampleOrderId = parseInt(sampleData.id, 10);
-        const result = await fetchComparisonResult(sampleOrderId);
+        const [result, additionalData] = await Promise.all([
+          fetchComparisonResult(sampleOrderId),
+          fetchComparisonAdditionalData(sampleOrderId),
+        ]);
 
         if (result) {
           setResultInfo(result);
@@ -103,10 +112,17 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
           setComparisonData([]);
           message.warning('Tidak ada data comparison result');
         }
+
+        if (additionalData?.documentCompartion) {
+          setComparisonDocUrl(additionalData.documentCompartion);
+        } else {
+          setComparisonDocUrl(undefined);
+        }
       } catch (error) {
         console.error('Failed to fetch comparison result:', error);
         message.error('Gagal memuat data comparison result');
         setComparisonData([]);
+        setComparisonDocUrl(undefined);
       } finally {
         setLoading(false);
       }
@@ -122,6 +138,7 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
       setResultInfo(null);
       setReleaseStatus('Success');
       setReleaseNotes('');
+      setComparisonDocUrl(undefined);
     } else if (visible) {
       const presetStatus =
         getReleaseLabelFromCode(sampleData?.release_status_code) ||
@@ -182,6 +199,16 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
     labName: resultInfo?.labName || '-',
     createdBy: resultInfo?.createdBy || '-',
     createdAt: resultInfo?.createdAt || '-',
+  };
+
+  const documentUploaded = Boolean(comparisonDocUrl);
+
+  const openInNewTab = (url?: string) => {
+    if (!url) {
+      message.warning('Dokumen belum tersedia.');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   // Generate table columns
@@ -424,6 +451,53 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
                 </Col>
               </Row>
             )}
+          </Card>
+
+          {/* Dokumentasi Komparasi */}
+          <Card
+            size="small"
+            style={{
+              marginBottom: 16,
+              border: '1px dashed #d3adf7',
+              background: '#f9f0ff',
+            }}
+          >
+            <Row align="middle" justify="space-between">
+              <Col>
+                <Space size={8}>
+                  <Text strong style={{ color: '#531dab' }}>
+                    Dokumen Komparasi (COQ)
+                  </Text>
+                  <Tag color={documentUploaded ? 'purple' : 'default'}>
+                    {documentUploaded ? 'Dokumen tersedia' : 'Belum ada dokumen'}
+                  </Tag>
+                </Space>
+                <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+                  Dokumen ini dikirim dari proses Average COQ dan dapat dipreview
+                  atau diunduh untuk audit.
+                </div>
+              </Col>
+              <Col>
+                <Space>
+                  <Button
+                    icon={<EyeOutlined />}
+                    type="primary"
+                    ghost
+                    disabled={!documentUploaded}
+                    onClick={() => openInNewTab(comparisonDocUrl)}
+                  >
+                    Preview
+                  </Button>
+                  <Button
+                    icon={<DownloadOutlined />}
+                    disabled={!documentUploaded}
+                    onClick={() => openInNewTab(comparisonDocUrl)}
+                  >
+                    Download
+                  </Button>
+                </Space>
+              </Col>
+            </Row>
           </Card>
 
           {/* Statistics Cards */}

@@ -4,6 +4,7 @@ import {
   ExperimentOutlined,
   PlusOutlined,
   SaveOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import {
   Button,
@@ -13,17 +14,21 @@ import {
   Input,
   InputNumber,
   Modal,
+  Tag,
   message,
   Row,
   Space,
   Spin,
   Table,
+  Upload,
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import {
+  fetchComparisonAdditionalData,
   fetchExistingComparisons,
   fetchPropertyTestsBySampleOrder,
   fetchSampleOrderDetail,
@@ -34,6 +39,7 @@ import type {
   SampleOrderDetail,
   SaveComparisonsRequest,
 } from '../../services/comparison';
+import { uploadAttachment } from '@/services/sample-estimations/api';
 
 const { Text, Title } = Typography;
 
@@ -67,6 +73,21 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
   const [sampleOrderDetail, setSampleOrderDetail] = useState<SampleOrderDetail | null>(null);
   const [_propertyTests, setPropertyTests] = useState<PropertyTest[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [documentUrl, setDocumentUrl] = useState<string | undefined>();
+  const [documentFileList, setDocumentFileList] = useState<UploadFile[]>([]);
+
+  const getFileNameFromUrl = (url?: string) => {
+    if (!url) return 'Dokumen Komparasi';
+    try {
+      const cleanUrl = url.split('?')[0];
+      const decoded = decodeURIComponent(cleanUrl);
+      const parts = decoded.split('/');
+      const fileName = parts[parts.length - 1];
+      return fileName || 'Dokumen Komparasi';
+    } catch (_error) {
+      return 'Dokumen Komparasi';
+    }
+  };
 
   // Load data when modal opens
   useEffect(() => {
@@ -77,10 +98,11 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
       try {
         // Fetch property tests, sample order detail, and existing comparisons in parallel
         const sampleOrderId = parseInt(sampleData.id, 10);
-        const [tests, detail, existingData] = await Promise.all([
+        const [tests, detail, existingData, additionalData] = await Promise.all([
           fetchPropertyTestsBySampleOrder(sampleOrderId),
           fetchSampleOrderDetail(sampleOrderId),
           fetchExistingComparisons(sampleOrderId),
+          fetchComparisonAdditionalData(sampleOrderId),
         ]);
 
         setPropertyTests(tests);
@@ -148,6 +170,27 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
         });
 
         setTableData(initData);
+
+        const docUrl =
+          additionalData?.documentCompartion ||
+          (detail as any)?.documentCompartion ||
+          (detail as any)?.documentComparison ||
+          ((existingData?.[0] as any)?.documentCompartion as string | undefined) ||
+          undefined;
+        if (typeof docUrl === 'string' && docUrl.length) {
+          setDocumentUrl(docUrl);
+          setDocumentFileList([
+            {
+              uid: 'existing-doc',
+              name: getFileNameFromUrl(docUrl),
+              status: 'done',
+              url: docUrl,
+            },
+          ]);
+        } else {
+          setDocumentUrl(undefined);
+          setDocumentFileList([]);
+        }
       } catch (error) {
         console.error('Failed to load COQ data:', error);
         message.error('Gagal memuat data properti test');
@@ -167,6 +210,8 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
       setSampleOrderDetail(null);
       setTankNumbers(['1001', '1002']);
       setIsEditMode(false);
+      setDocumentUrl(undefined);
+      setDocumentFileList([]);
     }
   }, [visible]);
 
@@ -253,6 +298,65 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
     setTableData(updatedData);
   };
 
+  const openInNewTab = (url?: string) => {
+    if (!url) {
+      message.warning('Dokumen tidak tersedia.');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDocumentUpload: UploadProps['customRequest'] = async (options) => {
+    const { file, onError, onSuccess } = options;
+    const uploadFile = file as File;
+    const hide = message.loading('Mengunggah dokumen...', 0);
+
+    try {
+      const uploaded = await uploadAttachment(uploadFile);
+      hide();
+      if (!uploaded?.fileUrl) {
+        throw new Error('URL dokumen tidak tersedia');
+      }
+      const url = uploaded.fileUrl;
+      const fileName = uploaded.fileName || uploadFile.name || getFileNameFromUrl(url);
+      setDocumentUrl(url);
+      setDocumentFileList([
+        {
+          uid: `${Date.now()}`,
+          name: fileName,
+          status: 'done',
+          url,
+        },
+      ]);
+      message.success('Dokumen berhasil diunggah');
+      onSuccess?.({ url }, uploadFile as any);
+    } catch (error: any) {
+      hide();
+      const errorMessage =
+        error?.message || 'Gagal mengunggah dokumen. Silakan coba kembali.';
+      message.error(errorMessage);
+      onError?.(error as Error);
+    }
+  };
+
+  const handleDocumentRemove = () => {
+    setDocumentUrl(undefined);
+    setDocumentFileList([]);
+  };
+
+  const handleDocumentPreview = async (file: UploadFile) => {
+    const url =
+      file.url ||
+      (typeof file.thumbUrl === 'string' ? file.thumbUrl : undefined) ||
+      (file.response as any)?.url ||
+      (file.response as any)?.fileUrl;
+    if (!url) {
+      message.warning('Dokumen belum tersedia untuk pratinjau.');
+      return;
+    }
+    openInNewTab(url);
+  };
+
   const handleSubmit = async () => {
     const hasData = tableData.some((row) =>
       Object.values(row.tanks).some((value) => value !== null && value !== undefined),
@@ -283,6 +387,7 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
       const requestData: SaveComparisonsRequest = {
         sampleOrderId: parseInt(sampleData.id, 10),
         comparisons,
+        documentCompartion: documentUrl,
       };
 
       const response = await saveComparisons(requestData);
@@ -458,6 +563,8 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
     { key: 'shipName', label: 'Nama Kapal', value: coqInfo.shipName },
   ];
 
+  const documentUploaded = Boolean(documentUrl);
+
   return (
     <Modal
       title={
@@ -596,6 +703,70 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
               </div>
             )
           )}
+        </Card>
+
+        {/* Dokumentasi Komparasi */}
+        <Card
+          size="small"
+          style={{
+            marginTop: 16,
+            border: '1px dashed #b7eb8f',
+            backgroundColor: '#fcfffa',
+          }}
+        >
+          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <Space size={8}>
+                <Text strong style={{ color: '#237804' }}>
+                  Dokumen Komparasi (COQ)
+                </Text>
+                <Tag color={documentUploaded ? 'green' : 'default'}>
+                  {documentUploaded ? 'Sudah diupload' : 'Belum ada dokumen'}
+                </Tag>
+              </Space>
+              {documentUrl && (
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => openInNewTab(documentUrl)}
+                  style={{ padding: 0 }}
+                >
+                  Lihat Dokumen
+                </Button>
+              )}
+            </div>
+            <Upload
+              fileList={documentFileList}
+              customRequest={handleDocumentUpload}
+              maxCount={1}
+              onRemove={() => {
+                handleDocumentRemove();
+                return true;
+              }}
+              onPreview={handleDocumentPreview}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+              disabled={saving}
+              showUploadList={{
+                showPreviewIcon: true,
+                showRemoveIcon: true,
+              }}
+            >
+              <Button icon={<UploadOutlined />} disabled={saving}>
+                {documentUrl ? 'Ganti Dokumen' : 'Upload Dokumen'}
+              </Button>
+            </Upload>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Format yang didukung: PDF, DOC, XLS, atau gambar. Dokumen ini akan
+              dikirim bersama data Average COQ sebagai referensi lab dan dapat
+              dipreview di halaman Comparison Result.
+            </Text>
+          </Space>
         </Card>
 
         {/* Summary Information */}

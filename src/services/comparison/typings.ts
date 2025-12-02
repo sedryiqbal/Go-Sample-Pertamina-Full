@@ -110,6 +110,16 @@ export interface ComparisonItem {
 export interface SaveComparisonsRequest {
   sampleOrderId: number;
   comparisons: ComparisonItem[];
+  documentCompartion?: string;
+}
+
+export interface AdditionalComparisonData {
+  id: number;
+  sampleOrderId: number;
+  orderNo: string;
+  noCompartionTest?: string;
+  documentCompartion?: string;
+  createdAt?: string;
 }
 
 // Existing comparison data from API
