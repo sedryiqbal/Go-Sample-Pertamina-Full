@@ -129,12 +129,12 @@ export default [
         component: './laboratory/testing/detail',
         hideInMenu: true,
       },
-      // {
-      //   path: '/laboratory/syringe',
-      //   name: 'syringe',
-      //   icon: 'MedicineBoxOutlined',
-      //   component: './laboratory/syringe',
-      // },
+      {
+        path: '/laboratory/syringe',
+        name: 'Management Syringe',
+        icon: 'MedicineBoxOutlined',
+        component: './laboratory/syringe',
+      },
       {
         path: '/laboratory/harga',
         name: 'Harga Pengujian',

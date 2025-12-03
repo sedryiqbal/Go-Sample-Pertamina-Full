@@ -35,6 +35,7 @@ const MENU_PATH_ALIASES: Record<string, string[]> = {
   '/orders': ['/sample/order'],
   '/settings': ['/account/change-password'],
   '/stadis': ['/stadis'],
+  '/syringe': ['/laboratory/syringe'],
 };
 
 const normalizePath = (path?: string) => {
