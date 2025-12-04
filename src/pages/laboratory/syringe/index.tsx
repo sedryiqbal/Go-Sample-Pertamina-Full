@@ -1,317 +1,684 @@
-import { DatabaseOutlined, UserOutlined } from '@ant-design/icons';
-import { PageContainer } from '@ant-design/pro-components';
-import { Card, Col, Row, Table, Tag, Typography, message, Progress } from 'antd';
-import dayjs from 'dayjs';
-import React, { useState } from 'react';
+import { DatabaseOutlined, SaveOutlined } from '@ant-design/icons';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
+import { useRequest } from '@umijs/max';
+import {
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Form,
+  Input,
+  InputNumber,
+  Row,
+  Space,
+  Spin,
+  Statistic,
+  message,
+} from 'antd';
+import { createStyles } from 'antd-style';
+import type { Dayjs } from 'dayjs';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import type { TablePaginationConfig } from 'antd/es/table';
+import {
+  getSyringeStock,
+  getSyringeAuditLogs,
+  updateSyringeStockQuantity,
+  type SyringeAuditLogQuery,
+  type SyringeAuditLogResult,
+  type SyringeStockItem,
+} from '@/services/syringe/api';
 
-import SyringeManagement from '@/components/SyringeManagement';
+const { RangePicker } = DatePicker;
 
-import { MOCK_AUDIT_LOGS, MOCK_SYRINGE_DATA } from '../testing/data/mockData';
-import type { AuditLog, SyringeData } from '../testing/types';
+type SyringeStatus = 'normal' | 'low' | 'urgent' | 'full';
+
+const useStyles = createStyles(({ token }) => ({
+  statusBadge: {
+    display: 'inline-block',
+    padding: '4px 12px',
+    borderRadius: '4px',
+    fontSize: '12px',
+    fontWeight: 500,
+  },
+  stockInput: {
+    width: '100%',
+    textAlign: 'center',
+    fontSize: '18px',
+    fontWeight: 'bold',
+  },
+  cardHover: {
+    '&:hover': {
+      boxShadow: token.boxShadowTertiary,
+      borderColor: token.colorPrimary,
+    },
+  },
+}));
+
+const normalizeStatus = (status?: string): SyringeStatus => {
+  const normalized = (status || '').toLowerCase();
+  if (normalized === 'low') return 'low';
+  if (normalized === 'urgent' || normalized === 'critical') return 'urgent';
+  if (normalized === 'full' || normalized === 'high') return 'full';
+  return 'normal';
+};
+
+const formatDateTime = (value?: string) => {
+  if (!value) return '-';
+  return new Date(value).toLocaleString('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+};
 
 const LaboratorySyringe: React.FC = () => {
-  const [syringeModalVisible, setSyringeModalVisible] = useState(false);
-  const [selectedSyringe, setSelectedSyringe] = useState<SyringeData | undefined>();
+  const { styles } = useStyles();
+  const [form] = Form.useForm();
+  const [currentStock, setCurrentStock] = useState(0);
+  const [auditFilters, setAuditFilters] = useState<SyringeAuditLogQuery>({
+    page: 1,
+    pageSize: 10,
+  });
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([
+    null,
+    null,
+  ]);
 
-  const handleSyringeClick = (syringe: SyringeData) => {
-    setSelectedSyringe(syringe);
-    setSyringeModalVisible(true);
+  const {
+    data: syringeData,
+    loading: syringeLoading,
+    refresh: refreshSyringe,
+    refreshAsync: refreshSyringeAsync,
+  } = useRequest<SyringeStockItem>(getSyringeStock, {
+    formatResult: (result) => result,
+    onError: (error: any) => {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Gagal memuat data stock syringe';
+      message.error(errorMessage);
+    },
+  });
+
+  const {
+    data: auditLogData,
+    loading: auditLoading,
+    run: runAuditLogs,
+    runAsync: runAuditLogsAsync,
+  } = useRequest<SyringeAuditLogResult, [SyringeAuditLogQuery]>(
+    (filters) => getSyringeAuditLogs(filters),
+    {
+      manual: true,
+      formatResult: (result) => result,
+    },
+  );
+
+  const {
+    runAsync: runUpdateStockAsync,
+    run: runUpdateStock,
+    loading: updatingStock,
+  } = useRequest(
+    async (params: {
+      syringeId: number | string;
+      newStockAmount: number;
+      notes?: string;
+    }) => {
+      const { syringeId, newStockAmount, notes } = params;
+      await updateSyringeStockQuantity(syringeId, { newStockAmount, notes });
+    },
+    { manual: true },
+  );
+
+  const refreshSyringeData = useCallback(async () => {
+    const refresher =
+      typeof refreshSyringeAsync === 'function'
+        ? refreshSyringeAsync
+        : refreshSyringe;
+    if (typeof refresher === 'function') {
+      await refresher();
+    }
+  }, [refreshSyringe, refreshSyringeAsync]);
+
+  const fetchAuditLogs = useCallback(
+    (filters: SyringeAuditLogQuery) => {
+      const runner =
+        typeof runAuditLogsAsync === 'function' ? runAuditLogsAsync : runAuditLogs;
+      if (!runner) return Promise.resolve(undefined);
+      return runner(filters);
+    },
+    [runAuditLogs, runAuditLogsAsync],
+  );
+
+  useEffect(() => {
+    if (syringeData) {
+      setCurrentStock(syringeData.currentStock);
+      form.setFieldsValue({
+        currentStock: syringeData.currentStock,
+      });
+      setAuditFilters((prev) => ({
+        ...prev,
+        syringeId: syringeData.id ?? syringeData.unitId,
+      }));
+    }
+  }, [syringeData, form]);
+
+  useEffect(() => {
+    fetchAuditLogs(auditFilters);
+  }, [auditFilters, fetchAuditLogs]);
+
+  const getStatusColor = (status?: string) => {
+    switch (normalizeStatus(status)) {
+      case 'normal':
+        return '#52c41a';
+      case 'low':
+        return '#faad14';
+      case 'urgent':
+        return '#ff4d4f';
+      case 'full':
+        return '#1890ff';
+      default:
+        return '#d9d9d9';
+    }
   };
 
-  const handleSyringeUpdate = (updatedSyringe: SyringeData) => {
-    console.log('Syringe updated:', updatedSyringe);
-    message.success('Stock syringe berhasil diperbarui');
+  const getStatusText = (status?: string) => {
+    switch (normalizeStatus(status)) {
+      case 'normal':
+        return 'Normal';
+      case 'low':
+        return 'Stock Rendah';
+      case 'urgent':
+        return 'Mendesak';
+      case 'full':
+        return 'Penuh';
+      default:
+        return 'Tidak Diketahui';
+    }
   };
 
-  const auditLogsColumns = [
-    {
-      title: 'Timestamp',
-      dataIndex: 'timestamp',
-      key: 'timestamp',
-      width: 150,
-      render: (timestamp: string) => (
-        <div>
-          <div style={{ fontWeight: 500, fontSize: '12px' }}>
-            {dayjs(timestamp).format('DD MMM YYYY')}
-          </div>
-          <div style={{ fontSize: '11px', color: '#8c8c8c' }}>
-            {dayjs(timestamp).format('HH:mm:ss')}
-          </div>
-        </div>
-      ),
-      sorter: (a: AuditLog, b: AuditLog) =>
-        dayjs(a.timestamp).unix() - dayjs(b.timestamp).unix(),
-      defaultSortOrder: 'descend' as const,
-    },
-    {
-      title: 'Action',
-      dataIndex: 'action',
-      key: 'action',
-      width: 150,
-      render: (action: string, record: AuditLog) => (
-        <Tag
-          color={
-            record.type === 'success'
-              ? 'success'
-              : record.type === 'warning'
-                ? 'warning'
-                : record.type === 'error'
-                  ? 'error'
-                  : 'processing'
-          }
-          style={{ fontSize: '11px', fontWeight: 500 }}
-        >
-          {action}
-        </Tag>
-      ),
-      filters: [
-        { text: 'Stock Updated', value: 'Stock Updated' },
-        { text: 'Stock Usage', value: 'Stock Usage' },
-        { text: 'Stock Replenishment', value: 'Stock Replenishment' },
-        { text: 'Low Stock Alert', value: 'Low Stock Alert' },
-        { text: 'Critical Stock Alert', value: 'Critical Stock Alert' },
-        { text: 'Equipment Maintenance', value: 'Equipment Maintenance' },
-      ],
-      onFilter: (value: any, record: AuditLog) => record.action === value,
-    },
-    {
-      title: 'User',
-      dataIndex: 'user',
-      key: 'user',
-      width: 140,
-      render: (user: string) => (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            padding: '4px 8px',
-            borderRadius: 6,
-            background: user === 'System' ? '#f0f0f0' : '#e6f7ff',
-            border: `1px solid ${user === 'System' ? '#d9d9d9' : '#bae7ff'}`,
-          }}
-        >
-          <UserOutlined style={{ marginRight: 6, fontSize: '12px' }} />
-          <span style={{ fontSize: '12px', fontWeight: 500 }}>{user}</span>
-        </div>
-      ),
-    },
-    {
-      title: 'Details',
-      dataIndex: 'details',
-      key: 'details',
-      ellipsis: true,
-      render: (details: string) => (
-        <span style={{ fontSize: '12px' }}>{details}</span>
-      ),
-    },
-  ];
+  const getStockStatus = (stock: number): SyringeStatus => {
+    if (!syringeData) return 'normal';
+    const capacity = syringeData.maxCapacity;
+    const threshold = syringeData.minThreshold;
+    if (!capacity) return 'normal';
+    if (stock >= capacity * 0.9) return 'full';
+    if (stock <= threshold) return 'urgent';
+    if (stock <= threshold * 1.5) return 'low';
+    return 'normal';
+  };
+
+  const getStockPercentage = () => {
+    if (!syringeData?.maxCapacity) return 0;
+    return Math.round((currentStock / syringeData.maxCapacity) * 100);
+  };
+
+  const auditLogs = useMemo(() => auditLogData?.data ?? [], [auditLogData]);
+  const auditPagination = auditLogData?.pagination;
+
+  const handleAuditTableChange = (tablePagination: TablePaginationConfig) => {
+    setAuditFilters((prev) => ({
+      ...prev,
+      page: tablePagination.current || 1,
+      pageSize: tablePagination.pageSize || prev.pageSize,
+      syringeId: prev.syringeId,
+    }));
+  };
+
+  const handleDateRangeChange = (
+    values: [Dayjs | null, Dayjs | null] | null,
+  ) => {
+    setDateRange(values || [null, null]);
+    const start = values?.[0]?.startOf('day');
+    const end = values?.[1]?.endOf('day');
+    setAuditFilters((prev) => ({
+      ...prev,
+      page: 1,
+      startDate: start ? start.format('YYYY-MM-DD') : '',
+      endDate: end ? end.format('YYYY-MM-DD') : '',
+    }));
+  };
+
+  const handleSave = async (values: { currentStock: number; notes?: string }) => {
+    try {
+      if (!syringeData) throw new Error('Data syringe belum tersedia');
+
+      const runUpdateFunction =
+        typeof runUpdateStockAsync === 'function'
+          ? runUpdateStockAsync
+          : runUpdateStock;
+      if (typeof runUpdateFunction !== 'function') {
+        throw new Error('Fungsi update stock tidak tersedia');
+      }
+
+      await runUpdateFunction({
+        syringeId: syringeData.id ?? syringeData.unitId,
+        newStockAmount: values.currentStock,
+        notes: values.notes,
+      });
+
+      await refreshSyringeData();
+      await fetchAuditLogs(auditFilters);
+
+      message.success('Stock syringe berhasil diperbarui');
+      setCurrentStock(values.currentStock);
+      form.setFieldsValue({
+        currentStock: values.currentStock,
+        notes: undefined,
+      });
+    } catch (error) {
+      message.error(
+        (error as Error)?.message || 'Gagal memperbarui stock syringe',
+      );
+    }
+  };
+
+  const stockUnitLabel = syringeData?.stockUnit || 'unit';
 
   return (
     <PageContainer
-      header={{
-        title: 'Syringe Stock Management',
-        breadcrumb: {
-          items: [
-            { path: '/', breadcrumbName: 'Home' },
-            { path: '/laboratory', breadcrumbName: 'Laboratory' },
-            { path: '/laboratory/syringe', breadcrumbName: 'Syringe' },
-          ],
-        },
-      }}
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <DatabaseOutlined style={{ color: '#fd0017' }} />
+          <span>Manajemen Stock Syringe</span>
+        </div>
+      }
+      content="Kelola dan update stock syringe dengan audit log"
+      extra={[
+        <Button
+          key="save"
+          type="primary"
+          icon={<SaveOutlined />}
+          onClick={() => form.submit()}
+          disabled={!syringeData}
+          loading={syringeLoading || updatingStock}
+          style={{ backgroundColor: '#fd0017', borderColor: '#fd0017' }}
+        >
+          Simpan Perubahan
+        </Button>,
+      ]}
     >
-      <Card
-        style={{
-          marginBottom: 24,
-          borderRadius: 16,
-          border: '1px solid #e6f4ff',
-          background: 'linear-gradient(135deg, #f6fbff 0%, #ffffff 100%)',
-        }}
-        bodyStyle={{ padding: 24 }}
-      >
-        <Typography.Title level={4} style={{ marginBottom: 8 }}>
-          Ringkasan Persediaan
-        </Typography.Title>
-        <Typography.Paragraph style={{ marginBottom: 0 }}>
-          Terdapat {MOCK_SYRINGE_DATA.length} lokasi yang memantau stok syringe
-          secara real-time. Klik salah satu kartu untuk melakukan pembaruan
-          stok.
-        </Typography.Paragraph>
-      </Card>
-
-      <Row gutter={[24, 24]}>
-        <Col xs={24} lg={12}>
-          <Card
-            title="📊 Current Stock Status"
-            size="small"
-            headStyle={{
-              background: 'linear-gradient(90deg, #f0f2f5 0%, #ffffff 100%)',
-              borderBottom: '2px solid #1890ff',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 16,
-              }}
-            >
-              {MOCK_SYRINGE_DATA.map((syringe) => {
-                const stockPercentage =
-                  (syringe.current_stock / syringe.max_capacity) * 100;
-                const getStockColor = () => {
-                  if (syringe.status === 'urgent') return '#ff4d4f';
-                  if (syringe.status === 'low') return '#faad14';
-                  if (syringe.status === 'full') return '#1890ff';
-                  return '#52c41a';
-                };
-
-                const getStatusText = () => {
-                  if (syringe.status === 'urgent') return 'Mendesak';
-                  if (syringe.status === 'low') return 'Rendah';
-                  if (syringe.status === 'full') return 'Penuh';
-                  return 'Normal';
-                };
-
-                return (
-                  <Card
-                    key={syringe.id}
-                    hoverable
-                    onClick={() => handleSyringeClick(syringe)}
-                    style={{
-                      cursor: 'pointer',
-                      borderRadius: 12,
-                      background:
-                        'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                      border: `2px solid ${getStockColor()}`,
-                      boxShadow: `0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px ${getStockColor()}20`,
-                      transition: 'all 0.3s ease',
-                      overflow: 'hidden',
+      <Spin spinning={syringeLoading}>
+        <>
+          {syringeData ? (
+            <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
+              <Col xs={24} lg={12}>
+                <Card
+                  title="Stock Syringe Saat Ini"
+                  style={{ height: '100%', textAlign: 'center' }}
+                  headStyle={{ backgroundColor: '#fafafa' }}
+                  className={styles.cardHover}
+                >
+                  <Statistic
+                    title=""
+                    value={currentStock}
+                    suffix={`/ ${syringeData.maxCapacity} ${stockUnitLabel}`}
+                    valueStyle={{
+                      fontSize: '32px',
+                      fontWeight: 'bold',
+                      color: getStatusColor(getStockStatus(currentStock)),
                     }}
-                    bodyStyle={{ padding: 20 }}
+                  />
+                  <div
+                    style={{
+                      marginTop: 12,
+                      fontSize: '16px',
+                      fontWeight: '500',
+                      color: '#666',
+                    }}
                   >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 16,
-                      }}
-                    >
+                    {getStockPercentage()}% dari kapasitas maksimal
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: 16,
+                      padding: '16px',
+                      backgroundColor: '#fafafa',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div style={{ textAlign: 'center' }}>
                       <div
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 56,
-                          height: 56,
-                          borderRadius: '50%',
-                          background: `linear-gradient(135deg, ${getStockColor()}15, ${getStockColor()}25)`,
-                          flexShrink: 0,
+                          fontSize: '12px',
+                          color: '#999',
+                          marginBottom: '4px',
                         }}
                       >
-                        <DatabaseOutlined
-                          style={{ fontSize: 24, color: getStockColor() }}
-                        />
+                        Status
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <div
-                          style={{
-                            fontSize: '16px',
-                            fontWeight: 600,
-                            color: '#262626',
-                            marginBottom: 4,
-                          }}
-                        >
-                          {syringe.location}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: '11px',
-                            color: '#8c8c8c',
-                            marginBottom: 8,
-                          }}
-                        >
-                          Last Updated:{' '}
-                          {dayjs(syringe.last_updated).format('DD MMM, HH:mm')}
-                        </div>
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: '24px',
-                              fontWeight: 700,
-                              color: getStockColor(),
-                            }}
-                          >
-                            {syringe.current_stock}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: '12px',
-                              color: '#595959',
-                            }}
-                          >
-                            / {syringe.max_capacity} units
-                          </span>
-                          <Tag
-                            color={getStockColor()}
-                            style={{
-                              borderRadius: 12,
-                              fontSize: '10px',
-                              fontWeight: 600,
-                              marginLeft: 'auto',
-                            }}
-                          >
-                            {getStatusText()}
-                          </Tag>
-                        </div>
-                        <Progress
-                          percent={stockPercentage}
-                          strokeColor={getStockColor()}
-                          strokeWidth={6}
-                          showInfo={false}
-                          style={{ marginTop: 8 }}
-                        />
+                      <span
+                        className={styles.statusBadge}
+                        style={{
+                          backgroundColor: getStatusColor(syringeData.status),
+                          color: '#fff',
+                        }}
+                      >
+                        {getStatusText(syringeData.status)}
+                      </span>
+                    </div>
+
+                    <div style={{ textAlign: 'right' }}>
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: '#999',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        Batas Min
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          color: '#333',
+                        }}
+                      >
+                        {syringeData.minThreshold} {stockUnitLabel}
                       </div>
                     </div>
-                  </Card>
-                );
-              })}
-            </div>
-          </Card>
-        </Col>
+                  </div>
 
-        <Col xs={24} lg={12}>
+                  <Row
+                    gutter={[16, 16]}
+                    style={{ marginTop: 16, textAlign: 'left' }}
+                  >
+                    <Col xs={24} md={8}>
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: '#999',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        Unit Name
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          color: '#333',
+                        }}
+                      >
+                        {syringeData.unitName || '-'}
+                      </div>
+                    </Col>
+                    <Col xs={24} md={8}>
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: '#999',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        Last Update At
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          color: '#333',
+                        }}
+                      >
+                        {formatDateTime(syringeData.updatedAt)}
+                      </div>
+                    </Col>
+                    <Col xs={24} md={8}>
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: '#999',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        Last Update Name
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          color: '#333',
+                        }}
+                      >
+                        {syringeData.updatedBy || '-'}
+                      </div>
+                    </Col>
+                  </Row>
+                </Card>
+              </Col>
+
+              <Col xs={24} lg={12}>
+                <Card
+                  title="Update Stock Syringe"
+                  style={{ height: '100%' }}
+                  headStyle={{ backgroundColor: '#fafafa' }}
+                  className={styles.cardHover}
+                >
+                  <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={handleSave}
+                    initialValues={{
+                      currentStock: syringeData.currentStock,
+                    }}
+                  >
+                    <Form.Item
+                      name="currentStock"
+                      label="Jumlah Stock Baru"
+                      rules={[
+                        { required: true, message: 'Stock wajib diisi' },
+                        {
+                          type: 'number',
+                          min: 0,
+                          max: syringeData.maxCapacity,
+                          message: `Stock harus antara 0 - ${syringeData.maxCapacity} ${stockUnitLabel}`,
+                        },
+                      ]}
+                    >
+                      <InputNumber
+                        min={0}
+                        max={syringeData.maxCapacity}
+                        className={styles.stockInput}
+                        onChange={(value) => setCurrentStock(value || 0)}
+                        style={{
+                          width: '100%',
+                          fontSize: '18px',
+                          padding: '8px 12px',
+                          textAlign: 'center',
+                        }}
+                        placeholder={`Masukkan jumlah stock (0 - ${syringeData.maxCapacity} ${stockUnitLabel})`}
+                      />
+                    </Form.Item>
+
+                    <Form.Item
+                      name="notes"
+                      label="Catatan Perubahan"
+                      rules={[
+                        { required: true, message: 'Catatan perubahan wajib diisi' },
+                      ]}
+                    >
+                      <Input.TextArea
+                        rows={3}
+                        placeholder="Masukkan catatan untuk perubahan stock ini (alasan, sumber, dll.)"
+                        style={{
+                          fontSize: '14px',
+                        }}
+                      />
+                    </Form.Item>
+
+                    {currentStock <= syringeData.minThreshold && (
+                      <div
+                        style={{
+                          padding: '12px 16px',
+                          backgroundColor: '#fff7e6',
+                          border: '1px solid #ffd591',
+                          borderRadius: '8px',
+                          color: '#d46b08',
+                          fontSize: '13px',
+                          marginTop: 16,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                        }}
+                      >
+                        <span style={{ fontSize: '16px' }}>⚠️</span>
+                        <div>
+                          <div style={{ fontWeight: '500' }}>
+                            Peringatan Stock Rendah!
+                          </div>
+                          <div style={{ marginTop: '2px', fontSize: '12px' }}>
+                            Stock berada di bawah batas minimum (
+                            {syringeData.minThreshold} {stockUnitLabel})
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {syringeData.maxCapacity &&
+                      currentStock >= syringeData.maxCapacity * 0.9 && (
+                        <div
+                          style={{
+                            padding: '12px 16px',
+                            backgroundColor: '#e6f7ff',
+                            border: '1px solid #91d5ff',
+                            borderRadius: '8px',
+                            color: '#0958d9',
+                            fontSize: '13px',
+                            marginTop: 16,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                          }}
+                        >
+                          <span style={{ fontSize: '16px' }}>ℹ️</span>
+                          <div>
+                            <div style={{ fontWeight: '500' }}>
+                              Informasi Kapasitas
+                            </div>
+                            <div style={{ marginTop: '2px', fontSize: '12px' }}>
+                              Stock mendekati kapasitas maksimal (
+                              {syringeData.maxCapacity} {stockUnitLabel})
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                  </Form>
+                </Card>
+              </Col>
+            </Row>
+          ) : !syringeLoading ? (
+            <Card style={{ marginBottom: 24 }}>
+              Data stock syringe belum tersedia.
+            </Card>
+          ) : null}
+
           <Card
-            title="📋 Recent Activity Logs"
-            size="small"
-            headStyle={{
-              background: 'linear-gradient(90deg, #f0f2f5 0%, #ffffff 100%)',
-              borderBottom: '2px solid #52c41a',
-            }}
+            title="Audit Log Syringe Stock"
+            size="default"
+            style={{ marginTop: 24 }}
+            extra={
+              <Space size={8}>
+                <RangePicker
+                  value={dateRange}
+                  allowClear
+                  format="YYYY-MM-DD"
+                  onChange={handleDateRangeChange}
+                />
+                <Button type="default" size="small">
+                  Export Log
+                </Button>
+              </Space>
+            }
           >
-            <Table
-              columns={auditLogsColumns}
-              dataSource={MOCK_AUDIT_LOGS}
-              pagination={{ pageSize: 8, showSizeChanger: false }}
-              size="small"
-              scroll={{ y: 400 }}
+            <ProTable
               rowKey="id"
+              search={false}
+              loading={auditLoading}
+              pagination={{
+                current: auditPagination?.page ?? auditFilters.page,
+                pageSize: auditPagination?.perPage ?? auditFilters.pageSize,
+                total: auditPagination?.totalData ?? 0,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                size: 'small',
+              }}
+              onChange={handleAuditTableChange}
+              toolBarRender={false}
+              columns={[
+                {
+                  title: 'Waktu',
+                  dataIndex: 'formattedCreatedAt',
+                  key: 'formattedCreatedAt',
+                  width: 160,
+                  render: (_, record) =>
+                    record.formattedCreatedAt ||
+                    formatDateTime(record.createdAt || undefined),
+                },
+                {
+                  title: 'Stock Sebelum',
+                  dataIndex: 'stockBefore',
+                  key: 'stockBefore',
+                  width: 120,
+                  render: (_, record) => `${record.stockBefore ?? 0} ${stockUnitLabel}`,
+                  align: 'center',
+                },
+                {
+                  title: 'Stock Sesudah',
+                  dataIndex: 'stockAfter',
+                  key: 'stockAfter',
+                  width: 120,
+                  render: (_, record) => `${record.stockAfter ?? 0} ${stockUnitLabel}`,
+                  align: 'center',
+                },
+                {
+                  title: 'Selisih',
+                  key: 'difference',
+                  width: 100,
+                  render: (_, record: any) => {
+                    const diff = record.difference ?? 0;
+                    return (
+                      <span
+                        style={{
+                          color:
+                            diff > 0 ? '#52c41a' : diff < 0 ? '#ff4d4f' : '#666',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {diff > 0 ? '+' : ''}
+                        {diff}
+                      </span>
+                    );
+                  },
+                  align: 'center',
+                },
+                {
+                  title: 'User',
+                  dataIndex: 'userName',
+                  key: 'userName',
+                  width: 140,
+                  render: (_, record) => (
+                    <Space>
+                      <span style={{ fontSize: '12px', color: '#666' }}>👤</span>
+                      {record.userName}
+                    </Space>
+                  ),
+                },
+                {
+                  title: 'Catatan',
+                  dataIndex: 'notes',
+                  key: 'notes',
+                  ellipsis: true,
+                },
+              ]}
+              dataSource={auditLogs}
+              size="small"
             />
           </Card>
-        </Col>
-      </Row>
-
-      <SyringeManagement
-        visible={syringeModalVisible}
-        onClose={() => setSyringeModalVisible(false)}
-        syringeData={selectedSyringe}
-        onUpdate={handleSyringeUpdate}
-      />
+        </>
+      </Spin>
     </PageContainer>
   );
 };
