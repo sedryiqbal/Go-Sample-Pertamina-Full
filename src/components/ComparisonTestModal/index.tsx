@@ -87,9 +87,15 @@ const ComparisonTestModal: React.FC<ComparisonTestModalProps> = ({
       setLoading(true);
       try {
         const sampleOrderId = parseInt(sampleData.id, 10);
+        const safeAdditionalDataPromise = fetchComparisonAdditionalData(sampleOrderId).catch(
+          (error) => {
+            console.warn('Optional additional comparison data unavailable:', error);
+            return null;
+          },
+        );
         const [result, additionalData] = await Promise.all([
           fetchComparisonResult(sampleOrderId),
-          fetchComparisonAdditionalData(sampleOrderId),
+          safeAdditionalDataPromise,
         ]);
 
         if (result) {

@@ -98,11 +98,18 @@ const AverageCOQModal: React.FC<AverageCOQModalProps> = ({
       try {
         // Fetch property tests, sample order detail, and existing comparisons in parallel
         const sampleOrderId = parseInt(sampleData.id, 10);
+        const safeAdditionalDataPromise = fetchComparisonAdditionalData(sampleOrderId).catch(
+          (error) => {
+            console.warn('Optional additional comparison data unavailable:', error);
+            return null;
+          },
+        );
+
         const [tests, detail, existingData, additionalData] = await Promise.all([
           fetchPropertyTestsBySampleOrder(sampleOrderId),
           fetchSampleOrderDetail(sampleOrderId),
           fetchExistingComparisons(sampleOrderId),
-          fetchComparisonAdditionalData(sampleOrderId),
+          safeAdditionalDataPromise,
         ]);
 
         setPropertyTests(tests);
