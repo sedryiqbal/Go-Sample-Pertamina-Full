@@ -1,3 +1,4 @@
+import dayjs, { type Dayjs } from 'dayjs';
 import { message } from 'antd';
 import { useState } from 'react';
 import {
@@ -16,10 +17,15 @@ import {
   type SummaryResult,
 } from '../utils';
 
+type DateLike = Dayjs | string | number | Date | null | undefined;
+
 interface RequestParams {
   current?: number;
   pageSize?: number;
   search?: string;
+  sampleId?: number | string;
+  shipId?: number | string;
+  receivedRange?: [DateLike, DateLike];
 }
 
 interface DeleteParams {
@@ -54,12 +60,43 @@ export const useSampleEstimationList = (): SampleEstimationListResult => {
   const [summary, setSummary] = useState<SummaryResult>(INITIAL_SUMMARY);
   const [calendarData, setCalendarData] = useState<CalendarData>({});
 
+  const normalizeDate = (
+    value: DateLike,
+    boundary: 'start' | 'end',
+  ): string | undefined => {
+    if (!value) {
+      return undefined;
+    }
+    const parsed = dayjs(value);
+    if (!parsed.isValid()) {
+      return undefined;
+    }
+    return (boundary === 'start'
+      ? parsed.startOf('day')
+      : parsed.endOf('day')
+    ).toISOString();
+  };
+
+  const toNumber = (value?: number | string) => {
+    if (value === null || value === undefined || value === '') {
+      return undefined;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+
   const request = async (params: RequestParams) => {
     try {
+      const [rangeStart, rangeEnd] = params.receivedRange ?? [];
+
       const response = await getSampleEstimations({
         page: params.current,
         pageSize: params.pageSize,
         search: params.search,
+        sampleId: toNumber(params.sampleId),
+        shipId: toNumber(params.shipId),
+        receivedStartDate: normalizeDate(rangeStart, 'start'),
+        receivedEndDate: normalizeDate(rangeEnd, 'end'),
       });
 
       const rows = Array.isArray(response.data) ? response.data : [];

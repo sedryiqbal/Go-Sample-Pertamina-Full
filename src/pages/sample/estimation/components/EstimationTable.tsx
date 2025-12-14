@@ -4,11 +4,11 @@ import {
   EditOutlined,
   EyeOutlined,
   SearchOutlined,
-  WarningOutlined,
 } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
-import { Button, Input, Space, Tag } from 'antd';
+import { Button, Input, Select, Space, Tag } from 'antd';
+import type { SelectProps } from 'antd';
 import dayjs from 'dayjs';
 import React from 'react';
 import type { SampleEstimationRecord } from '@/services/sample-estimations/typings';
@@ -20,6 +20,9 @@ interface Props {
     current?: number;
     pageSize?: number;
     search?: string;
+    sampleId?: number | string;
+    shipId?: number | string;
+    receivedRange?: [unknown, unknown];
   }) => Promise<{
     data: SampleEstimationRecord[];
     success: boolean;
@@ -28,15 +31,26 @@ interface Props {
   onDetail: (record: SampleEstimationRecord) => void;
   onEdit: (record: SampleEstimationRecord) => void;
   onDelete: (record: SampleEstimationRecord) => void;
+  productOptions?: SelectProps['options'];
+  shipOptions?: SelectProps['options'];
+  dropdownLoading?: boolean;
 }
 
 const buildColumns = ({
   onDetail,
   onEdit,
   onDelete,
+  productOptions,
+  shipOptions,
+  dropdownLoading,
 }: Pick<
   Props,
-  'onDetail' | 'onEdit' | 'onDelete'
+  | 'onDetail'
+  | 'onEdit'
+  | 'onDelete'
+  | 'productOptions'
+  | 'shipOptions'
+  | 'dropdownLoading'
 >): ProColumns<SampleEstimationRecord>[] => [
   {
     title: 'Cari Data',
@@ -52,6 +66,58 @@ const buildColumns = ({
         );
       }
       return null;
+    },
+  },
+  {
+    title: 'Tanggal Diterima',
+    dataIndex: 'receivedRange',
+    hideInTable: true,
+    valueType: 'dateRange',
+    fieldProps: {
+      allowClear: true,
+      format: 'YYYY-MM-DD',
+      placeholder: ['Mulai', 'Selesai'],
+      style: { width: '100%' },
+    },
+  },
+  {
+    title: 'Jenis Produk',
+    dataIndex: 'sampleId',
+    hideInTable: true,
+    renderFormItem: (_, { type }) => {
+      if (type !== 'form') {
+        return null;
+      }
+      return (
+        <Select
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          placeholder="Pilih jenis produk"
+          options={productOptions}
+          loading={dropdownLoading}
+        />
+      );
+    },
+  },
+  {
+    title: 'Kapal',
+    dataIndex: 'shipId',
+    hideInTable: true,
+    renderFormItem: (_, { type }) => {
+      if (type !== 'form') {
+        return null;
+      }
+      return (
+        <Select
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          placeholder="Pilih kapal"
+          options={shipOptions}
+          loading={dropdownLoading}
+        />
+      );
     },
   },
   {
@@ -180,6 +246,9 @@ export const EstimationTable: React.FC<Props> = ({
   onDetail,
   onEdit,
   onDelete,
+  productOptions,
+  shipOptions,
+  dropdownLoading,
 }) => (
   <ProTable<SampleEstimationRecord>
     actionRef={actionRef}
@@ -202,7 +271,14 @@ export const EstimationTable: React.FC<Props> = ({
         </Space>
       ),
     }}
-    columns={buildColumns({ onDetail, onEdit, onDelete })}
+    columns={buildColumns({
+      onDetail,
+      onEdit,
+      onDelete,
+      productOptions,
+      shipOptions,
+      dropdownLoading,
+    })}
     request={request}
     pagination={{
       pageSize: 10,

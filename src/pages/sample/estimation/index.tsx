@@ -216,6 +216,9 @@ const SampleEstimation: React.FC = () => {
                     onDetail={handleDetail}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
+                    productOptions={productOptions}
+                    shipOptions={shipOptions}
+                    dropdownLoading={dropdownLoading}
                   />
                 )}
                 <EstimationDrawerForm

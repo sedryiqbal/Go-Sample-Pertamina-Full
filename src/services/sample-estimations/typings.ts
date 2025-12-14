@@ -83,6 +83,10 @@ export interface SampleEstimationListPayload {
   Page?: number;
   PageSize?: number;
   search?: string;
+  ReceivedStartDate?: string;
+  ReceivedEndDate?: string;
+  SampleId?: number;
+  ShipId?: number;
   [key: string]: unknown;
 }
 
@@ -92,6 +96,18 @@ export interface SampleEstimationListResponseMeta {
 }
 
 export interface SampleEstimationListResponse {
+  data: SampleEstimationRecord[];
+  pagination: PaginationMeta;
+}
+
+export interface SampleCalendarQuery {
+  month: number;
+  year: number;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface SampleCalendarResponse {
   data: SampleEstimationRecord[];
   pagination: PaginationMeta;
 }

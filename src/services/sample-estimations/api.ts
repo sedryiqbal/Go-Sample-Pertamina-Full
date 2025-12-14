@@ -7,6 +7,8 @@ import type {
   LabReference,
   PaginationMeta,
   ProductType,
+  SampleCalendarQuery,
+  SampleCalendarResponse,
   SampleEstimationListPayload,
   SampleEstimationListResponse,
   SampleEstimationPayload,
@@ -25,6 +27,7 @@ const TANKS_ENDPOINT = '/api/Tankis';
 const UNITS_ENDPOINT = '/api/Satuans';
 const SAMPLE_ESTIMATIONS_ENDPOINT = '/api/EstimasiSamples';
 const SAMPLE_ESTIMATIONS_PAGED_ENDPOINT = `${SAMPLE_ESTIMATIONS_ENDPOINT}/paged`;
+const SAMPLE_ESTIMATIONS_CALENDAR_ENDPOINT = `${SAMPLE_ESTIMATIONS_ENDPOINT}/calendar`;
 const CATEGORY_TESTS_ENDPOINT = '/api/CategoryTests';
 const LABS_ENDPOINT = '/api/Labs';
 const SAMPLE_ORDERS_ENDPOINT = '/api/SampleOrders';
@@ -143,6 +146,10 @@ export interface SampleEstimationQuery {
   page?: number;
   pageSize?: number;
   search?: string;
+  receivedStartDate?: string;
+  receivedEndDate?: string;
+  sampleId?: number;
+  shipId?: number;
 }
 
 export const getProductTypes = async (): Promise<ProductType[]> => {
@@ -197,8 +204,64 @@ export const getSampleEstimations = async (
     requestParams.search = params.search;
   }
 
+  if (params?.receivedStartDate) {
+    requestParams.ReceivedStartDate = params.receivedStartDate;
+  }
+
+  if (params?.receivedEndDate) {
+    requestParams.ReceivedEndDate = params.receivedEndDate;
+  }
+
+  if (params?.sampleId !== undefined) {
+    requestParams.SampleId = params.sampleId;
+  }
+
+  if (params?.shipId !== undefined) {
+    requestParams.ShipId = params.shipId;
+  }
+
   const { data, meta } = await requestWithEnvelope<SampleEstimationRecord[]>(
     SAMPLE_ESTIMATIONS_PAGED_ENDPOINT,
+    {
+      method: 'GET',
+      params: requestParams,
+    },
+  );
+
+  return {
+    data: Array.isArray(data) ? data : [],
+    pagination: normalizePagination(meta),
+  };
+};
+
+export const getSampleEstimationCalendar = async (
+  params: SampleCalendarQuery,
+): Promise<SampleCalendarResponse> => {
+  if (
+    !params ||
+    params.month === null ||
+    params.month === undefined ||
+    params.year === null ||
+    params.year === undefined
+  ) {
+    throw new Error('Parameter bulan dan tahun wajib diisi');
+  }
+
+  const requestParams: Record<string, number> = {
+    month: Number(params.month),
+    year: Number(params.year),
+  };
+
+  if (params.page !== undefined) {
+    requestParams.page = Number(params.page);
+  }
+
+  if (params.pageSize !== undefined) {
+    requestParams.pageSize = Number(params.pageSize);
+  }
+
+  const { data, meta } = await requestWithEnvelope<SampleEstimationRecord[]>(
+    SAMPLE_ESTIMATIONS_CALENDAR_ENDPOINT,
     {
       method: 'GET',
       params: requestParams,
