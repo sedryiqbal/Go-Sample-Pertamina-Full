@@ -43,6 +43,13 @@ import { uploadAttachment } from '@/services/sample-estimations/api';
 const { TextArea } = Input;
 const { Title, Text } = Typography;
 
+const METHOD_OPTIONS = [
+  { label: 'Kosong', value: '' },
+  { label: 'ASTM D3948-22', value: 'ASTM D3948-22' },
+  { label: 'ASTM D2386-19', value: 'ASTM D2386-19' },
+  { label: 'BS EN ISO 13736:2021', value: 'BS EN ISO 13736:2021' },
+];
+
 type UnitOption = { label: string; value: string; id?: number };
 
 interface PropertyTestParameter {
@@ -1309,10 +1316,19 @@ const LaboratoryActionModal: React.FC<LaboratoryActionModalProps> = ({
                         style={{ margin: 0 }}
                         initialValue=""
                       >
-                        <Input
+                        <Select
                           placeholder="Method"
                           size="small"
                           style={{ width: '100%', fontSize: '11px' }}
+                          options={METHOD_OPTIONS}
+                          showSearch
+                          allowClear
+                          filterOption={(input, option) =>
+                            (option?.label ?? '')
+                              .toString()
+                              .toLowerCase()
+                              .includes(input.toLowerCase())
+                          }
                         />
                       </Form.Item>
                       <Form.Item

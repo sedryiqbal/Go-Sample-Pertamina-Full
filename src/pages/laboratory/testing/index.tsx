@@ -1,7 +1,6 @@
 import {
   DatabaseOutlined,
   ExperimentOutlined,
-  FileTextOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
 import type { ActionType as ProActionType } from '@ant-design/pro-components';
@@ -75,13 +74,6 @@ const LaboratoryTesting: React.FC = () => {
   const [unitOptions, setUnitOptions] = useState<
     { label: string; value: string; id?: number }[]
   >([]);
-  const [documentPreview, setDocumentPreview] = useState<{
-    visible: boolean;
-    url?: string;
-    name?: string;
-  }>({
-    visible: false,
-  });
 
   const actionRef = useRef<ProActionType>(null);
   const [form] = Form.useForm();
@@ -274,15 +266,16 @@ const LaboratoryTesting: React.FC = () => {
       message.info('Dokumen belum tersedia untuk record ini.');
       return;
     }
-    setDocumentPreview({
-      visible: true,
-      url: record.documentTest,
-      name: record.order_number || record.sample_id || 'Dokumen Test',
-    });
-  };
-
-  const closeDocumentPreview = () => {
-    setDocumentPreview({ visible: false });
+    if (typeof window !== 'undefined') {
+      const opened = window.open(
+        record.documentTest,
+        '_blank',
+        'noopener,noreferrer',
+      );
+      if (!opened) {
+        message.warning('Gagal membuka dokumen. Coba izinkan pop-up.');
+      }
+    }
   };
 
   const handleSubmit = async (_values: any) => {
@@ -406,16 +399,6 @@ const LaboratoryTesting: React.FC = () => {
     handleStartTesting,
     handlePreviewDocument,
   );
-
-  const normalizedPreviewUrl = documentPreview.url
-    ? documentPreview.url.split('?')[0].toLowerCase()
-    : '';
-  const isImagePreview = normalizedPreviewUrl
-    ? /\.(png|jpe?g|gif|bmp|webp|svg)$/.test(normalizedPreviewUrl)
-    : false;
-  const isPdfPreview = normalizedPreviewUrl
-    ? /\.pdf$/.test(normalizedPreviewUrl)
-    : false;
 
   return (
     <PageContainer
@@ -568,9 +551,7 @@ const LaboratoryTesting: React.FC = () => {
                       item.receivedAt || item.received_at,
                     ),
                     estimated_completion: normalizeDateValue(
-                      item.estimatedCompletionDate ||
-                      item.estimated_completion ||
-                      item.etaArival,
+                      item.estimatedCompletionDate || item.estimated_completion,
                     ),
                     progress_percentage: mapStatusCodeToProgress(statusCode),
                     priority: (item.priority as any) || 'normal',
@@ -933,76 +914,6 @@ const LaboratoryTesting: React.FC = () => {
         }}
       />
 
-      <Modal
-        title={`Preview Dokumen${
-          documentPreview.name ? ` - ${documentPreview.name}` : ''
-        }`}
-        open={documentPreview.visible}
-        onCancel={closeDocumentPreview}
-        width={isPdfPreview ? 960 : 720}
-        destroyOnClose
-        footer={[
-          <Button key="close" onClick={closeDocumentPreview}>
-            Tutup
-          </Button>,
-        ]}
-      >
-        {documentPreview.url ? (
-          isImagePreview ? (
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                minHeight: 320,
-              }}
-            >
-              <img
-                src={documentPreview.url}
-                alt={documentPreview.name}
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '70vh',
-                  borderRadius: 8,
-                  objectFit: 'contain',
-                }}
-              />
-            </div>
-          ) : isPdfPreview ? (
-            <iframe
-              src={documentPreview.url}
-              title="Dokumen Test Preview"
-              style={{
-                width: '100%',
-                height: '70vh',
-                border: 'none',
-                borderRadius: 8,
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '24px 0',
-                textAlign: 'center',
-              }}
-            >
-              <FileTextOutlined style={{ fontSize: 36, color: '#8c8c8c' }} />
-              <Text type="secondary" style={{ marginTop: 12 }}>
-                Preview tidak tersedia untuk format dokumen ini. Silakan buka
-                dokumen langsung melalui tautan aslinya di luar aplikasi ini.
-              </Text>
-            </div>
-          )
-        ) : (
-          <Text type="secondary">
-            Dokumen tidak tersedia untuk record ini.
-          </Text>
-        )}
-      </Modal>
     </PageContainer>
   );
 };

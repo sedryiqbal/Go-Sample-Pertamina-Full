@@ -42,7 +42,7 @@ const MonitoringDetail: React.FC = () => {
 
   const fetchDetailData = useCallback(async () => {
     if (!id) return;
-    
+
     setLoading(true);
     try {
       const response = await getMonitoringSampleOrderDetail(id);
@@ -106,16 +106,16 @@ const MonitoringDetail: React.FC = () => {
 
   const getTimelineColor = (_oldStatus: string, newStatus: string) => {
     // Determine color based on status transition
-    if (newStatus.toLowerCase().includes('completed') || 
-        newStatus.toLowerCase().includes('delivered') ||
-        newStatus.toLowerCase().includes('confirmed')) {
+    if (newStatus.toLowerCase().includes('completed') ||
+      newStatus.toLowerCase().includes('delivered') ||
+      newStatus.toLowerCase().includes('confirmed')) {
       return 'green';
     }
     if (newStatus.toLowerCase().includes('canceled')) {
       return 'red';
     }
-    if (newStatus.toLowerCase().includes('transit') || 
-        newStatus.toLowerCase().includes('testing')) {
+    if (newStatus.toLowerCase().includes('transit') ||
+      newStatus.toLowerCase().includes('testing')) {
       return 'orange';
     }
     return 'blue';
@@ -161,7 +161,7 @@ const MonitoringDetail: React.FC = () => {
     >
       {/* Status Overview */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={6}>
+        <Col xs={24} sm={8}>
           <Card>
             <Statistic
               title="Status Saat Ini"
@@ -171,7 +171,7 @@ const MonitoringDetail: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={6}>
+        <Col xs={24} sm={8}>
           <Card>
             <Statistic
               title="Progress"
@@ -182,17 +182,7 @@ const MonitoringDetail: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="ETA"
-              value={detailData.sampleInfo.etaArival ? dayjs(detailData.sampleInfo.etaArival).format('DD/MM HH:mm') : '-'}
-              prefix={<ClockCircleOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
+        <Col xs={24} sm={8}>
           <Card>
             <Statistic
               title="Last Update"
@@ -274,12 +264,12 @@ const MonitoringDetail: React.FC = () => {
                 {detailData.sampleInfo.nomorNpc || '-'}
               </Descriptions.Item>
               <Descriptions.Item label="Tanggal Order">
-                {detailData.sampleInfo.tanggalOrder 
+                {detailData.sampleInfo.tanggalOrder
                   ? dayjs(detailData.sampleInfo.tanggalOrder).format('DD/MM/YYYY HH:mm')
                   : '-'}
               </Descriptions.Item>
               <Descriptions.Item label="ETA Arrival">
-                {detailData.sampleInfo.etaArival 
+                {detailData.sampleInfo.etaArival
                   ? dayjs(detailData.sampleInfo.etaArival).format('DD/MM/YYYY HH:mm')
                   : '-'}
               </Descriptions.Item>
