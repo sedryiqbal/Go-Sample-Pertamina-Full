@@ -11,9 +11,6 @@ import {
   AvatarDropdown,
   AvatarName,
   Footer,
-  Notification,
-  Question,
-  SelectLang,
 } from '@/components';
 import { API_BASE_URL } from '@/config/api';
 import type { AuthMenuItem } from '@/services/auth/api';
@@ -197,11 +194,7 @@ export const layout: RunTimeLayoutConfig = ({
 }) => {
   const allowedMenuPaths = buildAllowedMenuPaths(initialState?.currentMenus);
   return {
-    actionsRender: () => [
-      <Question key="doc" />,
-      <Notification key="notification" />,
-      <SelectLang key="SelectLang" />,
-    ],
+    actionsRender: () => [],
     avatarProps: {
       src: initialState?.currentUser?.avatar,
       title: <AvatarName />,
