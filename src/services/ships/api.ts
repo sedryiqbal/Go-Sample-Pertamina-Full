@@ -189,19 +189,13 @@ const mapShipRecord = (record: ShipApiRecord): Ship => {
 export const fetchShips = async (
   params?: ShipListQuery,
 ): Promise<ShipListEnvelope> => {
-  const requestParams: Record<string, number | string> = {};
-
-  if (params?.page !== undefined) {
-    requestParams.Page = params.page;
-  }
-
-  if (params?.pageSize !== undefined) {
-    requestParams.PageSize = params.pageSize;
-  }
-
-  if (params?.search !== undefined && params.search !== '') {
-    requestParams.Search = params.search;
-  }
+  const requestParams: Record<string, number | string> = {
+    Page: params?.page ?? 1,
+    PageSize: params?.pageSize ?? 10,
+    Search: params?.search ?? '',
+    TypeShipId: params?.typeShipId ?? '',
+    TypeLoadId: params?.typeLoadId ?? '',
+  };
 
   const response = await request<ShipApiListResponse>(SHIPS_PAGED_ENDPOINT, {
     method: 'GET',

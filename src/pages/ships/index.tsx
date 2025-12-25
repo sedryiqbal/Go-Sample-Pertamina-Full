@@ -25,7 +25,7 @@ import {
   Tag,
 } from 'antd';
 import dayjs from 'dayjs';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import ProductQCListModal from '@/components/ProductQCListModal';
@@ -43,6 +43,10 @@ import {
   deleteProductQc,
   fetchProductQcByShip,
 } from '@/services/product-qc/api';
+import {
+  fetchShipCargoTypes,
+  fetchShipTypesReference,
+} from '@/services/ships/api';
 import ShipDetailModal from './components/ShipDetailModal';
 import ShipFormDrawer from './components/ShipFormDrawer';
 import {
@@ -72,6 +76,81 @@ const normalizeTextParam = (value: unknown): string | undefined => {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
 };
+
+const normalizeNumberParam = (value: unknown): number | undefined => {
+  if (value === null || value === undefined || value === '') {
+    return undefined;
+  }
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : undefined;
+};
+
+type SelectOption = { label: string; value: number };
+
+const dedupeOptions = (options: SelectOption[]): SelectOption[] => {
+  const seen = new Set<string>();
+
+  return options.filter((option) => {
+    const key = option.value?.toString().trim();
+    if (!key) {
+      return false;
+    }
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+};
+
+const normalizeName = (name?: string | null) => {
+  if (typeof name !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = name.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const mapShipTypeOptions = (records: { id: number; name: string }[]) =>
+  dedupeOptions(
+    records
+      .map((record) => {
+        const name = normalizeName(record.name);
+        const fallback = record.id ? `Ship Type #${record.id}` : undefined;
+        const label = name ?? fallback;
+        if (!label) {
+          return undefined;
+        }
+
+        return {
+          label,
+          value: record.id,
+        };
+      })
+      .filter(Boolean) as SelectOption[],
+  );
+
+const mapCargoTypeOptions = (records: { id: number; name: string }[]) =>
+  dedupeOptions(
+    records
+      .map((record) => {
+        const name = normalizeName(record.name);
+        const fallback = record.id ? `Cargo Type #${record.id}` : undefined;
+        const label = name ?? fallback;
+        if (!label) {
+          return undefined;
+        }
+
+        return {
+          label,
+          value: record.id,
+        };
+      })
+      .filter(Boolean) as SelectOption[],
+  );
 
 type ProductQcFormState = ProductQCData & {
   calculatedResults?: CalculatedResults | null;
@@ -324,7 +403,7 @@ const ProductQCPdfDocument = React.forwardRef<
         >
           <thead>
             <tr>
-              {[ '#', 'Free Water', 'Suspended Water', 'EC (µS/m)', 'Temp (°C)', 'Density Obs', 'Density @15°C', 'Volume (L)', 'D15 × V' ].map(
+              {['#', 'Free Water', 'Suspended Water', 'EC (µS/m)', 'Temp (°C)', 'Density Obs', 'Density @15°C', 'Volume (L)', 'D15 × V'].map(
                 (header) => (
                   <th key={header} style={headerCellStyle}>
                     {header}
@@ -346,7 +425,7 @@ const ProductQCPdfDocument = React.forwardRef<
         >
           <thead>
             <tr>
-              {[ '#', 'Free Water', 'Suspended Water', 'EC (µS/m)', 'Temp (°C)', 'Density Obs', 'Density @15°C', 'Volume (L)', 'D15 × V' ].map(
+              {['#', 'Free Water', 'Suspended Water', 'EC (µS/m)', 'Temp (°C)', 'Density Obs', 'Density @15°C', 'Volume (L)', 'D15 × V'].map(
                 (header) => (
                   <th key={header} style={headerCellStyle}>
                     {header}
@@ -472,6 +551,8 @@ const Ships: React.FC = () => {
   const [pdfGeneratingShipId, setPdfGeneratingShipId] = useState<
     string | number | null
   >(null);
+  const [shipTypeOptions, setShipTypeOptions] = useState<SelectOption[]>([]);
+  const [cargoTypeOptions, setCargoTypeOptions] = useState<SelectOption[]>([]);
 
   const handleFormApiError = useCallback(
     (error: unknown) => {
@@ -557,16 +638,47 @@ const Ships: React.FC = () => {
 
   const handleTableRequest = useCallback(
     async (params: Record<string, any>) => {
-      const { current = 1, pageSize = 10, search } = params ?? {};
+      const { current = 1, pageSize = 10, search, typeShipId, typeLoadId } =
+        params ?? {};
 
       return loadShips({
         page: Number(current) || 1,
         pageSize: Number(pageSize) || 10,
         search: normalizeTextParam(search),
+        typeShipId: normalizeNumberParam(typeShipId),
+        typeLoadId: normalizeNumberParam(typeLoadId),
       });
     },
     [loadShips],
   );
+
+  useEffect(() => {
+    let isActive = true;
+    const loadFilterOptions = async () => {
+      const [typesResult, cargoResult] = await Promise.allSettled([
+        fetchShipTypesReference(),
+        fetchShipCargoTypes(),
+      ]);
+
+      if (typesResult.status === 'fulfilled' && isActive) {
+        setShipTypeOptions(mapShipTypeOptions(typesResult.value));
+      } else if (typesResult.status === 'rejected') {
+        message.error('Gagal memuat data tipe kapal untuk filter.');
+      }
+
+      if (cargoResult.status === 'fulfilled' && isActive) {
+        setCargoTypeOptions(mapCargoTypeOptions(cargoResult.value));
+      } else if (cargoResult.status === 'rejected') {
+        message.error('Gagal memuat data jenis muatan untuk filter.');
+      }
+    };
+
+    loadFilterOptions();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const convertWaterFlag = useCallback(
     (value: number | null | undefined): 'P' | 'N' | '' =>
@@ -583,7 +695,7 @@ const Ships: React.FC = () => {
     return Number.isFinite(numeric) ? numeric : null;
   }, []);
 
-const mapProductQcRecordToSampleData = useCallback(
+  const mapProductQcRecordToSampleData = useCallback(
     (record: ProductQcRecord): ProductQCSampleData => {
       const portRecords: Partial<PortStarboardRecord>[] = [];
       const starboardRecords: Partial<PortStarboardRecord>[] = [];
@@ -627,7 +739,7 @@ const mapProductQcRecordToSampleData = useCallback(
         sample_type: record.gradeOfProduct,
         quantity_in_batch:
           record.quantityInBatch !== null &&
-          record.quantityInBatch !== undefined
+            record.quantityInBatch !== undefined
             ? record.quantityInBatch
             : undefined,
         port_data: portRecords,
@@ -1184,6 +1296,28 @@ const mapProductQcRecordToSampleData = useCallback(
       },
       {
         title: 'Tipe Kapal',
+        dataIndex: 'typeShipId',
+        key: 'typeShipId',
+        valueType: 'select',
+        hideInTable: true,
+        fieldProps: {
+          options: shipTypeOptions,
+          allowClear: true,
+        },
+      },
+      {
+        title: 'Jenis Muatan',
+        dataIndex: 'typeLoadId',
+        key: 'typeLoadId',
+        valueType: 'select',
+        hideInTable: true,
+        fieldProps: {
+          options: cargoTypeOptions,
+          allowClear: true,
+        },
+      },
+      {
+        title: 'Tipe Kapal',
         dataIndex: 'type',
         key: 'type',
         valueType: 'select',
@@ -1388,6 +1522,8 @@ const mapProductQcRecordToSampleData = useCallback(
       qcDataByShip,
       qcAvailabilityByShip,
       pdfGeneratingShipId,
+      shipTypeOptions,
+      cargoTypeOptions,
     ],
   );
 
@@ -1407,7 +1543,7 @@ const mapProductQcRecordToSampleData = useCallback(
         </Button>,
       ]}
     >
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      {/* <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={6}>
           <Card loading={loading}>
             <Statistic
@@ -1448,7 +1584,7 @@ const mapProductQcRecordToSampleData = useCallback(
             />
           </Card>
         </Col>
-      </Row>
+      </Row> */}
 
       <ProTable<ShipTableRecord>
         actionRef={actionRef}

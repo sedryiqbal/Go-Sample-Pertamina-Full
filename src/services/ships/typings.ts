@@ -63,6 +63,8 @@ export interface ShipListQuery {
   page?: number;
   pageSize?: number;
   search?: string;
+  typeShipId?: number;
+  typeLoadId?: number;
 }
 
 export interface ShipApiEnvelope<T> {

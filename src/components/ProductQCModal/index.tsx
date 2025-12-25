@@ -395,7 +395,7 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
       key: 'id',
       width: 80,
       align: 'center',
-      render: (id) => <strong>{id}</strong>,
+      render: (_id, _record, index) => <strong>{index + 1}</strong>,
     },
     {
       title: 'WATER CHECK',
@@ -476,7 +476,7 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
           }
           placeholder="Enter temp"
           style={{ width: '100%' }}
-          precision={2}
+          precision={0}
         />
       ),
     },
@@ -872,7 +872,13 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
                             name={['coq_details', index, 'coq_no']}
                             style={{ marginBottom: 0 }}
                           >
-                            <Input placeholder="COQ-0221/KPI47210/2021-S2" />
+                            <Input
+                              placeholder={
+                                isViewOnly
+                                  ? undefined
+                                  : 'COQ-0221/KPI47210/2021-S2'
+                              }
+                            />
                           </Form.Item>
                         </td>
                         <td

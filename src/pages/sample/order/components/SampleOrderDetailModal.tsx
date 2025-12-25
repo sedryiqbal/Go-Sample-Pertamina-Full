@@ -161,7 +161,7 @@ const SampleOrderDetailModal: React.FC<SampleOrderDetailModalProps> = ({
         </>
       ) : null}
 
-      {record?.raw?.sample && (
+      {/* {record?.raw?.sample && (
         <>
           <Divider />
           <Descriptions
@@ -194,7 +194,7 @@ const SampleOrderDetailModal: React.FC<SampleOrderDetailModalProps> = ({
             </Descriptions.Item>
           </Descriptions>
         </>
-      )}
+      )} */}
     </Modal>
   );
 };
