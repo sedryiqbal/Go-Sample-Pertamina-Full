@@ -123,9 +123,6 @@ const SampleOrderDetailModal: React.FC<SampleOrderDetailModalProps> = ({
         <Descriptions.Item label="Category Test">
           {record?.category_test ?? '-'}
         </Descriptions.Item>
-        <Descriptions.Item label="Estimasi Pengantaran">
-          {record ? `${record.estimated_delivery_time} jam` : '-'}
-        </Descriptions.Item>
         <Descriptions.Item label="Catatan">
           {record?.notes ?? '-'}
         </Descriptions.Item>
