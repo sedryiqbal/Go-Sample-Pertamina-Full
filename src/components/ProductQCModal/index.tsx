@@ -240,7 +240,7 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
         name_of_tanker:
           sampleData?.name_of_tanker ??
           (sampleData?.vessel_name
-            ? `MT. ${sampleData.vessel_name}`
+            ? `${sampleData.vessel_name}`
             : undefined),
         refinery_terminal: sampleData?.refinery_terminal ?? undefined,
         quantity_in_batch:
@@ -389,202 +389,202 @@ const ProductQCModal: React.FC<ProductQCModalProps> = ({
     type: 'port' | 'starboard',
     readOnly: boolean,
   ): ColumnsType<PortStarboardRecord> => [
-    {
-      title: type === 'port' ? 'PORT' : 'STARBOARD',
-      dataIndex: 'id',
-      key: 'id',
-      width: 80,
-      align: 'center',
-      render: (_id, _record, index) => <strong>{index + 1}</strong>,
-    },
-    {
-      title: 'WATER CHECK',
-      children: [
-        {
-          title: 'Free Water',
-          key: 'free_water',
-          width: 100,
-          render: (_, record, index) => (
-            <Select
+      {
+        title: type === 'port' ? 'PORT' : 'STARBOARD',
+        dataIndex: 'id',
+        key: 'id',
+        width: 80,
+        align: 'center',
+        render: (_id, _record, index) => <strong>{index + 1}</strong>,
+      },
+      {
+        title: 'WATER CHECK',
+        children: [
+          {
+            title: 'Free Water',
+            key: 'free_water',
+            width: 100,
+            render: (_, record, index) => (
+              <Select
+                size="small"
+                value={record.free_water || undefined}
+                placeholder="Select"
+                disabled={readOnly}
+                onChange={(value) =>
+                  updateRecord(type, index, 'free_water', value)
+                }
+                options={[
+                  { label: 'P (Positive)', value: 'P' },
+                  { label: 'N (Negative)', value: 'N' },
+                ]}
+                style={{ width: '100%' }}
+              />
+            ),
+          },
+          {
+            title: 'Suspended Water',
+            key: 'suspended_water',
+            width: 120,
+            render: (_, record, index) => (
+              <Select
+                size="small"
+                value={record.suspended_water || undefined}
+                placeholder="Select"
+                disabled={readOnly}
+                onChange={(value) =>
+                  updateRecord(type, index, 'suspended_water', value)
+                }
+                options={[
+                  { label: 'P (Positive)', value: 'P' },
+                  { label: 'N (Negative)', value: 'N' },
+                ]}
+                style={{ width: '100%' }}
+              />
+            ),
+          },
+        ],
+      },
+      {
+        title: 'Electrical Conductivity (p.S/m)',
+        key: 'electrical_conductivity',
+        width: 140,
+        render: (_, record, index) => (
+          <InputNumber
+            size="small"
+            value={record.electrical_conductivity}
+            disabled={readOnly}
+            onChange={(value) =>
+              updateRecord(type, index, 'electrical_conductivity', value)
+            }
+            placeholder="Enter value"
+            style={{ width: '100%' }}
+            precision={0}
+          />
+        ),
+      },
+      {
+        title: 'Temperature Observed (°C)',
+        key: 'temperature_observed',
+        width: 140,
+        render: (_, record, index) => (
+          <InputNumber
+            size="small"
+            value={record.temperature_observed}
+            disabled={readOnly}
+            onChange={(value) =>
+              updateRecord(type, index, 'temperature_observed', value)
+            }
+            placeholder="Enter temp"
+            style={{ width: '100%' }}
+            precision={0}
+          />
+        ),
+      },
+      {
+        title: 'Density Observed (Kg/l)',
+        key: 'density_observed',
+        width: 140,
+        render: (_, record, index) => (
+          <InputNumber
+            size="small"
+            value={record.density_observed}
+            disabled={readOnly}
+            onChange={(value) =>
+              updateRecord(type, index, 'density_observed', value)
+            }
+            placeholder="Enter density"
+            style={{ width: '100%' }}
+            precision={4}
+          />
+        ),
+      },
+      {
+        title: 'Density @15°C',
+        key: 'density_15c',
+        width: 140,
+        render: (_, record, index) => (
+          <div style={{ textAlign: 'center' }}>
+            {record.density_15c ? (
+              <div
+                style={{
+                  fontWeight: 600,
+                  color: '#1890ff',
+                  fontSize: '13px',
+                  marginBottom: 4,
+                }}
+              >
+                {record.density_15c.toFixed(4)}
+              </div>
+            ) : null}
+
+            <Button
+              type={record.density_15c ? 'default' : 'primary'}
               size="small"
-              value={record.free_water || undefined}
-              placeholder="Select"
-              disabled={readOnly}
-              onChange={(value) =>
-                updateRecord(type, index, 'free_water', value)
+              icon={<ThunderboltOutlined />}
+              onClick={() => handleCalculateDensity15C(type, index)}
+              disabled={
+                readOnly ||
+                !record.temperature_observed ||
+                !record.density_observed ||
+                calculatingDensityKey === `${type}-${index}`
               }
-              options={[
-                { label: 'P (Positive)', value: 'P' },
-                { label: 'N (Negative)', value: 'N' },
-              ]}
-              style={{ width: '100%' }}
-            />
-          ),
-        },
-        {
-          title: 'Suspended Water',
-          key: 'suspended_water',
-          width: 120,
-          render: (_, record, index) => (
-            <Select
-              size="small"
-              value={record.suspended_water || undefined}
-              placeholder="Select"
-              disabled={readOnly}
-              onChange={(value) =>
-                updateRecord(type, index, 'suspended_water', value)
-              }
-              options={[
-                { label: 'P (Positive)', value: 'P' },
-                { label: 'N (Negative)', value: 'N' },
-              ]}
-              style={{ width: '100%' }}
-            />
-          ),
-        },
-      ],
-    },
-    {
-      title: 'Electrical Conductivity (p.S/m)',
-      key: 'electrical_conductivity',
-      width: 140,
-      render: (_, record, index) => (
-        <InputNumber
-          size="small"
-          value={record.electrical_conductivity}
-          disabled={readOnly}
-          onChange={(value) =>
-            updateRecord(type, index, 'electrical_conductivity', value)
-          }
-          placeholder="Enter value"
-          style={{ width: '100%' }}
-          precision={0}
-        />
-      ),
-    },
-    {
-      title: 'Temperature Observed (°C)',
-      key: 'temperature_observed',
-      width: 140,
-      render: (_, record, index) => (
-        <InputNumber
-          size="small"
-          value={record.temperature_observed}
-          disabled={readOnly}
-          onChange={(value) =>
-            updateRecord(type, index, 'temperature_observed', value)
-          }
-          placeholder="Enter temp"
-          style={{ width: '100%' }}
-          precision={0}
-        />
-      ),
-    },
-    {
-      title: 'Density Observed (Kg/l)',
-      key: 'density_observed',
-      width: 140,
-      render: (_, record, index) => (
-        <InputNumber
-          size="small"
-          value={record.density_observed}
-          disabled={readOnly}
-          onChange={(value) =>
-            updateRecord(type, index, 'density_observed', value)
-          }
-          placeholder="Enter density"
-          style={{ width: '100%' }}
-          precision={4}
-        />
-      ),
-    },
-    {
-      title: 'Density @15°C',
-      key: 'density_15c',
-      width: 140,
-      render: (_, record, index) => (
-        <div style={{ textAlign: 'center' }}>
-          {record.density_15c ? (
-            <div
+              loading={calculatingDensityKey === `${type}-${index}`}
               style={{
-                fontWeight: 600,
-                color: '#1890ff',
-                fontSize: '13px',
-                marginBottom: 4,
+                fontSize: '10px',
+                height: 24,
+                width: '100%',
+                backgroundColor: record.density_15c ? '#f0f0f0' : undefined,
+                borderColor: record.density_15c ? '#d9d9d9' : undefined,
+                color: record.density_15c ? '#8c8c8c' : undefined,
               }}
             >
-              {record.density_15c.toFixed(4)}
-            </div>
-          ) : null}
-
-          <Button
-            type={record.density_15c ? 'default' : 'primary'}
+              {record.density_15c ? 'Recalc' : 'Calc API'}
+            </Button>
+          </div>
+        ),
+      },
+      {
+        title: 'Batch Density @15 °C',
+        key: 'batch_density_15c',
+        width: 140,
+        render: (_, record, index) => (
+          <InputNumber
             size="small"
-            icon={<ThunderboltOutlined />}
-            onClick={() => handleCalculateDensity15C(type, index)}
-            disabled={
-              readOnly ||
-              !record.temperature_observed ||
-              !record.density_observed ||
-              calculatingDensityKey === `${type}-${index}`
+            value={record.batch_density_15c}
+            disabled={readOnly}
+            onChange={(value) =>
+              updateRecord(type, index, 'batch_density_15c', value)
             }
-            loading={calculatingDensityKey === `${type}-${index}`}
+            placeholder="Enter batch density"
+            style={{ width: '100%' }}
+            precision={4}
+          />
+        ),
+      },
+      {
+        title: 'Diff (Max 0,003 kg/cm3)',
+        key: 'diff',
+        width: 160,
+        render: (_, record) => (
+          <div
             style={{
-              fontSize: '10px',
-              height: 24,
-              width: '100%',
-              backgroundColor: record.density_15c ? '#f0f0f0' : undefined,
-              borderColor: record.density_15c ? '#d9d9d9' : undefined,
-              color: record.density_15c ? '#8c8c8c' : undefined,
+              textAlign: 'center',
+              fontWeight: 500,
+              color:
+                record.diff !== null && record.diff !== undefined
+                  ? '#52c41a'
+                  : '#d9d9d9',
             }}
           >
-            {record.density_15c ? 'Recalc' : 'Calc API'}
-          </Button>
-        </div>
-      ),
-    },
-    {
-      title: 'Batch Density @15 °C',
-      key: 'batch_density_15c',
-      width: 140,
-      render: (_, record, index) => (
-        <InputNumber
-          size="small"
-          value={record.batch_density_15c}
-          disabled={readOnly}
-          onChange={(value) =>
-            updateRecord(type, index, 'batch_density_15c', value)
-          }
-          placeholder="Enter batch density"
-          style={{ width: '100%' }}
-          precision={4}
-        />
-      ),
-    },
-    {
-      title: 'Diff (Max 0,003 kg/cm3)',
-      key: 'diff',
-      width: 160,
-      render: (_, record) => (
-        <div
-          style={{
-            textAlign: 'center',
-            fontWeight: 500,
-            color:
-              record.diff !== null && record.diff !== undefined
-                ? '#52c41a'
-                : '#d9d9d9',
-          }}
-        >
-          {record.diff !== null && record.diff !== undefined
-            ? record.diff.toLocaleString(undefined, {
+            {record.diff !== null && record.diff !== undefined
+              ? record.diff.toLocaleString(undefined, {
                 maximumFractionDigits: 3,
               })
-            : '-'}
-        </div>
-      ),
-    },
-  ];
+              : '-'}
+          </div>
+        ),
+      },
+    ];
 
   const handleSubmit = async () => {
     if (submitting) {

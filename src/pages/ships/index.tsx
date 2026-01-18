@@ -171,17 +171,36 @@ const ProductQCPdfDocument = React.forwardRef<
   const starboardRecords = data.starboard_data || [];
   const coqDetails = data.coq_details || [];
 
+  const accentColor = '#0f7c0f';
+  const subtleStroke = '#e2e8d8';
+
   const baseCellStyle: React.CSSProperties = {
-    border: '1px solid #e8e8e8',
-    padding: '6px 8px',
+    border: `1px solid ${subtleStroke}`,
+    padding: '7px 8px',
     textAlign: 'center',
-    fontSize: 12,
+    fontSize: 10,
+    lineHeight: 1.3,
   };
 
   const headerCellStyle: React.CSSProperties = {
     ...baseCellStyle,
-    backgroundColor: '#fafafa',
+    backgroundColor: '#f6fbf6',
+    fontWeight: 700,
+    color: '#0a360a',
+  };
+
+  const labelCellStyle: React.CSSProperties = {
+    ...baseCellStyle,
+    textAlign: 'left',
     fontWeight: 600,
+    backgroundColor: '#f6fbf6',
+  };
+
+  const colonCellStyle: React.CSSProperties = {
+    ...baseCellStyle,
+    width: 14,
+    textAlign: 'center',
+    fontWeight: 700,
   };
 
   const formatNumber = (value: unknown, fractionDigits = 3) => {
@@ -196,15 +215,22 @@ const ProductQCPdfDocument = React.forwardRef<
 
     return numeric.toLocaleString(undefined, {
       maximumFractionDigits: fractionDigits,
+      minimumFractionDigits: fractionDigits,
     });
   };
 
-  const renderCompartmentRows = (records: PortStarboardRecord[]) =>
+  const formatDate = (value: unknown) => {
+    if (!value) return '-';
+    const parsed = dayjs(value);
+    return parsed.isValid() ? parsed.format('DD MMM YYYY') : '-';
+  };
+
+  const renderPortRows = (records: PortStarboardRecord[]) =>
     records.map((record, index) => (
-      <tr key={`${record.id ?? index}-${index}`}>
-        <td style={{ ...baseCellStyle, fontWeight: 600 }}>{index + 1}</td>
-        <td style={baseCellStyle}>{record.free_water || '-'}</td>
-        <td style={baseCellStyle}>{record.suspended_water || '-'}</td>
+      <tr key={`port-${record.id ?? index}-${index}`}>
+        <td style={{ ...baseCellStyle, fontWeight: 700 }}>{index + 1}</td>
+        <td style={baseCellStyle}>{record.free_water || 'N'}</td>
+        <td style={baseCellStyle}>{record.suspended_water || 'N'}</td>
         <td style={baseCellStyle}>
           {formatNumber(record.electrical_conductivity, 0)}
         </td>
@@ -215,289 +241,381 @@ const ProductQCPdfDocument = React.forwardRef<
           {formatNumber(record.density_observed, 4)}
         </td>
         <td style={baseCellStyle}>{formatNumber(record.density_15c, 4)}</td>
-        <td style={baseCellStyle}>{formatNumber(record.volume_liters, 3)}</td>
         <td style={baseCellStyle}>
-          {formatNumber(record.dens_15c_x_volume, 3)}
+          {formatNumber(record.batch_density_15c, 4)}
+        </td>
+        <td style={{ ...baseCellStyle, fontWeight: 600, color: '#0a360a' }}>
+          {record.diff !== null && record.diff !== undefined
+            ? record.diff.toFixed(3)
+            : '-'}
         </td>
       </tr>
     ));
 
-  const hasCoqDetail = coqDetails.some(
-    (detail) => detail.coq_no || detail.issuance_date,
-  );
+  const renderStarboardRows = (records: PortStarboardRecord[]) =>
+    records.map((record, index) => (
+      <tr key={`starboard-${record.id ?? index}-${index}`}>
+        <td style={{ ...baseCellStyle, fontWeight: 700 }}>{index + 1}</td>
+        <td style={baseCellStyle}>{record.free_water || 'N'}</td>
+        <td style={baseCellStyle}>{record.suspended_water || 'N'}</td>
+        <td style={baseCellStyle}>
+          {formatNumber(record.electrical_conductivity, 0)}
+        </td>
+        <td style={baseCellStyle}>
+          {formatNumber(record.temperature_observed, 1)}
+        </td>
+        <td style={baseCellStyle}>
+          {formatNumber(record.density_observed, 4)}
+        </td>
+        <td style={baseCellStyle}>{formatNumber(record.density_15c, 4)}</td>
+        <td style={{ ...baseCellStyle, fontWeight: 600, color: '#0a360a' }}>
+          {record.diff !== null && record.diff !== undefined
+            ? record.diff.toFixed(3)
+            : '-'}
+        </td>
+      </tr>
+    ));
 
   return (
     <div
       ref={ref}
       style={{
-        width: '210mm',
-        minHeight: '297mm',
-        padding: '20mm',
+        width: '297mm',
+        minHeight: '210mm',
+        padding: '12mm 14mm',
         backgroundColor: '#ffffff',
-        color: '#262626',
+        color: '#1f1f1f',
         fontFamily:
-          'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
-        lineHeight: 1.4,
+          '"Source Sans Pro", Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+        lineHeight: 1.45,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
       }}
     >
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: 0.2 }}>
+            PRODUCT QUALITY CHECK COMPARTEMENT TANKER
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#0a360a' }}>
+            BEFORE DISCHARGE
+          </div>
+          <div style={{ fontSize: 11, color: '#444', marginTop: 4 }}>
+            {safeText(ship.name)}{' '}
+            {ship.code ? `(${safeText(ship.code)}) • ` : ''}
+            {safeText(ship.cargoType)}
+          </div>
+        </div>
+        <div
+          style={{
+            textAlign: 'right',
+            fontSize: 10,
+            color: '#666',
+            lineHeight: 1.4,
+          }}
+        >
+          <div>Generated: {formatDateTime(new Date().toISOString())}</div>
+          <div>Location: {safeText(ship.portLocation) || '-'}</div>
+        </div>
+      </div>
+
+      <div style={{ border: `1.2px solid ${accentColor}` }}>
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            fontSize: 10,
+          }}
+        >
+          <tbody>
+            {[
+              {
+                label: 'Name of Tanker',
+                value: safeText(data.name_of_tanker || ship.name),
+              },
+              {
+                label: 'Arrival Date',
+                value: formatDate(
+                  data.arrival_date || ship.arrivalDate || undefined,
+                ),
+              },
+              {
+                label: 'Quantity in Batch',
+                value: `${formatNumber(data.quantity_in_batch, 0)} Ltr Observed`,
+              },
+              {
+                label: 'Refinery / Terminal',
+                value:
+                  safeText(data.refinery_terminal) ||
+                  safeText(ship.portLocation),
+              },
+              {
+                label: 'Grade of Product',
+                value: safeText(data.grade_of_product || ship.cargoType),
+              },
+            ].map((row, idx) => (
+              <tr key={row.label}>
+                <td style={{ ...labelCellStyle, width: '18%' }}>
+                  {row.label}
+                </td>
+                <td style={colonCellStyle}>:</td>
+                <td style={{ ...baseCellStyle, textAlign: 'left', width: '35%' }}>
+                  {row.value}
+                </td>
+                {idx < 4 ? (
+                  <>
+                    <td style={{ ...labelCellStyle, width: '14%' }}>
+                      {`CoQ (${idx + 1}) No.`}
+                    </td>
+                    <td style={colonCellStyle}>:</td>
+                    <td style={{ ...baseCellStyle, textAlign: 'left', width: '16%' }}>
+                      {safeText(coqDetails[idx]?.coq_no) || '-'}
+                    </td>
+                    <td style={{ ...labelCellStyle, width: '13%' }}>
+                      Issuance Date
+                    </td>
+                    <td style={colonCellStyle}>:</td>
+                    <td style={{ ...baseCellStyle, textAlign: 'left', width: '14%' }}>
+                      {formatDate(coqDetails[idx]?.issuance_date)}
+                    </td>
+                  </>
+                ) : (
+                  <td style={{ ...baseCellStyle }} colSpan={6} />
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {calculations ? (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+            gap: 8,
+            fontSize: 10,
+            border: `1.2px solid ${accentColor}`,
+            padding: '6px 10px',
+            background: '#f8fff6',
+          }}
+        >
+          {[
+            {
+              label: 'Total (Dens@15°C x Volume)',
+              value: formatNumber(calculations.total_volume_dens_15c, 3),
+            },
+            {
+              label: 'Total Volume (L)',
+              value: formatNumber(calculations.total_volume, 3),
+            },
+            {
+              label: 'Expected Density (kg/m3)',
+              value: formatNumber(calculations.expected_density, 1),
+            },
+            {
+              label: 'Refinery Cert. Density (kg/m3)',
+              value: formatNumber(calculations.refinery_certificate_density, 1),
+            },
+            {
+              label: 'Density Diff (Max 3)',
+              value: formatNumber(calculations.density_difference, 1),
+            },
+          ].map((item) => (
+            <div key={item.label} style={{ display: 'flex', gap: 6 }}>
+              <strong style={{ minWidth: 28, color: '#0a360a' }}>•</strong>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700 }}>{item.label}</div>
+                <div style={{ color: '#333' }}>{item.value}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div style={{ border: `1.4px solid ${accentColor}` }}>
+        <div
+          style={{
+            padding: '8px 10px',
+            fontWeight: 700,
+            background: '#f6fbf6',
+            borderBottom: `1px solid ${subtleStroke}`,
+          }}
+        >
+          PORT
+        </div>
+        <table
+          style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}
+        >
+          <thead>
+            <tr>
+              <th style={{ ...headerCellStyle, width: 50 }} rowSpan={2}>
+                #
+              </th>
+              <th style={{ ...headerCellStyle, width: 140 }} colSpan={2}>
+                WATER CHECK
+              </th>
+              <th style={{ ...headerCellStyle, width: 120 }} rowSpan={2}>
+                Electrical Conductivity (p.S/m)
+              </th>
+              <th style={{ ...headerCellStyle, width: 120 }} rowSpan={2}>
+                Temperature Observed (°C)
+              </th>
+              <th style={{ ...headerCellStyle, width: 120 }} rowSpan={2}>
+                Density Observed (Kg/l)
+              </th>
+              <th style={{ ...headerCellStyle, width: 120 }} rowSpan={2}>
+                Density @15 °C Control Check
+              </th>
+              <th style={{ ...headerCellStyle, width: 120 }} rowSpan={2}>
+                Batch Density @15 °C
+              </th>
+              <th style={{ ...headerCellStyle, width: 110 }} rowSpan={2}>
+                Diff. <br />
+                <span style={{ fontWeight: 500 }}>Max 0,003 kg/cm3</span>
+              </th>
+            </tr>
+            <tr>
+              <th style={{ ...headerCellStyle, background: '#e8f4e8' }}>
+                Free Water
+              </th>
+              <th style={{ ...headerCellStyle, background: '#e8f4e8' }}>
+                Suspended Water
+              </th>
+            </tr>
+          </thead>
+          <tbody>{renderPortRows(portRecords)}</tbody>
+        </table>
+        <div
+          style={{
+            padding: '8px 10px',
+            borderTop: `1px solid ${subtleStroke}`,
+            fontSize: 10,
+            background: '#fafdf8',
+            display: 'flex',
+            gap: 8,
+          }}
+        >
+          <strong style={{ minWidth: 52 }}>Notes:</strong>
+          <span>{safeText(data.port_note) || '-'}</span>
+        </div>
+      </div>
+
+      <div style={{ border: `1.4px solid ${accentColor}` }}>
+        <div
+          style={{
+            padding: '8px 10px',
+            fontWeight: 700,
+            background: '#f6fbf6',
+            borderBottom: `1px solid ${subtleStroke}`,
+          }}
+        >
+          STARBOARD
+        </div>
+        <table
+          style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}
+        >
+          <thead>
+            <tr>
+              <th style={{ ...headerCellStyle, width: 50 }} rowSpan={2}>
+                #
+              </th>
+              <th style={{ ...headerCellStyle, width: 140 }} colSpan={2}>
+                WATER CHECK
+              </th>
+              <th style={{ ...headerCellStyle, width: 120 }} rowSpan={2}>
+                Electrical Conductivity (p.S/m)
+              </th>
+              <th style={{ ...headerCellStyle, width: 120 }} rowSpan={2}>
+                Temperature Observed (°C)
+              </th>
+              <th style={{ ...headerCellStyle, width: 120 }} rowSpan={2}>
+                Density Observed (Kg/l)
+              </th>
+              <th style={{ ...headerCellStyle, width: 120 }} rowSpan={2}>
+                Density @15 °C
+              </th>
+              <th style={{ ...headerCellStyle, width: 110 }} rowSpan={2}>
+                Diff. <br />
+                <span style={{ fontWeight: 500 }}>Max 0,003 kg/cm3</span>
+              </th>
+            </tr>
+            <tr>
+              <th style={{ ...headerCellStyle, background: '#e8f4e8' }}>
+                Free Water
+              </th>
+              <th style={{ ...headerCellStyle, background: '#e8f4e8' }}>
+                Suspended Water
+              </th>
+            </tr>
+          </thead>
+          <tbody>{renderStarboardRows(starboardRecords)}</tbody>
+        </table>
+        <div
+          style={{
+            padding: '8px 10px',
+            borderTop: `1px solid ${subtleStroke}`,
+            fontSize: 10,
+            background: '#fafdf8',
+            display: 'flex',
+            gap: 8,
+          }}
+        >
+          <strong style={{ minWidth: 52 }}>Notes:</strong>
+          <span>{safeText(data.starboard_note) || '-'}</span>
+        </div>
+      </div>
+
+      <div
+        style={{
+          border: `1.2px dashed ${accentColor}`,
+          padding: '10px 12px',
+          fontSize: 10,
+          background: '#f8fff6',
+          display: 'flex',
+          gap: 12,
+        }}
+      >
+        <strong>Note for Water Check:</strong>
+        <span style={{ whiteSpace: 'nowrap' }}>(N) Negative: No Water</span>
+        <span style={{ whiteSpace: 'nowrap' }}>
+          (P) Positive: Found Water
+        </span>
+      </div>
+
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          borderBottom: '1px solid #e8e8e8',
-          paddingBottom: 12,
-          marginBottom: 16,
+          alignItems: 'flex-start',
+          fontSize: 10,
+          marginTop: 8,
         }}
       >
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#111' }}>
-            PRODUCT QUALITY CHECK – BEFORE DISCHARGE
+        <div style={{ maxWidth: '50%' }}>
+          <div>
+            {safeText(ship.portLocation) || '______'},{' '}
+            {formatDate(data.arrival_date || ship.arrivalDate || new Date())}
           </div>
-          <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-            Kapal: <strong>{safeText(ship.name)}</strong>{' '}
-            {ship.code ? `(${safeText(ship.code)})` : ''} • Muatan:{' '}
-            <strong>{safeText(ship.cargoType)}</strong>
-          </div>
-          <div style={{ fontSize: 12, color: '#666' }}>
-            Kedatangan: {formatDateTime(ship.arrivalDate ?? undefined)} •
-            Lokasi: {safeText(ship.portLocation)}
+          <div style={{ marginTop: 12 }}>Quality Check By:</div>
+          <div style={{ fontWeight: 700 }}>
+            {safeText(ship.company) || 'PT Pertamina Patra Niaga'}
           </div>
         </div>
-        <div style={{ fontSize: 12, color: '#666', textAlign: 'right' }}>
-          Generated at {formatDateTime(new Date().toISOString())}
-        </div>
-      </div>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
-        <div style={{ border: '1px solid #e8e8e8', borderRadius: 8 }}>
-          <div
-            style={{
-              padding: '10px 12px',
-              borderBottom: '1px solid #e8e8e8',
-              fontWeight: 600,
-            }}
-          >
-            Informasi Kapal
-          </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            {[{
-              label: 'Nama Kapal',
-              value: safeText(ship.name),
-            },
-            {
-              label: 'Tanggal Kedatangan',
-              value: formatDateTime(ship.arrivalDate ?? undefined),
-            },
-            {
-              label: 'Kapasitas',
-              value: `${formatNumber(ship.capacity, 0)} KL`,
-            },
-            {
-              label: 'Bendera',
-              value: safeText(ship.flag),
-            },
-            {
-              label: 'Perusahaan',
-              value: safeText(ship.company),
-            },
-            {
-              label: 'Kapten',
-              value: safeText(ship.captainName),
-            },
-            {
-              label: 'Pelabuhan Asal',
-              value: safeText(ship.originPort),
-            },
-            {
-              label: 'Pelabuhan Tujuan',
-              value: safeText(ship.destinationPort),
-            }].map((row) => (
-              <tr key={row.label}>
-                <td
-                  style={{
-                    ...baseCellStyle,
-                    textAlign: 'left',
-                    width: '45%',
-                    backgroundColor: '#fafafa',
-                    fontWeight: 600,
-                  }}
-                >
-                  {row.label}
-                </td>
-                <td style={{ ...baseCellStyle, textAlign: 'left' }}>
-                  {row.value}
-                </td>
-              </tr>
-            ))}
-          </table>
-        </div>
-
-        <div style={{ border: '1px solid #e8e8e8', borderRadius: 8 }}>
-          <div
-            style={{
-              padding: '10px 12px',
-              borderBottom: '1px solid #e8e8e8',
-              fontWeight: 600,
-            }}
-          >
-            Ringkasan Perhitungan
-          </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            {[{
-              label: 'Total (Dens@15°C × Volume)',
-              value: formatNumber(calculations?.total_volume_dens_15c, 3),
-            },
-            {
-              label: 'Total Volume',
-              value: `${formatNumber(calculations?.total_volume, 3)} L`,
-            },
-            {
-              label: 'Expected Density',
-              value: `${formatNumber(calculations?.expected_density, 1)} kg/m³`,
-            },
-            {
-              label: 'Refinery Certificate Density',
-              value: `${formatNumber(
-                calculations?.refinery_certificate_density,
-                1,
-              )} kg/m³`,
-            },
-            {
-              label: 'Difference (Max 3)',
-              value: `${formatNumber(calculations?.density_difference, 1)} kg/m³`,
-            }].map((row) => (
-              <tr key={row.label}>
-                <td
-                  style={{
-                    ...baseCellStyle,
-                    textAlign: 'left',
-                    width: '65%',
-                    backgroundColor: '#fafafa',
-                    fontWeight: 600,
-                  }}
-                >
-                  {row.label}
-                </td>
-                <td style={{ ...baseCellStyle, textAlign: 'left' }}>
-                  {row.value}
-                </td>
-              </tr>
-            ))}
-          </table>
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
-          Port Compartment
-        </div>
-        <table
-          style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}
-        >
-          <thead>
-            <tr>
-              {['#', 'Free Water', 'Suspended Water', 'EC (µS/m)', 'Temp (°C)', 'Density Obs', 'Density @15°C', 'Volume (L)', 'D15 × V'].map(
-                (header) => (
-                  <th key={header} style={headerCellStyle}>
-                    {header}
-                  </th>
-                ),
-              )}
-            </tr>
-          </thead>
-          <tbody>{renderCompartmentRows(portRecords)}</tbody>
-        </table>
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
-          Starboard Compartment
-        </div>
-        <table
-          style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}
-        >
-          <thead>
-            <tr>
-              {['#', 'Free Water', 'Suspended Water', 'EC (µS/m)', 'Temp (°C)', 'Density Obs', 'Density @15°C', 'Volume (L)', 'D15 × V'].map(
-                (header) => (
-                  <th key={header} style={headerCellStyle}>
-                    {header}
-                  </th>
-                ),
-              )}
-            </tr>
-          </thead>
-          <tbody>{renderCompartmentRows(starboardRecords)}</tbody>
-        </table>
-      </div>
-
-      {hasCoqDetail ? (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
-            Certificate of Quality
-          </div>
-          <table
-            style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}
-          >
-            <thead>
-              <tr>
-                <th style={headerCellStyle}>No</th>
-                <th style={headerCellStyle}>COQ Number</th>
-                <th style={headerCellStyle}>Issuance Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {coqDetails.map((detail, index) => (
-                <tr key={`coq-${index}`}>
-                  <td style={baseCellStyle}>{index + 1}</td>
-                  <td style={baseCellStyle}>{detail.coq_no || '-'}</td>
-                  <td style={baseCellStyle}>
-                    {detail.issuance_date
-                      ? formatDateTime(detail.issuance_date)
-                      : '-'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
-
-      <div style={{ display: 'flex', gap: 16 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-            Catatan Port
+        <div style={{ textAlign: 'center', minWidth: 200 }}>
+          <div style={{ marginBottom: 36, fontWeight: 600 }}>
+            Sampling Officer,
           </div>
           <div
             style={{
-              border: '1px solid #e8e8e8',
-              minHeight: 80,
-              padding: 8,
+              borderTop: `1px solid ${subtleStroke}`,
+              paddingTop: 6,
+              fontWeight: 700,
+              minHeight: 18,
             }}
-          >
-            {safeText(data.port_note) || '-'}
-          </div>
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-            Catatan Starboard
-          </div>
-          <div
-            style={{
-              border: '1px solid #e8e8e8',
-              minHeight: 80,
-              padding: 8,
-            }}
-          >
-            {safeText(data.starboard_note) || '-'}
-          </div>
+          />
+          <div style={{ fontSize: 9, color: '#666' }}>Name &amp; Sign</div>
         </div>
       </div>
     </div>
@@ -1173,20 +1291,21 @@ const Ships: React.FC = () => {
           useCORS: true,
         });
         const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdf = new jsPDF('l', 'mm', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         let heightLeft = pdfHeight;
         let position = 0;
 
         pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pdf.internal.pageSize.getHeight();
+        heightLeft -= pageHeight;
 
         while (heightLeft > 0) {
           position = heightLeft - pdfHeight;
           pdf.addPage();
           pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-          heightLeft -= pdf.internal.pageSize.getHeight();
+          heightLeft -= pageHeight;
         }
 
         const normalizedName = safeText(ship.name || '')
