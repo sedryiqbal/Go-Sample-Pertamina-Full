@@ -102,12 +102,12 @@ export default [
     icon: 'car',
     component: './shipping',
   },
-  // {
-  //   path: '/estimate-scheduling-sample',
-  //   name: 'Estimate Scheduling Sample',
-  //   icon: 'shopping',
-  //   component: './estimate-scheduling-sample',
-  // },
+  {
+    path: '/estimate-scheduling-sample',
+    name: 'Estimate Scheduling Sample',
+    icon: 'shopping',
+    component: './estimate-scheduling-sample',
+  },
   {
     path: '/laboratory',
     name: 'Laboratorium',
@@ -166,12 +166,12 @@ export default [
       },
     ],
   },
-  // {
-  //   path: '/reports',
-  //   name: 'reports',
-  //   icon: 'download',
-  //   component: './reports',
-  // },
+  {
+    path: '/reports',
+    name: 'reports',
+    icon: 'download',
+    component: './reports',
+  },
   {
     path: '/',
     redirect: '/dashboard',
