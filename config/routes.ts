@@ -102,12 +102,12 @@ export default [
     icon: 'car',
     component: './shipping',
   },
-  {
-    path: '/estimate-scheduling-sample',
-    name: 'Estimate Scheduling Sample',
-    icon: 'shopping',
-    component: './estimate-scheduling-sample',
-  },
+  // {
+  //   path: '/estimate-scheduling-sample',
+  //   name: 'Estimate Scheduling Sample',
+  //   icon: 'shopping',
+  //   component: './estimate-scheduling-sample',
+  // },
   {
     path: '/laboratory',
     name: 'Laboratorium',
